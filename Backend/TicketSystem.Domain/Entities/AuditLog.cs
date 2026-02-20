@@ -1,17 +1,19 @@
 using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Entities
 {
+    /// <summary>
+    /// Entity lưu lịch sử thao tác của người dùng (Audit Trail)
+    /// </summary>
     public class AuditLog : BaseEntity
     {
-        public string Action { get; set; } = string.Empty; // Create, Update, Cancel, CheckIn
-        public string EntityName { get; set; } = string.Empty; // Ticket, Event, User
-        public string EntityId { get; set; } = string.Empty;
-        public Guid? UserId { get; set; } // Người thực hiện thao tác
-        public string Details { get; set; } = string.Empty; // Mô tả chi tiết (ví dụ: "Hủy vé do khách yêu cầu")
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public string Action { get; set; } = string.Empty; // Create, Update, Delete, Cancel, CheckIn, Refund
+        public string EntityType { get; set; } = string.Empty; // Event, Ticket, User
+        public Guid EntityId { get; set; }
+        public string PerformedBy { get; set; } = string.Empty; // Username hoặc UserId
+        public string? Details { get; set; } // Mô tả chi tiết (JSON string)
         public string? IpAddress { get; set; }
     }
 }

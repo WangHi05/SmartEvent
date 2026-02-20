@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Calendar, QrCode, Users, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut } from 'lucide-react';
 
 const Sidebar = ({ activeTab, setActiveTab, sidebarOpen }) => {
   const menuItems = [
@@ -7,6 +7,7 @@ const Sidebar = ({ activeTab, setActiveTab, sidebarOpen }) => {
     { id: 'events', label: 'Quản lý Sự kiện', icon: Calendar },
     { id: 'tickets', label: 'Vé & Soát vé', icon: QrCode },
     { id: 'users', label: 'Người dùng', icon: Users },
+    { id: 'audit-logs', label: 'Lịch sử thao tác', icon: FileText },
     { id: 'settings', label: 'Cấu hình', icon: Settings },
   ];
 

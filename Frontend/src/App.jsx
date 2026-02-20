@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
+import { ConfigProvider } from 'antd';
+import viVN from 'antd/locale/vi_VN';
 import AdminLayout from './layout/AdminLayout';
 import DashboardView from './features/dashboard/DashboardView';
-import EventListView from './features/events/EventListView';
+import { EventList } from './features/admin/events';
+import { SettingsPage } from './features/admin/settings';
+import { AuditLogsView } from './features/admin/audit-logs';
+import { UserList } from './features/admin/users';
 import { Settings } from 'lucide-react';
 
 function App() {
@@ -14,10 +19,14 @@ function App() {
       case 'dashboard':
         return <DashboardView />;
       case 'events':
-        return <EventListView />;
-      case 'tickets':
-      case 'users':
+        return <EventList />;
       case 'settings':
+        return <SettingsPage />;
+      case 'users':
+        return <UserList />;
+      case 'audit-logs':
+        return <AuditLogsView />;
+      case 'tickets':
         return (
           <div className="flex flex-col items-center justify-center h-96 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
             <Settings size={48} className="mb-4 text-gray-300" />
@@ -31,15 +40,16 @@ function App() {
   };
 
   return (
-    <AdminLayout 
-      activeTab={activeTab} 
-      setActiveTab={setActiveTab}
-      sidebarOpen={sidebarOpen}
-      setSidebarOpen={setSidebarOpen}
-    >
-      {/* Render nội dung động */}
-      {renderContent()}
-    </AdminLayout>
+    <ConfigProvider locale={viVN}>
+      <AdminLayout 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+      >
+        {renderContent()}
+      </AdminLayout>
+    </ConfigProvider>
   );
 }
 

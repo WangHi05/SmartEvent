@@ -1,6 +1,53 @@
 @TicketSystem.API_HostAddress = http://localhost:5013
 
-GET {{TicketSystem.API_HostAddress}}/weatherforecast/
+### Get all events
+GET {{TicketSystem.API_HostAddress}}/api/events
 Accept: application/json
+X-User-Role: Admin
 
-###
+### Get event by ID
+GET {{TicketSystem.API_HostAddress}}/api/events/{{eventId}}
+Accept: application/json
+X-User-Role: Admin
+
+### Create new event
+POST {{TicketSystem.API_HostAddress}}/api/events
+Content-Type: application/json
+X-User-Role: Admin
+
+{
+  "name": "Test Event",
+  "description": "Test Description",
+  "location": "Test Location",
+  "startTime": "2026-03-20T09:00:00",
+  "endTime": "2026-03-20T17:00:00",
+  "maxCapacity": 100,
+  "basePrice": 100000,
+  "cancellationDeadlineHours": 24
+}
+
+### Get all users
+GET {{TicketSystem.API_HostAddress}}/api/users
+Accept: application/json
+X-User-Role: Admin
+
+### Get settings
+GET {{TicketSystem.API_HostAddress}}/api/settings
+Accept: application/json
+X-User-Role: Admin
+
+### Get audit logs
+GET {{TicketSystem.API_HostAddress}}/api/auditlogs
+Accept: application/json
+X-User-Role: Admin
+
+### Cancel ticket
+POST {{TicketSystem.API_HostAddress}}/api/tickets/cancel
+Content-Type: application/json
+X-User-Role: Admin
+
+{
+  "ticketId": "{{ticketId}}",
+  "reason": "Customer request",
+  "refundStrategyType": "FullRefund"
+}

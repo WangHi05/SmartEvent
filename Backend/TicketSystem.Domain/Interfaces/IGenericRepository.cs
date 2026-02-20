@@ -1,21 +1,23 @@
- using System;
+using System;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 using System.Threading.Tasks;
- using TicketSystem.Domain.Common;
-
+using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Interfaces
 {
     /// <summary>
     /// Repository Pattern mẫu để dùng chung cho tất cả thực thể
+    /// Cung cấp các operations CRUD cơ bản và query
     /// </summary>
     public interface IGenericRepository<T> where T : BaseEntity
     {
         Task<T?> GetByIdAsync(Guid id);
         Task<IEnumerable<T>> GetAllAsync();
-        Task AddAsync(T entity);
-        void Update(T entity);
-        void Delete(T entity);
+        Task<T> AddAsync(T entity);
+        Task<T> UpdateAsync(T entity);
+        Task<bool> DeleteAsync(Guid id);
+        Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
     }
 
      public interface IUnitOfWork : IDisposable
