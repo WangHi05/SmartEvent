@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TicketSystem.Application.DTOs
 {
-    /// <summary>
+    
     /// DTO cho Response User
-    /// </summary>
+    
     public class UserResponseDto
     {
         public Guid Id { get; set; }
@@ -17,9 +17,9 @@ namespace TicketSystem.Application.DTOs
         public DateTime CreatedAt { get; set; }
     }
 
-    /// <summary>
+    
     /// DTO cho tạo User mới
-    /// </summary>
+    
     public class CreateUserDto
     {
         [Required(ErrorMessage = "Username là bắt buộc")]
@@ -43,9 +43,9 @@ namespace TicketSystem.Application.DTOs
         public string Role { get; set; } = string.Empty;
     }
 
-    /// <summary>
+    
     /// DTO cho cập nhật User
-    /// </summary>
+    
     public class UpdateUserDto
     {
         [Required]
@@ -66,9 +66,9 @@ namespace TicketSystem.Application.DTOs
         public string? NewPassword { get; set; } // Optional - chỉ update nếu có giá trị
     }
 
-    /// <summary>
+    
     /// DTO cho danh sách User với phân trang
-    /// </summary>
+    
     public class UserListDto
     {
         public List<UserResponseDto> Items { get; set; } = new List<UserResponseDto>();

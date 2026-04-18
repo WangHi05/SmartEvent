@@ -4,10 +4,10 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Strategies
 {
-    /// <summary>
+    
     /// Chính sách hoàn tiền 100%
     /// Áp dụng: Hủy vé trước thời hạn quy định (ví dụ: trước 48h)
-    /// </summary>
+    
     public class FullRefundStrategy : IRefundStrategy
     {
         public string PolicyName => "Full Refund";

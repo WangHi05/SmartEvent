@@ -4,10 +4,10 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Strategies
 {
-    /// <summary>
+    
     /// Chính sách hoàn tiền một phần (theo bậc thang thời gian)
     /// Áp dụng: Hoàn tiền theo % khác nhau tùy thời điểm hủy
-    /// </summary>
+    
     public class PartialRefundStrategy : IRefundStrategy
     {
         public string PolicyName => "Partial Refund";

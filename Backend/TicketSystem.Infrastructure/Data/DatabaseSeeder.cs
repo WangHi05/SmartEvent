@@ -10,9 +10,9 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Infrastructure.Data
 {
-    /// <summary>
+    
     /// Database Seeder - Tự động seed data khi database rỗng
-    /// </summary>
+    
     public class DatabaseSeeder
     {
         private readonly ApplicationDbContext _context;
@@ -24,9 +24,9 @@ namespace TicketSystem.Infrastructure.Data
             _logger = logger;
         }
 
-        /// <summary>
+        
         /// Seed initial data từ events-data.json
-        /// </summary>
+        
         public async Task SeedAsync()
         {
             try
@@ -94,9 +94,9 @@ namespace TicketSystem.Infrastructure.Data
             }
         }
 
-        /// <summary>
+        
         /// Seed default events nếu không tìm thấy JSON file
-        /// </summary>
+        
         private async Task SeedDefaultEventsAsync()
         {
             var defaultEvents = new[]
@@ -148,9 +148,9 @@ namespace TicketSystem.Infrastructure.Data
             _logger.LogInformation("Seeded {Count} default events", defaultEvents.Length);
         }
 
-        /// <summary>
+        
         /// DTO để deserialize JSON
-        /// </summary>
+        
         private class EventSeedDto
         {
             public string Name { get; set; } = string.Empty;

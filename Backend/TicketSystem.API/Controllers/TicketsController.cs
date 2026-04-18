@@ -4,9 +4,9 @@ using TicketSystem.Application.Services;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
+    
     /// Controller quản lý Tickets - Hủy vé, hoàn tiền
-    /// </summary>
+    
     [ApiController]
     [Route("api/[controller]")]
     public class TicketsController : ControllerBase
@@ -20,9 +20,9 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
+        
         /// Hủy vé và xử lý hoàn tiền
-        /// </summary>
+        
         [HttpPost("cancel")]
         public async Task<ActionResult<CancelTicketResponseDto>> CancelTicket([FromBody] CancelTicketDto dto)
         {
@@ -46,9 +46,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Lấy danh sách các chính sách hoàn tiền khả dụng
-        /// </summary>
+        
         [HttpGet("refund-policies")]
         public ActionResult<List<RefundPolicyInfo>> GetRefundPolicies()
         {

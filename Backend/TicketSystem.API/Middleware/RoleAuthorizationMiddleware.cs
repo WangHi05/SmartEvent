@@ -2,10 +2,10 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.API.Middleware
 {
-    /// <summary>
+    
     /// Middleware kiểm tra quyền truy cập cơ bản
     /// Trong thực tế nên sử dụng ASP.NET Core Identity hoặc JWT Authentication
-    /// </summary>
+    
     public class RoleAuthorizationMiddleware
     {
         private readonly RequestDelegate _next;
@@ -67,9 +67,9 @@ namespace TicketSystem.API.Middleware
         }
     }
 
-    /// <summary>
+    
     /// Extension method để đăng ký middleware
-    /// </summary>
+    
     public static class RoleAuthorizationMiddlewareExtensions
     {
         public static IApplicationBuilder UseRoleAuthorization(this IApplicationBuilder builder)

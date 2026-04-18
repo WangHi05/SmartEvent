@@ -4,9 +4,7 @@ using TicketSystem.Application.Services;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
     /// Controller quản lý Events - CRUD operations
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class EventsController : ControllerBase
@@ -20,11 +18,7 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
         /// Lấy danh sách Events với phân trang
-        /// </summary>
-        /// <param name="pageNumber">Số trang (mặc định: 1)</param>
-        /// <param name="pageSize">Số item mỗi trang (mặc định: 10)</param>
         [HttpGet]
         public async Task<ActionResult<EventListDto>> GetEvents([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
         {
@@ -40,9 +34,7 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
         /// Lấy thông tin Event theo ID
-        /// </summary>
         [HttpGet("{id}")]
         public async Task<ActionResult<EventResponseDto>> GetEventById(Guid id)
         {
@@ -61,9 +53,7 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
         /// Tạo mới Event
-        /// </summary>
         [HttpPost]
         // [Authorize(Roles = "Admin,Manager")] // Uncomment khi đã có authentication
         public async Task<ActionResult<EventResponseDto>> CreateEvent([FromBody] CreateEventDto dto)
@@ -90,9 +80,7 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
         /// Cập nhật Event
-        /// </summary>
         [HttpPut("{id}")]
         // [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult<EventResponseDto>> UpdateEvent(Guid id, [FromBody] UpdateEventDto dto)
@@ -120,9 +108,8 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Xóa Event
-        /// </summary>
         [HttpDelete("{id}")]
         // [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteEvent(Guid id)

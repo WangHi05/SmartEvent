@@ -4,9 +4,9 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.DTOs
 {
-    /// <summary>
+    
     /// DTO cho yêu cầu hủy vé
-    /// </summary>
+    
     public class CancelTicketDto
     {
         [Required]
@@ -18,9 +18,9 @@ namespace TicketSystem.Application.DTOs
         public string? RefundStrategyType { get; set; } // Tên strategy: "Full", "Partial", "None"
     }
 
-    /// <summary>
+    
     /// DTO trả về kết quả hủy vé
-    /// </summary>
+    
     public class CancelTicketResponseDto
     {
         public bool Success { get; set; }
@@ -30,9 +30,9 @@ namespace TicketSystem.Application.DTOs
         public TicketStatus NewStatus { get; set; }
     }
 
-    /// <summary>
+    
     /// DTO cho cấu hình Settings hệ thống
-    /// </summary>
+    
     public class SystemSettingsDto
     {
         public string DefaultRefundStrategy { get; set; } = "Partial"; // Full, Partial, None
@@ -41,9 +41,9 @@ namespace TicketSystem.Application.DTOs
         public decimal RefundProcessingFeePercent { get; set; } = 0; // Phí xử lý hoàn tiền (%)
     }
 
-    /// <summary>
+    
     /// DTO cho Audit Log
-    /// </summary>
+    
     public class AuditLogDto
     {
         public Guid Id { get; set; }
@@ -56,9 +56,9 @@ namespace TicketSystem.Application.DTOs
         public string? IpAddress { get; set; }
     }
 
-    /// <summary>
+    
     /// DTO cho danh sách Audit Log với filter và phân trang
-    /// </summary>
+    
     public class AuditLogQueryDto
     {
         public DateTime? FromDate { get; set; }

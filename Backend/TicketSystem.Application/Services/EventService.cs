@@ -9,9 +9,9 @@ using TicketSystem.Domain.Interfaces;
 
 namespace TicketSystem.Application.Services
 {
-    /// <summary>
+    
     /// Service xử lý logic nghiệp vụ liên quan đến Event
-    /// </summary>
+    
     public class EventService
     {
         private readonly IGenericRepository<Event> _eventRepository;
@@ -28,9 +28,9 @@ namespace TicketSystem.Application.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        /// <summary>
+        
         /// Lấy danh sách Event với phân trang
-        /// </summary>
+        
         public async Task<EventListDto> GetEventsAsync(int pageNumber = 1, int pageSize = 10)
         {
             var events = await _eventRepository.GetAllAsync();
@@ -52,18 +52,18 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        /// <summary>
+        
         /// Lấy thông tin Event theo Id
-        /// </summary>
+        
         public async Task<EventResponseDto?> GetEventByIdAsync(Guid id)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(id);
             return eventEntity == null ? null : MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
+        
         /// Tạo mới Event
-        /// </summary>
+        
         public async Task<EventResponseDto> CreateEventAsync(CreateEventDto dto, string createdBy)
         {
             // Validate business rules
@@ -99,9 +99,9 @@ namespace TicketSystem.Application.Services
             return MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
+        
         /// Cập nhật Event
-        /// </summary>
+        
         public async Task<EventResponseDto?> UpdateEventAsync(UpdateEventDto dto, string updatedBy)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(dto.Id);
@@ -151,9 +151,9 @@ namespace TicketSystem.Application.Services
             return MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
+        
         /// Xóa Event (soft delete hoặc hard delete tùy business requirement)
-        /// </summary>
+        
         public async Task<bool> DeleteEventAsync(Guid id, string deletedBy)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(id);
@@ -182,9 +182,9 @@ namespace TicketSystem.Application.Services
             return true;
         }
 
-        /// <summary>
+        
         /// Map Entity sang DTO
-        /// </summary>
+        
         private EventResponseDto MapToResponseDto(Event eventEntity)
         {
             return new EventResponseDto
@@ -205,18 +205,18 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        /// <summary>
+        
         /// Ghi log AuditLog
-        /// </summary>
+        
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
             await _auditLogRepository.AddAsync(log);
         }
 
-        /// <summary>
+        
         /// Lấy IP address của client (IPv4 format)
-        /// </summary>
+        
         private string? GetClientIpAddress()
         {
             var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;

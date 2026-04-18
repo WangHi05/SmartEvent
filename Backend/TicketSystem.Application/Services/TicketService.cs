@@ -12,10 +12,10 @@ using TicketSystem.Domain.Interfaces;
 
 namespace TicketSystem.Application.Services
 {
-    /// <summary>
+    
     /// Service xử lý logic nghiệp vụ liên quan đến Ticket
     /// Sử dụng Strategy Pattern để xử lý các chính sách hoàn tiền khác nhau
-    /// </summary>
+    
     public class TicketService
     {
         private readonly IGenericRepository<Ticket> _ticketRepository;
@@ -41,9 +41,9 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        /// <summary>
+        
         /// Hủy vé và xử lý hoàn tiền theo chính sách
-        /// </summary>
+        
         public async Task<CancelTicketResponseDto> CancelTicketAsync(CancelTicketDto request, string performedBy)
         {
             var ticket = await _ticketRepository.GetByIdAsync(request.TicketId);
@@ -118,9 +118,9 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        /// <summary>
+        
         /// Lấy danh sách các chính sách hoàn tiền khả dụng
-        /// </summary>
+        
         public List<RefundPolicyInfo> GetAvailableRefundPolicies()
         {
             return _refundStrategies.Select(kvp => new RefundPolicyInfo
@@ -131,18 +131,18 @@ namespace TicketSystem.Application.Services
             }).ToList();
         }
 
-        /// <summary>
+        
         /// Ghi log hành động vào AuditLog
-        /// </summary>
+        
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
             await _auditLogRepository.AddAsync(log);
         }
 
-        /// <summary>
+        
         /// Lấy IP address của client (IPv4 format)
-        /// </summary>
+        
         private string? GetClientIpAddress()
         {
             var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
@@ -160,9 +160,9 @@ namespace TicketSystem.Application.Services
         }
     }
 
-    /// <summary>
+    
     /// DTO thông tin chính sách hoàn tiền
-    /// </summary>
+    
     public class RefundPolicyInfo
     {
         public string Type { get; set; } = string.Empty;

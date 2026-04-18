@@ -4,10 +4,10 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Strategies
 {
-    /// <summary>
+    
     /// Chính sách không hoàn tiền
     /// Áp dụng: Các sự kiện đặc biệt, vé khuyến mãi, hoặc vé miễn phí
-    /// </summary>
+    
     public class NoRefundStrategy : IRefundStrategy
     {
         public string PolicyName => "No Refund";

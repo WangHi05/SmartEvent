@@ -12,9 +12,9 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.Services
 {
-    /// <summary>
+    
     /// Service xử lý logic nghiệp vụ liên quan đến User
-    /// </summary>
+    
     public class UserService
     {
         private readonly IGenericRepository<User> _userRepository;
@@ -31,9 +31,9 @@ namespace TicketSystem.Application.Services
             _httpContextAccessor = httpContextAccessor;
         }
 
-        /// <summary>
+        
         /// Lấy danh sách User với phân trang
-        /// </summary>
+        
         public async Task<UserListDto> GetUsersAsync(int pageNumber = 1, int pageSize = 10, string? searchTerm = null, string? role = null)
         {
             var users = await _userRepository.GetAllAsync();
@@ -72,18 +72,18 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        /// <summary>
+        
         /// Lấy thông tin User theo Id
-        /// </summary>
+        
         public async Task<UserResponseDto?> GetUserByIdAsync(Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
             return user == null ? null : MapToResponseDto(user);
         }
 
-        /// <summary>
+        
         /// Tạo mới User
-        /// </summary>
+        
         public async Task<UserResponseDto> CreateUserAsync(CreateUserDto dto, string createdBy)
         {
             // Kiểm tra username đã tồn tại
@@ -131,9 +131,9 @@ namespace TicketSystem.Application.Services
             return MapToResponseDto(user);
         }
 
-        /// <summary>
+        
         /// Cập nhật User
-        /// </summary>
+        
         public async Task<UserResponseDto?> UpdateUserAsync(UpdateUserDto dto, string updatedBy)
         {
             var user = await _userRepository.GetByIdAsync(dto.Id);
@@ -189,9 +189,9 @@ namespace TicketSystem.Application.Services
             return MapToResponseDto(user);
         }
 
-        /// <summary>
+        
         /// Xóa User
-        /// </summary>
+        
         public async Task<bool> DeleteUserAsync(Guid id, string deletedBy)
         {
             var user = await _userRepository.GetByIdAsync(id);
@@ -217,9 +217,9 @@ namespace TicketSystem.Application.Services
             return success;
         }
 
-        /// <summary>
+        
         /// Xác thực đăng nhập (bonus feature)
-        /// </summary>
+        
         public async Task<UserResponseDto?> AuthenticateAsync(string username, string password)
         {
             var users = await _userRepository.GetAllAsync();
@@ -260,9 +260,9 @@ namespace TicketSystem.Application.Services
             await _auditLogRepository.AddAsync(log);
         }
 
-        /// <summary>
+        
         /// Lấy IP address của client (IPv4 format)
-        /// </summary>
+        
         private string? GetClientIpAddress()
         {
             var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
@@ -279,9 +279,9 @@ namespace TicketSystem.Application.Services
             return ipAddress.ToString();
         }
 
-        /// <summary>
+        
         /// Hash password bằng SHA256
-        /// </summary>
+        
         private string HashPassword(string password)
         {
             using (var sha256 = SHA256.Create())
@@ -292,9 +292,9 @@ namespace TicketSystem.Application.Services
             }
         }
 
-        /// <summary>
+        
         /// Verify password
-        /// </summary>
+        
         private bool VerifyPassword(string password, string passwordHash)
         {
             var hash = HashPassword(password);

@@ -3,9 +3,9 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Entities
 {
-    /// <summary>
+    
     /// Entity lưu lịch sử thao tác của người dùng (Audit Trail)
-    /// </summary>
+    
     public class AuditLog : BaseEntity
     {
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;

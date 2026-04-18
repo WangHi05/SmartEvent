@@ -4,9 +4,9 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Entities
 {
-    /// <summary>
+    
     /// Thực thể chính quản lý thông tin vé (cá nhân hoặc vé đoàn)
-    /// </summary>
+    
     public class Ticket : BaseEntity
     {
         public Guid EventId { get; set; }
@@ -31,9 +31,9 @@ namespace TicketSystem.Domain.Entities
         // Quan hệ 1-n giữa Ticket đoàn và các SubTicket
         public virtual ICollection<SubTicket> SubTickets { get; set; } = new List<SubTicket>();
 
-        /// <summary>
+        
         /// Kiểm tra điều kiện check-in cho vé lẻ hoặc vé đoàn Mode 1
-        /// </summary>
+        
         public bool CanCheckIn()
         {
             // Chỉ cho phép check-in nếu đã thanh toán hoặc đang trong quá trình check-in (với vé đoàn)
@@ -51,9 +51,9 @@ namespace TicketSystem.Domain.Entities
             return false;
         }
 
-        /// <summary>
+        
         /// Logic thực hiện check-in (Dành cho Mode 1)
-        /// </summary>
+        
         public void PerformCheckIn(int count = 1)
         {
             if (!CanCheckIn()) 
@@ -72,9 +72,9 @@ namespace TicketSystem.Domain.Entities
         }
     }
 
-    /// <summary>
+    
     /// Thực thể đại diện cho từng vé con trong một đoàn (Dùng cho Mode 2)
-    /// </summary>
+    
     public class SubTicket : BaseEntity
     {
         public Guid ParentTicketId { get; set; }

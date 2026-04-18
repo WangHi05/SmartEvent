@@ -8,10 +8,10 @@ using TicketSystem.Infrastructure.Data;
 
 namespace TicketSystem.Infrastructure.Repositories
 {
-    /// <summary>
+    
     /// Generic Repository Implementation
     /// Tuân thủ Repository Pattern và DRY Principle
-    /// </summary>
+    
     public class GenericRepository<T> : IGenericRepository<T> where T : Domain.Common.BaseEntity
     {
         private readonly ApplicationDbContext _context;

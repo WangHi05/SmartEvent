@@ -6,10 +6,10 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Interfaces
 {
-    /// <summary>
+    
     /// Repository Pattern mẫu để dùng chung cho tất cả thực thể
     /// Cung cấp các operations CRUD cơ bản và query
-    /// </summary>
+    
     public interface IGenericRepository<T> where T : BaseEntity
     {
         Task<T?> GetByIdAsync(Guid id);

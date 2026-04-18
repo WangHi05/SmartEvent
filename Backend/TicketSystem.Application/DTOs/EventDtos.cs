@@ -3,9 +3,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TicketSystem.Application.DTOs
 {
-    /// <summary>
+    
     /// DTO cho việc tạo mới Event
-    /// </summary>
+    
     public class CreateEventDto
     {
         [Required(ErrorMessage = "Tên sự kiện là bắt buộc")]
@@ -34,9 +34,9 @@ namespace TicketSystem.Application.DTOs
         public int CancellationDeadlineHours { get; set; } = 48; // Mặc định 48h
     }
 
-    /// <summary>
+    
     /// DTO cho việc cập nhật Event
-    /// </summary>
+    
     public class UpdateEventDto
     {
         [Required]
@@ -62,9 +62,9 @@ namespace TicketSystem.Application.DTOs
         public int? CancellationDeadlineHours { get; set; }
     }
 
-    /// <summary>
+    
     /// DTO cho việc trả về thông tin Event
-    /// </summary>
+    
     public class EventResponseDto
     {
         public Guid Id { get; set; }
@@ -82,9 +82,9 @@ namespace TicketSystem.Application.DTOs
         public string? CreatedBy { get; set; }
     }
 
-    /// <summary>
+    
     /// DTO cho danh sách Event với phân trang
-    /// </summary>
+    
     public class EventListDto
     {
         public List<EventResponseDto> Items { get; set; } = new();

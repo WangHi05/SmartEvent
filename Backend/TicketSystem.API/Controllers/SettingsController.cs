@@ -5,9 +5,7 @@ using TicketSystem.Domain.Interfaces;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
     /// Controller quản lý Settings hệ thống
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class SettingsController : ControllerBase
@@ -20,9 +18,8 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
         /// Lấy cấu hình hệ thống hiện tại
-        /// </summary>
+        
         [HttpGet]
         public ActionResult<SystemSettingsDto> GetSettings()
         {
@@ -46,9 +43,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Cập nhật cấu hình hệ thống
-        /// </summary>
+        
         [HttpPut]
         // [Authorize(Roles = "Admin")]
         public ActionResult<SystemSettingsDto> UpdateSettings([FromBody] SystemSettingsDto dto)

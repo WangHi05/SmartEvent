@@ -4,9 +4,9 @@ using TicketSystem.Application.Services;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
+    
     /// Controller quản lý Users - CRUD operations và Authentication
-    /// </summary>
+    
     [ApiController]
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
@@ -20,9 +20,9 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
+        
         /// Lấy danh sách Users với phân trang và filter
-        /// </summary>
+        
         /// <param name="pageNumber">Số trang (mặc định: 1)</param>
         /// <param name="pageSize">Số item mỗi trang (mặc định: 10)</param>
         /// <param name="searchTerm">Tìm kiếm theo username, fullname, email</param>
@@ -46,9 +46,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Lấy thông tin User theo ID
-        /// </summary>
+        
         [HttpGet("{id}")]
         public async Task<ActionResult<UserResponseDto>> GetUserById(Guid id)
         {
@@ -67,9 +67,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Tạo mới User
-        /// </summary>
+        
         [HttpPost]
         // [Authorize(Roles = "Admin")] // Chỉ Admin mới được tạo user
         public async Task<ActionResult<UserResponseDto>> CreateUser([FromBody] CreateUserDto dto)
@@ -95,9 +95,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Cập nhật User
-        /// </summary>
+        
         [HttpPut("{id}")]
         // [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserResponseDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto dto)
@@ -129,9 +129,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Xóa User
-        /// </summary>
+        
         [HttpDelete("{id}")]
         // [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteUser(Guid id)
@@ -153,9 +153,9 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+        
         /// Xác thực đăng nhập (Bonus API)
-        /// </summary>
+        
         [HttpPost("authenticate")]
         public async Task<ActionResult<UserResponseDto>> Authenticate([FromBody] LoginDto dto)
         {
@@ -175,9 +175,9 @@ namespace TicketSystem.API.Controllers
         }
     }
 
-    /// <summary>
+    
     /// DTO cho login request
-    /// </summary>
+    
     public class LoginDto
     {
         public string Username { get; set; } = string.Empty;

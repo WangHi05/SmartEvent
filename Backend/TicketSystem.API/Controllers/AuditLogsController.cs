@@ -5,9 +5,8 @@ using TicketSystem.Domain.Interfaces;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
+    
     /// Controller quản lý Audit Logs - Lịch sử thao tác
-    /// </summary>
     [ApiController]
     [Route("api/[controller]")]
     public class AuditLogsController : ControllerBase
@@ -23,9 +22,8 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
+        
         /// Lấy danh sách Audit Logs với filter và phân trang
-        /// </summary>
         [HttpGet]
         public async Task<ActionResult> GetAuditLogs([FromQuery] AuditLogQueryDto query)
         {
