@@ -211,7 +211,14 @@ namespace TicketSystem.Application.Services
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
+            log.Timestamp = GetVietnamTime();
             await _auditLogRepository.AddAsync(log);
+        }
+
+        private DateTime GetVietnamTime()
+        {
+            TimeZoneInfo vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
         }
 
         

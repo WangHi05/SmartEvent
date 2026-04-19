@@ -173,10 +173,16 @@ namespace TicketSystem.Application.Services
                 EntityId = entityId,
                 PerformedBy = performedBy,
                 Details = details,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = GetVietnamTime(),
                 IpAddress = GetClientIpAddress()
             };
             await _auditLogRepository.AddAsync(log);
+        }
+
+        private DateTime GetVietnamTime()
+        {
+            TimeZoneInfo vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
         }
 
         private string? GetClientIpAddress()

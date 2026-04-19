@@ -67,6 +67,11 @@ namespace TicketSystem.Application.DTOs
         public string? EntityType { get; set; }
         public string? PerformedBy { get; set; }
         public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 20;
+        private int _pageSize = 20;
+        public int PageSize 
+        { 
+            get => _pageSize;
+            set => _pageSize = value > 20 ? 20 : value;
+        }
     }
 }

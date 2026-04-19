@@ -29,6 +29,12 @@ namespace TicketSystem.API.Controllers
         {
             try
             {
+                // Ensure pageSize doesn't exceed 20
+                if (query.PageSize > 20)
+                    query.PageSize = 20;
+                if (query.PageSize < 1)
+                    query.PageSize = 20;
+
                 var logs = await _auditLogRepository.GetAllAsync();
 
                 // Apply filters

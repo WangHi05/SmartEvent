@@ -30,11 +30,14 @@ const AuditLogsView = () => {
 
   // Fetch logs
   const fetchLogs = async (page = 1, pageSize = 20) => {
+    // Ensure pageSize doesn't exceed 20
+    const validPageSize = Math.min(pageSize, 20);
+    
     setLoading(true);
     try {
       const params = {
         pageNumber: page,
-        pageSize,
+        pageSize: validPageSize,
         ...filters,
       };
 
