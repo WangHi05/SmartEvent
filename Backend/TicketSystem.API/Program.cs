@@ -29,8 +29,8 @@ builder.Services.AddHttpContextAccessor();
 // Đổi từ AddScoped<UserService> sang AddScoped<IUserService, UserService>
 builder.Services.AddScoped<IUserService, UserService>();
 // Các service khác cũng nên chuyển sang dùng Interface tương tự
-// builder.Services.AddScoped<IEventService, EventService>();
-// builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<EventService, EventService>();
+builder.Services.AddScoped<TicketService, TicketService>();
 
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();

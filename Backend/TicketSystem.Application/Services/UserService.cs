@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
@@ -15,17 +16,20 @@ namespace TicketSystem.Application.Services
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IJwtTokenGenerator _jwtTokenGenerator;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public UserService(
             IUserRepository userRepository,
             IGenericRepository<AuditLog> auditLogRepository,
             IPasswordHasher passwordHasher,
-            IJwtTokenGenerator jwtTokenGenerator)
+            IJwtTokenGenerator jwtTokenGenerator,
+            IHttpContextAccessor httpContextAccessor)
         {
             _userRepository = userRepository;
             _auditLogRepository = auditLogRepository;
             _passwordHasher = passwordHasher;
             _jwtTokenGenerator = jwtTokenGenerator;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<UserListDto> GetUsersAsync(int pageNumber = 1, int pageSize = 10, string? searchTerm = null, string? role = null)
@@ -121,12 +125,23 @@ namespace TicketSystem.Application.Services
             var user = await _userRepository.GetByUsernameAsync(username);
             
             if (user == null || !user.IsActive)
+            {
+                // Log failed login attempt
+                await LogAuditAsync("Login", "User", Guid.Empty, username, "Failed login attempt - user not found or inactive");
                 return null;
+            }
 
             if (!_passwordHasher.VerifyPassword(password, user.PasswordHash))
+            {
+                // Log failed login attempt
+                await LogAuditAsync("Login", "User", user.Id, username, "Failed login attempt - invalid password");
                 return null;
+            }
 
             var token = _jwtTokenGenerator.GenerateToken(user);
+
+            // Log successful login
+            await LogAuditAsync("Login", "User", user.Id, username, $"User {username} logged in successfully");
 
             return new AuthResponseDto
             {
@@ -158,9 +173,26 @@ namespace TicketSystem.Application.Services
                 EntityId = entityId,
                 PerformedBy = performedBy,
                 Details = details,
-                Timestamp = DateTime.UtcNow
+                Timestamp = DateTime.UtcNow,
+                IpAddress = GetClientIpAddress()
             };
             await _auditLogRepository.AddAsync(log);
+        }
+
+        private string? GetClientIpAddress()
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+
+            // Convert IPv6 localhost (::1) to IPv4 (127.0.0.1)
+            if (ipAddress.ToString() == "::1")
+                return "127.0.0.1";
+
+            // Nếu là IPv4 mapped trong IPv6 (::ffff:192.168.1.1) → Extract IPv4
+            if (ipAddress.IsIPv4MappedToIPv6)
+                return ipAddress.MapToIPv4().ToString();
+
+            return ipAddress.ToString();
         }
     }
 }
