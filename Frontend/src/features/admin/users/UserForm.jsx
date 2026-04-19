@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Select, Switch, message } from 'antd';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 
 const UserForm = ({ open, user, onClose, onSuccess }) => {
   const [form] = Form.useForm();
@@ -30,6 +30,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
         // Update user
         const updateData = {
           id: user.id,
+          username: user.username,
           fullName: values.fullName,
           email: values.email,
           role: values.role,
@@ -40,8 +41,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
         if (values.newPassword) {
           updateData.newPassword = values.newPassword;
         }
-
-        await apiClient.put(`/api/users/${user.id}`, updateData);
+        await axiosClient.put(`/users/${user.id}`, updateData);
         message.success('Cập nhật người dùng thành công');
       } else {
         // Create user
@@ -53,7 +53,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
           role: values.role,
         };
 
-        await apiClient.post('/api/users', createData);
+        await axiosClient.post('/users', createData);
         message.success('Tạo người dùng thành công');
       }
 

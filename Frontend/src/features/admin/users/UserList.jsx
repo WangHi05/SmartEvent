@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, Input, Space, Tag, Modal, message, Select } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
-import apiClient from '../../../services/apiClient';
+import { Table, Button, Input, Space, Tag, Modal, message, Select, Popconfirm } from 'antd';
 import UserForm from './UserForm';
+import axiosClient from '../../../api/axiosClient';
+
 
 const { Search } = Input;
 const { confirm } = Modal;
@@ -21,28 +22,29 @@ const UserList = () => {
   const [editingUser, setEditingUser] = useState(null);
 
   // Fetch users từ API
+  // Nhận tham số page và pageSize động
   const fetchUsers = async (page = 1, pageSize = 10) => {
-    setLoading(true);
     try {
-      const params = {
-        pageNumber: page,
-        pageSize: pageSize,
-      };
-      if (searchTerm) params.searchTerm = searchTerm;
-      if (roleFilter) params.role = roleFilter;
-
-      const response = await apiClient.get('/api/users', { params });
-      setUsers(response.data.items);
-      setPagination({
-        current: response.data.pageNumber,
-        pageSize: response.data.pageSize,
-        total: response.data.totalCount,
-      });
+        setLoading(true); // Bật hiệu ứng loading cho bảng xoay xoay đẹp mắt
+        
+        // Truyền biến động vào URL
+        const result = await axiosClient.get(`/users?pageNumber=${page}&pageSize=${pageSize}`);
+        
+        // Cập nhật dữ liệu vào bảng
+        setUsers(result.items || result.data || []); 
+        
+        // Cập nhật lại thanh Phân trang (Pagination) ở dưới cùng
+        setPagination(prev => ({ 
+            ...prev, 
+            current: page, 
+            pageSize: pageSize,
+            total: result.totalCount || 0 // Nhớ lấy tổng số bản ghi từ Backend trả về
+        }));
     } catch (error) {
-      message.error('Không thể tải danh sách người dùng');
-      console.error('Error fetching users:', error);
+        message.error("Lỗi khi tải danh sách người dùng!");
+        console.error(error);
     } finally {
-      setLoading(false);
+        setLoading(false); // Tắt loading
     }
   };
 
@@ -68,25 +70,17 @@ const UserList = () => {
   };
 
   // Xóa user
-  const handleDelete = (userId, username) => {
-    confirm({
-      title: 'Xác nhận xóa',
-      icon: <ExclamationCircleOutlined />,
-      content: `Bạn có chắc chắn muốn xóa người dùng "${username}"?`,
-      okText: 'Xóa',
-      okType: 'danger',
-      cancelText: 'Hủy',
-      onOk: async () => {
-        try {
-          await apiClient.delete(`/api/users/${userId}`);
-          message.success('Xóa người dùng thành công');
-          fetchUsers(pagination.current, pagination.pageSize);
-        } catch (error) {
-          message.error('Không thể xóa người dùng');
-          console.error('Error deleting user:', error);
-        }
-      },
-    });
+  // Hàm này giờ đây chỉ tập trung vào việc gọi API Xóa
+  const executeDelete = async (userId) => {
+    try {
+      await axiosClient.delete(`/users/${userId}`); 
+      message.success('Xóa người dùng thành công');
+      fetchUsers(pagination.current, pagination.pageSize); 
+    } catch (error) {
+      console.error('Lỗi khi gọi API xóa:', error);
+      const errorMsg = error.response?.data?.message || 'Không thể xóa người dùng. Vui lòng kiểm tra lại quyền!';
+      message.error(errorMsg);
+    }
   };
 
   // Xử lý sau khi save form
@@ -170,14 +164,22 @@ const UserList = () => {
           >
             Sửa
           </Button>
-          <Button
-            type="link"
-            danger
-            icon={<DeleteOutlined />}
-            onClick={() => handleDelete(record.id, record.username)}
+          <Popconfirm
+            title="Xác nhận xóa"
+            description={`Bạn có chắc chắn muốn xóa "${record.username}"?`}
+            onConfirm={() => executeDelete(record.id || record.Id)}
+            okText="Xóa"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
           >
-            Xóa
-          </Button>
+            <Button
+              type="link"
+              danger
+              icon={<DeleteOutlined />}
+            >
+              Xóa
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },
@@ -215,7 +217,7 @@ const UserList = () => {
       <Table
         columns={columns}
         dataSource={users}
-        rowKey="id"
+        rowKey={(record) => record.id || record.Id}
         loading={loading}
         pagination={pagination}
         onChange={handleTableChange}
