@@ -1,243 +1,139 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using TicketSystem.Application.DTOs;
+using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
 using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.Services
 {
-    
-    /// Service xử lý logic nghiệp vụ liên quan đến User
-    
-    public class UserService
+    public class UserService : IUserService
     {
-        private readonly IGenericRepository<User> _userRepository;
+        private readonly IUserRepository _userRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
-        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IPasswordHasher _passwordHasher;
+        private readonly IJwtTokenGenerator _jwtTokenGenerator;
 
         public UserService(
-            IGenericRepository<User> userRepository,
+            IUserRepository userRepository,
             IGenericRepository<AuditLog> auditLogRepository,
-            IHttpContextAccessor httpContextAccessor)
+            IPasswordHasher passwordHasher,
+            IJwtTokenGenerator jwtTokenGenerator)
         {
             _userRepository = userRepository;
             _auditLogRepository = auditLogRepository;
-            _httpContextAccessor = httpContextAccessor;
+            _passwordHasher = passwordHasher;
+            _jwtTokenGenerator = jwtTokenGenerator;
         }
 
-        
-        /// Lấy danh sách User với phân trang
-        
         public async Task<UserListDto> GetUsersAsync(int pageNumber = 1, int pageSize = 10, string? searchTerm = null, string? role = null)
         {
-            var users = await _userRepository.GetAllAsync();
-            
-            // Filter by search term
-            if (!string.IsNullOrEmpty(searchTerm))
-            {
-                searchTerm = searchTerm.ToLower();
-                users = users.Where(u => 
-                    u.Username.ToLower().Contains(searchTerm) ||
-                    u.FullName.ToLower().Contains(searchTerm) ||
-                    u.Email.ToLower().Contains(searchTerm));
-            }
+            UserRole? roleEnum = null;
+            if (!string.IsNullOrEmpty(role) && Enum.TryParse<UserRole>(role, true, out var parsedRole))
+                roleEnum = parsedRole;
 
-            // Filter by role
-            if (!string.IsNullOrEmpty(role) && Enum.TryParse<UserRole>(role, true, out var roleEnum))
-            {
-                users = users.Where(u => u.Role == roleEnum);
-            }
-
-            var totalCount = users.Count();
-
-            var pagedUsers = users
-                .OrderBy(u => u.Username)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .Select(MapToResponseDto)
-                .ToList();
+            var (users, totalCount) = await _userRepository.GetPagedUsersAsync(pageNumber, pageSize, searchTerm, roleEnum);
 
             return new UserListDto
             {
-                Items = pagedUsers,
+                Items = users.Select(MapToResponseDto).ToList(),
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
         }
 
-        
-        /// Lấy thông tin User theo Id
-        
         public async Task<UserResponseDto?> GetUserByIdAsync(Guid id)
         {
             var user = await _userRepository.GetByIdAsync(id);
-            return user == null ? null : MapToResponseDto(user);
+            if (user == null) return null;
+            return MapToResponseDto(user);
         }
 
-        
-        /// Tạo mới User
-        
         public async Task<UserResponseDto> CreateUserAsync(CreateUserDto dto, string createdBy)
         {
-            // Kiểm tra username đã tồn tại
-            var existingUsers = await _userRepository.GetAllAsync();
-            if (existingUsers.Any(u => u.Username.Equals(dto.Username, StringComparison.OrdinalIgnoreCase)))
-            {
+            if (!await _userRepository.IsUsernameUniqueAsync(dto.Username))
                 throw new ArgumentException($"Username '{dto.Username}' đã tồn tại");
-            }
 
-            // Kiểm tra email đã tồn tại
-            if (existingUsers.Any(u => u.Email.Equals(dto.Email, StringComparison.OrdinalIgnoreCase)))
-            {
+            if (!await _userRepository.IsEmailUniqueAsync(dto.Email))
                 throw new ArgumentException($"Email '{dto.Email}' đã được sử dụng");
-            }
 
-            // Parse role string to enum
             if (!Enum.TryParse<UserRole>(dto.Role, true, out var roleEnum))
-            {
-                throw new ArgumentException($"Role '{dto.Role}' không hợp lệ. Chỉ chấp nhận: Admin, Manager, Staff");
-            }
+                throw new ArgumentException("Role không hợp lệ.");
 
-            var user = new User
-            {
-                Username = dto.Username,
-                PasswordHash = HashPassword(dto.Password),
-                FullName = dto.FullName,
-                Email = dto.Email,
-                Role = roleEnum,
-                IsActive = true,
-                CreatedBy = createdBy
-            };
+            var passwordHash = _passwordHasher.HashPassword(dto.Password);
+            var user = User.Create(dto.Username, passwordHash, dto.FullName, dto.Email, roleEnum, createdBy);
 
             await _userRepository.AddAsync(user);
-
-            // Ghi log
-            await LogAuditAsync(new AuditLog
-            {
-                Action = "Create",
-                EntityType = "User",
-                EntityId = user.Id,
-                PerformedBy = createdBy,
-                Details = $"Created user: {user.Username} ({user.Role})"
-            });
+            await LogAuditAsync("Create", "User", user.Id, createdBy, $"Created user: {user.Username}");
 
             return MapToResponseDto(user);
         }
 
-        
-        /// Cập nhật User
-        
         public async Task<UserResponseDto?> UpdateUserAsync(UpdateUserDto dto, string updatedBy)
         {
             var user = await _userRepository.GetByIdAsync(dto.Id);
-            if (user == null)
-                return null;
+            if (user == null) return null;
 
-            // Cập nhật các trường nếu có giá trị mới
-            if (!string.IsNullOrEmpty(dto.FullName))
-                user.FullName = dto.FullName;
+            if (!string.IsNullOrEmpty(dto.Email) && !await _userRepository.IsEmailUniqueAsync(dto.Email, dto.Id))
+                throw new ArgumentException($"Email '{dto.Email}' đã được sử dụng");
 
-            if (!string.IsNullOrEmpty(dto.Email))
-            {
-                // Kiểm tra email mới đã tồn tại chưa (trừ user hiện tại)
-                var existingUsers = await _userRepository.GetAllAsync();
-                if (existingUsers.Any(u => u.Id != dto.Id && u.Email.Equals(dto.Email, StringComparison.OrdinalIgnoreCase)))
-                {
-                    throw new ArgumentException($"Email '{dto.Email}' đã được sử dụng");
-                }
-                user.Email = dto.Email;
-            }
-
-            if (!string.IsNullOrEmpty(dto.Role))
-            {
-                // Parse role string to enum
-                if (!Enum.TryParse<UserRole>(dto.Role, true, out var roleEnum))
-                {
-                    throw new ArgumentException($"Role '{dto.Role}' không hợp lệ. Chỉ chấp nhận: Admin, Manager, Staff");
-                }
-                user.Role = roleEnum;
-            }
+            var roleEnum = string.IsNullOrEmpty(dto.Role) ? user.Role : Enum.Parse<UserRole>(dto.Role, true);
+            user.UpdateProfile(dto.FullName ?? user.FullName, dto.Email ?? user.Email, roleEnum, updatedBy);
 
             if (dto.IsActive.HasValue)
-                user.IsActive = dto.IsActive.Value;
+                user.SetStatus(dto.IsActive.Value, updatedBy);
 
-            // Cập nhật password nếu có
             if (!string.IsNullOrEmpty(dto.NewPassword))
-                user.PasswordHash = HashPassword(dto.NewPassword);
-
-            user.UpdatedBy = updatedBy;
+            {
+                var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+                user.ChangePassword(newHash, updatedBy);
+            }
 
             await _userRepository.UpdateAsync(user);
-
-            // Ghi log
-            await LogAuditAsync(new AuditLog
-            {
-                Action = "Update",
-                EntityType = "User",
-                EntityId = user.Id,
-                PerformedBy = updatedBy,
-                Details = $"Updated user: {user.Username}"
-            });
+            await LogAuditAsync("Update", "User", user.Id, updatedBy, $"Updated user: {user.Username}");
 
             return MapToResponseDto(user);
         }
 
-        
-        /// Xóa User
-        
         public async Task<bool> DeleteUserAsync(Guid id, string deletedBy)
         {
             var user = await _userRepository.GetByIdAsync(id);
-            if (user == null)
-                return false;
+            if (user == null) return false;
 
             var username = user.Username;
             var success = await _userRepository.DeleteAsync(id);
 
             if (success)
             {
-                // Ghi log
-                await LogAuditAsync(new AuditLog
-                {
-                    Action = "Delete",
-                    EntityType = "User",
-                    EntityId = id,
-                    PerformedBy = deletedBy,
-                    Details = $"Deleted user: {username}"
-                });
+                // FIX LỖI 4: Truyền đúng tham số cho private method LogAuditAsync
+                await LogAuditAsync("Delete", "User", id, deletedBy, $"Deleted user: {username}");
             }
 
             return success;
         }
 
-        
-        /// Xác thực đăng nhập (bonus feature)
-        
-        public async Task<UserResponseDto?> AuthenticateAsync(string username, string password)
+        // FIX LỖI 2 & 3: Đổi kiểu trả về và sử dụng _jwtTokenGenerator
+        public async Task<AuthResponseDto?> AuthenticateAsync(string username, string password)
         {
-            var users = await _userRepository.GetAllAsync();
-            var user = users.FirstOrDefault(u => 
-                u.Username.Equals(username, StringComparison.OrdinalIgnoreCase) && 
-                u.IsActive);
-
-            if (user == null)
+            var user = await _userRepository.GetByUsernameAsync(username);
+            
+            if (user == null || !user.IsActive)
                 return null;
 
-            // Verify password
-            if (!VerifyPassword(password, user.PasswordHash))
+            if (!_passwordHasher.VerifyPassword(password, user.PasswordHash))
                 return null;
 
-            return MapToResponseDto(user);
+            var token = _jwtTokenGenerator.GenerateToken(user);
+
+            return new AuthResponseDto
+            {
+                User = MapToResponseDto(user),
+                Token = token
+            };
         }
-
-        #region Private Helper Methods
 
         private UserResponseDto MapToResponseDto(User user)
         {
@@ -247,60 +143,24 @@ namespace TicketSystem.Application.Services
                 Username = user.Username,
                 FullName = user.FullName,
                 Email = user.Email,
-                Role = user.Role.ToString(), // Convert enum to string
+                Role = user.Role.ToString(),
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt
             };
         }
 
-        private async Task LogAuditAsync(AuditLog log)
+        private async Task LogAuditAsync(string action, string entityType, Guid entityId, string performedBy, string details)
         {
-            log.Timestamp = DateTime.UtcNow;
-            log.IpAddress = GetClientIpAddress();
+            var log = new AuditLog
+            {
+                Action = action,
+                EntityType = entityType,
+                EntityId = entityId,
+                PerformedBy = performedBy,
+                Details = details,
+                Timestamp = DateTime.UtcNow
+            };
             await _auditLogRepository.AddAsync(log);
         }
-
-        
-        /// Lấy IP address của client (IPv4 format)
-        
-        private string? GetClientIpAddress()
-        {
-            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
-            if (ipAddress == null) return null;
-
-            // Convert IPv6 localhost (::1) to IPv4 (127.0.0.1)
-            if (ipAddress.ToString() == "::1")
-                return "127.0.0.1";
-
-            // Nếu là IPv4 mapped trong IPv6 (::ffff:192.168.1.1) → Extract IPv4
-            if (ipAddress.IsIPv4MappedToIPv6)
-                return ipAddress.MapToIPv4().ToString();
-
-            return ipAddress.ToString();
-        }
-
-        
-        /// Hash password bằng SHA256
-        
-        private string HashPassword(string password)
-        {
-            using (var sha256 = SHA256.Create())
-            {
-                var bytes = Encoding.UTF8.GetBytes(password);
-                var hash = sha256.ComputeHash(bytes);
-                return Convert.ToBase64String(hash);
-            }
-        }
-
-        
-        /// Verify password
-        
-        private bool VerifyPassword(string password, string passwordHash)
-        {
-            var hash = HashPassword(password);
-            return hash == passwordHash;
-        }
-
-        #endregion
     }
 }

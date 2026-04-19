@@ -19,6 +19,7 @@
   <!-- 2. Kết nối tới Project Domain (để nhìn thấy User, Ticket...) -->
   <ItemGroup>
     <ProjectReference Include="..\TicketSystem.Domain\TicketSystem.Domain.csproj" />
+    <ProjectReference Include="..\TicketSystem.Application\TicketSystem.Application.csproj" />
   </ItemGroup>
 
 </Project>
