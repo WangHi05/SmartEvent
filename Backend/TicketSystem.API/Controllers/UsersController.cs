@@ -1,4 +1,8 @@
+using System;
+using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Services;
 
@@ -11,10 +15,11 @@ namespace TicketSystem.API.Controllers
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        private readonly UserService _userService;
+        // DEPENDENCY INVERSION: Tiêm Interface IUserService thay vì Class cụ thể
+        private readonly IUserService _userService; 
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(UserService userService, ILogger<UsersController> logger)
+        public UsersController(IUserService userService, ILogger<UsersController> logger)
         {
             _userService = userService;
             _logger = logger;
@@ -23,160 +28,103 @@ namespace TicketSystem.API.Controllers
         /// <summary>
         /// Lấy danh sách Users với phân trang và filter
         /// </summary>
-        /// <param name="pageNumber">Số trang (mặc định: 1)</param>
-        /// <param name="pageSize">Số item mỗi trang (mặc định: 10)</param>
-        /// <param name="searchTerm">Tìm kiếm theo username, fullname, email</param>
-        /// <param name="role">Filter theo role (Admin/Manager/Staff)</param>
         [HttpGet]
+        [Authorize(Roles = "Admin,Manager")] // Chỉ Admin và Manager mới xem được danh sách
         public async Task<ActionResult<UserListDto>> GetUsers(
             [FromQuery] int pageNumber = 1, 
             [FromQuery] int pageSize = 10,
             [FromQuery] string? searchTerm = null,
             [FromQuery] string? role = null)
         {
-            try
-            {
-                var result = await _userService.GetUsersAsync(pageNumber, pageSize, searchTerm, role);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting users list");
-                return StatusCode(500, new { message = "Có lỗi xảy ra khi lấy danh sách người dùng" });
-            }
+            var result = await _userService.GetUsersAsync(pageNumber, pageSize, searchTerm, role);
+            return Ok(result);
         }
 
         /// <summary>
-        /// Lấy thông tin User theo ID
+        /// Lấy thông tin chi tiết một User theo ID
         /// </summary>
         [HttpGet("{id}")]
+        [Authorize] // Yêu cầu phải đăng nhập (Bất kỳ Role nào)
         public async Task<ActionResult<UserResponseDto>> GetUserById(Guid id)
         {
-            try
-            {
-                var result = await _userService.GetUserByIdAsync(id);
-                if (result == null)
-                    return NotFound(new { message = "Không tìm thấy người dùng" });
-
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting user {UserId}", id);
-                return StatusCode(500, new { message = "Có lỗi xảy ra" });
-            }
+            var user = await _userService.GetUserByIdAsync(id);
+            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng" });
+            return Ok(user);
         }
 
         /// <summary>
-        /// Tạo mới User
+        /// Admin tạo tài khoản mới cho nhân viên
         /// </summary>
         [HttpPost]
-        // [Authorize(Roles = "Admin")] // Chỉ Admin mới được tạo user
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserResponseDto>> CreateUser([FromBody] CreateUserDto dto)
         {
-            try
-            {
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
-                var createdBy = User.Identity?.Name ?? "System";
-
-                var result = await _userService.CreateUserAsync(dto, createdBy);
-                return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating user");
-                return StatusCode(500, new { message = "Có lỗi xảy ra khi tạo người dùng" });
-            }
+            var currentUser = User.Identity?.Name ?? "System";
+            var result = await _userService.CreateUserAsync(dto, currentUser);
+            return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
         /// <summary>
-        /// Cập nhật User
+        /// Đăng ký tài khoản mới cho Khách hàng/Nhân viên mới (Public API)
         /// </summary>
-        [HttpPut("{id}")]
-        // [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<UserResponseDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto dto)
+        [HttpPost("register")]
+        [AllowAnonymous] // Bất kỳ ai cũng có thể truy cập
+        public async Task<ActionResult<UserResponseDto>> Register([FromBody] CreateUserDto dto)
         {
-            try
-            {
-                if (id != dto.Id)
-                    return BadRequest(new { message = "ID không khớp" });
-
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
-                var updatedBy = User.Identity?.Name ?? "System";
-
-                var result = await _userService.UpdateUserAsync(dto, updatedBy);
-                if (result == null)
-                    return NotFound(new { message = "Không tìm thấy người dùng" });
-
-                return Ok(result);
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating user {UserId}", id);
-                return StatusCode(500, new { message = "Có lỗi xảy ra khi cập nhật người dùng" });
-            }
+            // Fix cứng Role là Staff (hoặc Customer) cho người dùng tự đăng ký
+            dto.Role = "Staff"; 
+            var result = await _userService.CreateUserAsync(dto, "System_Register");
+            return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
         /// <summary>
-        /// Xóa User
-        /// </summary>
-        [HttpDelete("{id}")]
-        // [Authorize(Roles = "Admin")]
-        public async Task<ActionResult> DeleteUser(Guid id)
-        {
-            try
-            {
-                var deletedBy = User.Identity?.Name ?? "System";
-
-                var success = await _userService.DeleteUserAsync(id, deletedBy);
-                if (!success)
-                    return NotFound(new { message = "Không tìm thấy người dùng" });
-
-                return NoContent();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error deleting user {UserId}", id);
-                return StatusCode(500, new { message = "Có lỗi xảy ra khi xóa người dùng" });
-            }
-        }
-
-        /// <summary>
-        /// Xác thực đăng nhập (Bonus API)
+        /// Xác thực đăng nhập (Login)
         /// </summary>
         [HttpPost("authenticate")]
-        public async Task<ActionResult<UserResponseDto>> Authenticate([FromBody] LoginDto dto)
+        [AllowAnonymous] // Bất kỳ ai cũng có thể gọi API này để lấy Token
+        public async Task<ActionResult<AuthResponseDto>> Authenticate([FromBody] LoginDto dto)
         {
-            try
-            {
-                var user = await _userService.AuthenticateAsync(dto.Username, dto.Password);
-                if (user == null)
-                    return Unauthorized(new { message = "Username hoặc password không đúng" });
+            // Nếu sai mật khẩu hoặc tài khoản khóa, Service sẽ trả về null
+            var result = await _userService.AuthenticateAsync(dto.Username, dto.Password);
+            if (result == null)
+                return Unauthorized(new { message = "Username hoặc password không đúng, hoặc tài khoản đã bị khóa!" });
 
-                return Ok(user);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error authenticating user");
-                return StatusCode(500, new { message = "Có lỗi xảy ra" });
-            }
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Cập nhật thông tin User
+        /// </summary>
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<ActionResult<UserResponseDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto dto)
+        {
+            if (id != dto.Id) return BadRequest(new { message = "ID không khớp" });
+
+            var currentUser = User.Identity?.Name ?? "System";
+            var result = await _userService.UpdateUserAsync(dto, currentUser);
+            
+            if (result == null) return NotFound(new { message = "Không tìm thấy người dùng" });
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Xóa người dùng (Chỉ Admin)
+        /// </summary>
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> DeleteUser(Guid id)
+        {
+            var currentUser = User.Identity?.Name ?? "System";
+            var success = await _userService.DeleteUserAsync(id, currentUser);
+            
+            if (!success) return NotFound(new { message = "Không tìm thấy người dùng" });
+            return NoContent();
         }
     }
 
     /// <summary>
-    /// DTO cho login request
+    /// DTO cho login request (Chứa gọn trong file này hoặc em có thể chuyển sang thư mục DTOs)
     /// </summary>
     public class LoginDto
     {

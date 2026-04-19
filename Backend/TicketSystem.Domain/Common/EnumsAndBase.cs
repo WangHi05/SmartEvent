@@ -14,9 +14,9 @@ namespace TicketSystem.Domain.Common
 
     public enum UserRole
     {
-        Admin = 1,
-        Manager = 2,    // Quản lý
-        Staff = 3       // Nhân viên soát vé
+        Admin = 0,
+        Manager = 1,    // Quản lý
+        Staff = 2       // Nhân viên soát vé
     }
 
     public enum TicketStatus
