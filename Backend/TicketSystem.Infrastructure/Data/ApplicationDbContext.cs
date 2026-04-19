@@ -38,10 +38,10 @@ namespace TicketSystem.Infrastructure.Data
                     .WithMany(p => p.Tickets) 
                     .HasForeignKey(d => d.EventId);
 
-                entity.HasOne(d => d.User)
+               /* entity.HasOne(d => d.User)
                     .WithMany(p => p.PurchasedTickets)
                     .HasForeignKey(d => d.UserId)
-                    .OnDelete(DeleteBehavior.SetNull);
+                    .OnDelete(DeleteBehavior.SetNull); */
             });
 
             // 2. Cấu hình cho SubTicket (Dành cho Mode 2 của vé đoàn)
