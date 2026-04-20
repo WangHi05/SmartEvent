@@ -13,6 +13,7 @@ import { EventList } from './features/admin/events';
 import { SettingsPage } from './features/admin/settings';
 import { AuditLogsView } from './features/admin/audit-logs';
 import { UserList } from './features/admin/users';
+import { TicketList } from './features/admin/tickets';
 
 import Login from './pages/Login'; 
 import Register from './pages/Register'; 
@@ -38,13 +39,7 @@ function App() {
             <Route path="audit-logs" element={<AuditLogsView />} />
             <Route path="settings" element={<SettingsPage />} />
             
-            <Route path="tickets" element={
-              <div className="flex flex-col items-center justify-center h-96 text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
-                <Settings size={48} className="mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-600">Chức năng đang phát triển</h3>
-                <p className="text-sm">Vui lòng quay lại module này sau.</p>
-              </div>
-            } />
+            <Route path="tickets" element={<TicketList />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />

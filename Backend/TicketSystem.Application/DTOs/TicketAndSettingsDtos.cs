@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using TicketSystem.Domain.Common;
+using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.DTOs
 {

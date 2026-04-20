@@ -20,6 +20,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 // 2. Đăng ký Repositories và Hạ tầng
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>(); // Đăng ký UserRepository cụ thể
+builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>(); // Đăng ký TicketTypeRepository
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>(); // Đăng ký PasswordHasher
 
 // 2.1. Đăng ký HttpContextAccessor để lấy IP trong Service
@@ -30,7 +31,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<IUserService, UserService>();
 // Các service khác cũng nên chuyển sang dùng Interface tương tự
 builder.Services.AddScoped<EventService, EventService>();
-builder.Services.AddScoped<TicketService, TicketService>();
+builder.Services.AddScoped<ITicketTypeService, TicketTypeService>(); // Đăng ký TicketTypeService
 
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
@@ -52,6 +53,8 @@ builder.Services.AddControllers()
     {
         // Giúp Enum tự động biến thành String (Admin, Manager...) khi trả về JSON
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Convert PascalCase thành camelCase cho API response
+        options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

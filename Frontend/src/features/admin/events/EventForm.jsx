@@ -139,23 +139,6 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
               min={1}
             />
           </Form.Item>
-
-          <Form.Item
-            label="Giá vé cơ bản (VNĐ)"
-            name="basePrice"
-            rules={[
-              { required: true, message: 'Vui lòng nhập giá vé' },
-              { type: 'number', min: 0, message: 'Giá vé phải >= 0' },
-            ]}
-          >
-            <InputNumber
-              style={{ width: '100%' }}
-              placeholder="Nhập giá vé"
-              min={0}
-              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value.replace(/,/g, '')}
-            />
-          </Form.Item>
         </div>
 
         <Form.Item

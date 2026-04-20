@@ -79,7 +79,6 @@ namespace TicketSystem.Application.Services
                 EndTime = dto.EndTime,
                 MaxCapacity = dto.MaxCapacity,
                 CurrentOccupancy = 0,
-                BasePrice = dto.BasePrice,
                 CancellationDeadlineHours = dto.CancellationDeadlineHours,
                 CreatedBy = createdBy
             };
@@ -127,9 +126,6 @@ namespace TicketSystem.Application.Services
             if (dto.MaxCapacity.HasValue)
                 eventEntity.MaxCapacity = dto.MaxCapacity.Value;
 
-            if (dto.BasePrice.HasValue)
-                eventEntity.BasePrice = dto.BasePrice.Value;
-
             if (dto.CancellationDeadlineHours.HasValue)
                 eventEntity.CancellationDeadlineHours = dto.CancellationDeadlineHours.Value;
 
@@ -161,8 +157,7 @@ namespace TicketSystem.Application.Services
                 return false;
 
             // Kiểm tra xem có vé nào đã bán chưa
-            if (eventEntity.Tickets.Any(t => t.Status == Domain.Common.TicketStatus.Paid || 
-                                              t.Status == Domain.Common.TicketStatus.CheckedIn))
+            if (eventEntity.Tickets.Any(t => t.Status == Domain.Entities.TicketStatus.CHECKED_IN))
             {
                 throw new InvalidOperationException("Không thể xóa sự kiện đã có vé được bán");
             }
@@ -197,9 +192,10 @@ namespace TicketSystem.Application.Services
                 EndTime = eventEntity.EndTime,
                 MaxCapacity = eventEntity.MaxCapacity,
                 CurrentOccupancy = eventEntity.CurrentOccupancy,
-                BasePrice = eventEntity.BasePrice,
                 CancellationDeadlineHours = eventEntity.CancellationDeadlineHours,
                 IsFull = eventEntity.IsFull(),
+                EventMode = (int)eventEntity.GetEventMode(),
+                EventDurationDays = eventEntity.GetEventDurationDays(),
                 CreatedAt = eventEntity.CreatedAt,
                 CreatedBy = eventEntity.CreatedBy
             };

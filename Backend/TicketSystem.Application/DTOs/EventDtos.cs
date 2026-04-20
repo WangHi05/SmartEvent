@@ -78,6 +78,8 @@ namespace TicketSystem.Application.DTOs
         public decimal BasePrice { get; set; }
         public int CancellationDeadlineHours { get; set; }
         public bool IsFull { get; set; }
+        public int EventMode { get; set; } // 1 = ShortDay, 2 = MultiDay
+        public int EventDurationDays { get; set; } // Số ngày sự kiện kéo dài
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
     }

@@ -8,9 +8,7 @@ using TicketSystem.Application.Services;
 
 namespace TicketSystem.API.Controllers
 {
-    /// <summary>
-    /// Controller quản lý Users - CRUD operations và Authentication
-    /// </summary>
+    // Controller quản lý Users - CRUD operations và Authentication
     [ApiController]
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
@@ -25,9 +23,7 @@ namespace TicketSystem.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Lấy danh sách Users với phân trang và filter
-        /// </summary>
+        // Lấy danh sách Users với phân trang và filter
         [HttpGet]
         [Authorize(Roles = "Admin,Manager")] // Chỉ Admin và Manager mới xem được danh sách
         public async Task<ActionResult<UserListDto>> GetUsers(
@@ -40,9 +36,7 @@ namespace TicketSystem.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Lấy thông tin chi tiết một User theo ID
-        /// </summary>
+        // Lấy thông tin chi tiết một User theo ID
         [HttpGet("{id}")]
         [Authorize] // Yêu cầu phải đăng nhập (Bất kỳ Role nào)
         public async Task<ActionResult<UserResponseDto>> GetUserById(Guid id)
@@ -52,9 +46,7 @@ namespace TicketSystem.API.Controllers
             return Ok(user);
         }
 
-        /// <summary>
-        /// Admin tạo tài khoản mới cho nhân viên
-        /// </summary>
+        // Admin tạo tài khoản mới cho nhân viên
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserResponseDto>> CreateUser([FromBody] CreateUserDto dto)
@@ -64,9 +56,7 @@ namespace TicketSystem.API.Controllers
             return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
-        /// <summary>
-        /// Đăng ký tài khoản mới cho Khách hàng/Nhân viên mới (Public API)
-        /// </summary>
+        // Đăng ký tài khoản mới cho Khách hàng/Nhân viên mới (Public API)
         [HttpPost("register")]
         [AllowAnonymous] // Bất kỳ ai cũng có thể truy cập
         public async Task<ActionResult<UserResponseDto>> Register([FromBody] CreateUserDto dto)
@@ -77,9 +67,7 @@ namespace TicketSystem.API.Controllers
             return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
-        /// <summary>
-        /// Xác thực đăng nhập (Login)
-        /// </summary>
+        // Xác thực đăng nhập (Login)
         [HttpPost("authenticate")]
         [AllowAnonymous] // Bất kỳ ai cũng có thể gọi API này để lấy Token
         public async Task<ActionResult<AuthResponseDto>> Authenticate([FromBody] LoginDto dto)
@@ -92,9 +80,7 @@ namespace TicketSystem.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Cập nhật thông tin User
-        /// </summary>
+        // Cập nhật thông tin User
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult<UserResponseDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto dto)
@@ -108,9 +94,7 @@ namespace TicketSystem.API.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Xóa người dùng (Chỉ Admin)
-        /// </summary>
+        // Xóa người dùng (Chỉ Admin)
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteUser(Guid id)
@@ -123,9 +107,7 @@ namespace TicketSystem.API.Controllers
         }
     }
 
-    /// <summary>
-    /// DTO cho login request (Chứa gọn trong file này hoặc em có thể chuyển sang thư mục DTOs)
-    /// </summary>
+    // DTO cho login request (Chứa gọn trong file này hoặc em có thể chuyển sang thư mục DTOs)
     public class LoginDto
     {
         public string Username { get; set; } = string.Empty;

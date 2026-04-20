@@ -74,6 +74,12 @@ const EventList = () => {
     fetchEvents(newPagination.current, newPagination.pageSize);
   };
 
+  // Xử lý quản lý ticket types
+  const handleManageTicketTypes = (record) => {
+    setSelectedEventForTicketTypes(record);
+    setTicketTypesVisible(true);
+  };
+
   // Columns cho table
   const columns = [
     {
@@ -106,12 +112,6 @@ const EventList = () => {
           {record.isFull && <Tag color="red" style={{ marginLeft: 8 }}>Hết chỗ</Tag>}
         </span>
       ),
-    },
-    {
-      title: 'Giá vé',
-      dataIndex: 'basePrice',
-      key: 'basePrice',
-      render: (price) => `${price.toLocaleString('vi-VN')} VNĐ`,
     },
     {
       title: 'Trạng thái',

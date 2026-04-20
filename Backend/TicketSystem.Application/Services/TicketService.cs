@@ -5,45 +5,40 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
-using TicketSystem.Application.Strategies;
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
 
 namespace TicketSystem.Application.Services
 {
-    
-    /// Service xử lý logic nghiệp vụ liên quan đến Ticket
-    /// Sử dụng Strategy Pattern để xử lý các chính sách hoàn tiền khác nhau
-    
+    // ARCHIVED - Moved to CheckInService.cs for new refactored architecture
+    // This file is kept for reference only
     public class TicketService
     {
         private readonly IGenericRepository<Ticket> _ticketRepository;
+        private readonly ITicketTypeRepository _ticketTypeRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly Dictionary<string, IRefundStrategy> _refundStrategies;
 
         public TicketService(
             IGenericRepository<Ticket> ticketRepository,
+            ITicketTypeRepository ticketTypeRepository,
             IGenericRepository<AuditLog> auditLogRepository,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            Dictionary<string, IRefundStrategy> refundStrategies)
         {
             _ticketRepository = ticketRepository;
+            _ticketTypeRepository = ticketTypeRepository;
             _auditLogRepository = auditLogRepository;
             _httpContextAccessor = httpContextAccessor;
-
-            // Khởi tạo các Strategy Pattern (có thể inject qua DI container trong thực tế)
-            _refundStrategies = new Dictionary<string, IRefundStrategy>
-            {
-                { "Full", new FullRefundStrategy() },
-                { "Partial", new PartialRefundStrategy() },
-                { "None", new NoRefundStrategy() }
-            };
+            _refundStrategies = refundStrategies;
         }
 
-        
-        /// Hủy vé và xử lý hoàn tiền theo chính sách
-        
+        // 4. Ghi AuditLog
+        // NOTE: Method này đã được moved sang CheckInService.cs trong kiến trúc mới
+        // Code được comment để giữ nguyên tham khảo nhưng không gây lỗi compile
+        /*
         public async Task<CancelTicketResponseDto> CancelTicketAsync(CancelTicketDto request, string performedBy)
         {
             var ticket = await _ticketRepository.GetByIdAsync(request.TicketId);
@@ -78,11 +73,42 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // Lấy Strategy dựa trên request hoặc cấu hình mặc định
-            var strategyType = request.RefundStrategyType ?? "Partial";
-            if (!_refundStrategies.TryGetValue(strategyType, out var refundStrategy))
+            // Xác định strategy hoàn tiền
+            // Ưu tiên: TicketType.GetRefundPolicy() > request.RefundStrategyType > Mặc định PartialRefund
+            string strategyKey = "PartialRefund"; // Mặc định
+            string policySource = "Default";
+
+            // Nếu ticket có TicketTypeId, lấy policy từ TicketType
+            if (ticket.TicketTypeId.HasValue)
             {
-                refundStrategy = new PartialRefundStrategy(); // Fallback
+                var ticketType = await _ticketTypeRepository.GetByIdAsync(ticket.TicketTypeId.Value);
+                if (ticketType != null)
+                {
+                    var refundPolicy = ticketType.GetRefundPolicy();
+                    strategyKey = refundPolicy.ToString(); // "FullRefund", "PartialRefund", "NoRefund"
+                    policySource = $"TicketType({ticketType.Name})";
+                }
+            }
+            // Nếu không, dùng từ request (nếu có)
+            else if (!string.IsNullOrEmpty(request.RefundStrategyType))
+            {
+                // Chuẩn hóa tên strategy từ request
+                var requestedStrategy = request.RefundStrategyType.ToLower();
+                if (requestedStrategy.Contains("full"))
+                    strategyKey = "FullRefund";
+                else if (requestedStrategy.Contains("none"))
+                    strategyKey = "NoRefund";
+                else
+                    strategyKey = "PartialRefund";
+                
+                policySource = "Request";
+            }
+
+            // Lấy strategy implementation
+            if (!_refundStrategies.TryGetValue(strategyKey, out var refundStrategy))
+            {
+                refundStrategy = _refundStrategies["PartialRefund"]; // Fallback
+                strategyKey = "PartialRefund";
             }
 
             // Tính toán số tiền hoàn lại
@@ -99,11 +125,11 @@ namespace TicketSystem.Application.Services
             // Ghi log AuditLog
             await LogAuditAsync(new AuditLog
             {
-                Action = "Cancel",
-                EntityType = "Ticket",
+                Action = "CANCEL_TICKET",
+                EntityType = nameof(Ticket),
                 EntityId = ticket.Id,
                 PerformedBy = performedBy,
-                Details = $"Cancelled - Refund: {refundAmount:C}, Strategy: {refundStrategy.PolicyName}, Reason: {request.Reason}"
+                Details = $"Hủy vé: Hoàn tiền {refundAmount:C}, Chính sách: {strategyKey} (từ {policySource}), Lý do: {request.Reason}"
             });
 
             return new CancelTicketResponseDto
@@ -113,7 +139,7 @@ namespace TicketSystem.Application.Services
                     ? $"Vé đã được hủy và hoàn tiền {refundAmount:C}" 
                     : "Vé đã được hủy (không hoàn tiền)",
                 RefundAmount = refundAmount,
-                RefundPolicyApplied = refundStrategy.PolicyName,
+                RefundPolicyApplied = strategyKey,
                 NewStatus = ticket.Status
             };
         }
@@ -165,6 +191,7 @@ namespace TicketSystem.Application.Services
 
             return ipAddress.ToString();
         }
+        */
     }
 
     

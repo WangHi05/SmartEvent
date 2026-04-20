@@ -19,16 +19,6 @@ namespace TicketSystem.Domain.Common
         Staff = 2       // Nhân viên soát vé
     }
 
-    public enum TicketStatus
-    {
-        Pending = 0,    // Chờ thanh toán
-        Paid = 1,       // Đã thanh toán
-        Cancelled = 2,  // Đã hủy
-        Refunded = 3,   // Đã hoàn tiền
-        CheckedIn = 4,  // Đã vào cổng
-        Expired = 5     // Hết hạn
-    }
-
     public enum TicketType
     {
         Individual = 1, // Vé cá nhân

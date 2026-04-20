@@ -76,7 +76,6 @@ namespace TicketSystem.Infrastructure.Data
                         EndTime = dto.EndTime,
                         MaxCapacity = dto.MaxCapacity,
                         CurrentOccupancy = 0,
-                        BasePrice = dto.BasePrice,
                         CancellationDeadlineHours = dto.CancellationDeadlineHours,
                         CreatedBy = "System (Seed)"
                     };
@@ -110,7 +109,6 @@ namespace TicketSystem.Infrastructure.Data
                     EndTime = new DateTime(2026, 3, 20, 17, 0, 0, DateTimeKind.Utc),
                     MaxCapacity = 500,
                     CurrentOccupancy = 0,
-                    BasePrice = 500000,
                     CancellationDeadlineHours = 48,
                     CreatedBy = "System (Seed)"
                 },
@@ -123,7 +121,6 @@ namespace TicketSystem.Infrastructure.Data
                     EndTime = new DateTime(2026, 4, 15, 23, 0, 0, DateTimeKind.Utc),
                     MaxCapacity = 10000,
                     CurrentOccupancy = 0,
-                    BasePrice = 300000,
                     CancellationDeadlineHours = 72,
                     CreatedBy = "System (Seed)"
                 },
@@ -136,7 +133,6 @@ namespace TicketSystem.Infrastructure.Data
                     EndTime = new DateTime(2026, 5, 12, 18, 0, 0, DateTimeKind.Utc),
                     MaxCapacity = 2000,
                     CurrentOccupancy = 0,
-                    BasePrice = 150000,
                     CancellationDeadlineHours = 24,
                     CreatedBy = "System (Seed)"
                 }
@@ -159,7 +155,6 @@ namespace TicketSystem.Infrastructure.Data
             public DateTime StartTime { get; set; }
             public DateTime EndTime { get; set; }
             public int MaxCapacity { get; set; }
-            public decimal BasePrice { get; set; }
             public int CancellationDeadlineHours { get; set; }
         }
     }
