@@ -249,26 +249,69 @@ const TicketTypesAdmin = ({ eventId }) => {
           <Form.Item
             label="Giá (VNĐ)"
             name="price"
-            rules={[{ required: true, message: 'Vui lòng nhập giá' }]}
+            validateTrigger="onChange"
+            rules={[
+              { required: true, message: 'Vui lòng nhập giá vé' },
+              {
+                validator: (_, value) => {
+                  if (value !== undefined && value !== null) {
+                    if (value < 0) {
+                      return Promise.reject(new Error('Giá vé không được là số âm'));
+                    }
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
           >
-            <InputNumber min={0} style={{ width: '100%' }} />
+            <InputNumber style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item
             label="Sức chứa tối đa"
             name="maxCapacity"
-            rules={[{ required: true, message: 'Vui lòng nhập sức chứa' }]}
+            validateTrigger="onChange"
+            rules={[
+              { required: true, message: 'Vui lòng nhập sức chứa' },
+              {
+                validator: (_, value) => {
+                  if (value !== undefined && value !== null) {
+                    if (value <= 0) {
+                      return Promise.reject(new Error('Sức chứa phải > 0'));
+                    }
+                    // Kiểm tra không vượt quá sức chứa sự kiện
+                    if (event && value > event.maxCapacity) {
+                      return Promise.reject(new Error(`Sức chứa không được vượt quá sức chứa sự kiện (${event.maxCapacity})`));
+                    }
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
           >
-            <InputNumber min={1} style={{ width: '100%' }} />
+            <InputNumber style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item
             label="Tối đa/người"
             name="maxPerUser"
-            rules={[{ required: true }]}
+            validateTrigger="onChange"
+            rules={[
+              { required: true, message: 'Vui lòng nhập số vé tối đa' },
+              {
+                validator: (_, value) => {
+                  if (value !== undefined && value !== null) {
+                    if (value <= 0) {
+                      return Promise.reject(new Error('Số vé tối đa phải > 0'));
+                    }
+                  }
+                  return Promise.resolve();
+                }
+              }
+            ]}
             extra={isShortDay ? 'Số vé tối đa mỗi người mua trong sự kiện' : 'Số vé tối đa mỗi người mua trong sự kiện'}
           >
-            <InputNumber min={1} style={{ width: '100%' }} />
+            <InputNumber style={{ width: '100%' }} />
           </Form.Item>
 
           <Form.Item label="Thời gian bán" required>

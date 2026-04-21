@@ -59,12 +59,27 @@ namespace TicketSystem.Application.Services
         // Validate: tên duy nhất, capacity, thời gian bán
         public async Task<TicketTypeDto> CreateTicketTypeAsync(Guid eventId, CreateTicketTypeDto request, string createdBy)
         {
-            // Kiểm tra Event tồn tại
+            // Check if event exists
             var @event = await _eventRepository.GetByIdAsync(eventId);
             if (@event == null)
                 throw new InvalidOperationException($"Không tìm thấy sự kiện với ID: {eventId}");
 
-            // Validate tên duy nhất trong Event
+            // Validate Price
+            if (request.Price < 0)
+                throw new InvalidOperationException("Giá vé không được là số âm");
+
+            // Validate Quantity
+            if (request.Quantity <= 0)
+                throw new InvalidOperationException("Số lượng phải > 0");
+
+            if (request.Quantity > @event.MaxCapacity)
+                throw new InvalidOperationException($"Số lượng không được vượt quá sức chứa sự kiện ({@event.MaxCapacity})");
+
+            // Validate MaxPerUser must be positive
+            if (request.MaxPerUser <= 0)
+                throw new InvalidOperationException("Số vé tối đa trên một người phải > 0");
+
+            // Validate name is unique
             var isNameUnique = await _ticketTypeRepository.IsNameUniqueInEventAsync(eventId, request.Name);
             if (!isNameUnique)
                 throw new InvalidOperationException($"Tên loại vé '{request.Name}' đã tồn tại trong sự kiện này");
@@ -73,16 +88,16 @@ namespace TicketSystem.Application.Services
             if (request.SaleEndTime <= request.SaleStartTime)
                 throw new InvalidOperationException("Thời gian kết thúc bán phải sau thời gian bắt đầu bán");
 
-            // Validate SaleEndTime <= Event.StartTime (đóng bán trước khi sự kiện bắt đầu)
+            // Validate SaleEndTime <= Event.StartTime
             if (request.SaleEndTime > @event.StartTime)
                 throw new InvalidOperationException("Thời gian kết thúc bán không được sau khi sự kiện bắt đầu");
 
-            // Validate tổng MaxCapacity không vượt Event.MaxCapacity
+            // Validate total quantity doesn't exceed event capacity
             var currentTotalCapacity = await _ticketTypeRepository.GetTotalMaxCapacityByEventAsync(eventId);
-            if (currentTotalCapacity + request.MaxCapacity > @event.MaxCapacity)
+            if (currentTotalCapacity + request.Quantity > @event.MaxCapacity)
                 throw new InvalidOperationException(
-                    $"Tổng sức chứa sẽ vượt quá giới hạn của sự kiện. " +
-                    $"Hiện tại: {currentTotalCapacity}, yêu cầu thêm: {request.MaxCapacity}, " +
+                    $"Tổng số lượng sẽ vượt quá giới hạn của sự kiện. " +
+                    $"Hiện tại: {currentTotalCapacity}, yêu cầu thêm: {request.Quantity}, " +
                     $"giới hạn: {@event.MaxCapacity}");
 
             // Tạo entity TicketType
@@ -91,9 +106,15 @@ namespace TicketSystem.Application.Services
                 EventId = eventId,
                 Name = request.Name.Trim(),
                 Price = request.Price,
-                MaxCapacity = request.MaxCapacity,
-                RemainingCapacity = request.MaxCapacity, // Ban đầu bằng MaxCapacity
-                MaxPerPerson = request.MaxPerUser,
+                Quantity = request.Quantity,
+                RemainingQuantity = request.Quantity,
+                MaxPerUser = request.MaxPerUser,
+                TicketMode = (TicketMode)request.TicketMode,
+                UsageType = request.UsageType.HasValue ? (UsageType)request.UsageType : null,
+                MinGroupSize = request.MinGroupSize,
+                MaxGroupSize = request.MaxGroupSize,
+                QRMode = request.QRMode.HasValue ? (QRMode)request.QRMode : null,
+                PriceMode = request.PriceMode.HasValue ? (PriceMode)request.PriceMode : null,
                 SaleStartTime = request.SaleStartTime,
                 SaleEndTime = request.SaleEndTime,
                 DisplayOrder = request.DisplayOrder,
@@ -105,7 +126,7 @@ namespace TicketSystem.Application.Services
             // Lưu vào database
             var created = await _ticketTypeRepository.AddAsync(ticketType);
 
-            // Ghi AuditLog
+            // Ghi AuditLogố lượng: {created.Quant
             await LogAuditAsync(new AuditLog
             {
                 Action = "CREATE_TICKET_TYPE",
@@ -133,9 +154,24 @@ namespace TicketSystem.Application.Services
             if (@event == null)
                 throw new InvalidOperationException($"Không tìm thấy sự kiện");
 
+            // Validate Price
+            if (request.Price < 0)
+                throw new InvalidOperationException("Giá vé không được là số âm");
+
+            // Validate Quantity
+            if (request.Quantity <= 0)
+                throw new InvalidOperationException("Số lượng phải > 0");
+
+            if (request.Quantity > @event.MaxCapacity)
+                throw new InvalidOperationException($"Số lượng không được vượt quá sức chứa sự kiện ({@event.MaxCapacity})");
+
+            // Validate MaxPerUser
+            if (request.MaxPerUser <= 0)
+                throw new InvalidOperationException("Số vé tối đa trên một người phải > 0");
+
             // Lưu giá trị cũ để logging
             var oldPrice = ticketType.Price;
-            var oldMaxCapacity = ticketType.MaxCapacity;
+            var oldQuantity = ticketType.Quantity;
             var oldSaleTimes = $"{ticketType.SaleStartTime:yyyy-MM-dd HH:mm} - {ticketType.SaleEndTime:yyyy-MM-dd HH:mm}";
 
             // Validate tên duy nhất (nếu thay đổi tên)
@@ -151,25 +187,30 @@ namespace TicketSystem.Application.Services
             // Cập nhật fields
             ticketType.Name = request.Name.Trim();
             ticketType.Price = request.Price;
-            ticketType.MaxCapacity = request.MaxCapacity;
-            ticketType.MaxPerPerson = request.MaxPerUser;
+            ticketType.Quantity = request.Quantity;
+            ticketType.MaxPerUser = request.MaxPerUser;
+            ticketType.TicketMode = (TicketMode)request.TicketMode;
+            ticketType.UsageType = request.UsageType.HasValue ? (UsageType)request.UsageType : null;
+            ticketType.MinGroupSize = request.MinGroupSize;
+            ticketType.MaxGroupSize = request.MaxGroupSize;
+            ticketType.QRMode = request.QRMode.HasValue ? (QRMode)request.QRMode : null;
+            ticketType.PriceMode = request.PriceMode.HasValue ? (PriceMode)request.PriceMode : null;
             ticketType.SaleStartTime = request.SaleStartTime;
             ticketType.SaleEndTime = request.SaleEndTime;
             ticketType.DisplayOrder = request.DisplayOrder;
-            ticketType.AccessType = (Domain.Entities.TicketAccessType)request.AccessType;
             ticketType.IsActive = request.IsActive;
 
-            // Cập nhật metadata
+            // Update metadata
             ticketType.UpdatedAt = DateTime.UtcNow;
             ticketType.UpdatedBy = updatedBy;
 
-            // Lưu vào database
+            // Save to database
             var updated = await _ticketTypeRepository.UpdateAsync(ticketType);
 
-            // Ghi AuditLog
+            // Log audit
             var changes = new List<string>();
             if (oldPrice != updated.Price) changes.Add($"Giá: {oldPrice} → {updated.Price}");
-            if (oldMaxCapacity != updated.MaxCapacity) changes.Add($"Sức chứa: {oldMaxCapacity} → {updated.MaxCapacity}");
+            if (oldQuantity != updated.Quantity) changes.Add($"Số lượng: {oldQuantity} → {updated.Quantity}");
             if (oldSaleTimes != $"{updated.SaleStartTime:yyyy-MM-dd HH:mm} - {updated.SaleEndTime:yyyy-MM-dd HH:mm}")
                 changes.Add($"Thời gian bán: {oldSaleTimes} → {updated.SaleStartTime:yyyy-MM-dd HH:mm} - {updated.SaleEndTime:yyyy-MM-dd HH:mm}");
 
@@ -241,7 +282,7 @@ namespace TicketSystem.Application.Services
                 Action = "RESERVE_CAPACITY",
                 EntityId = ticketTypeId,
                 EntityType = nameof(Domain.Entities.TicketType),
-                Details = $"Đặt chỗ {count} vé của loại '{ticketType.Name}'. Còn lại: {ticketType.RemainingCapacity}",
+                Details = $"Đặt chỗ {count} vé của loại '{ticketType.Name}'. Còn lại: {ticketType.RemainingQuantity}",
                 PerformedBy = performedBy,
                 Timestamp = DateTime.UtcNow
             });
@@ -271,7 +312,7 @@ namespace TicketSystem.Application.Services
                 Action = "RELEASE_CAPACITY",
                 EntityId = ticketTypeId,
                 EntityType = nameof(Domain.Entities.TicketType),
-                Details = $"Hoàn lại {count} vé của loại '{ticketType.Name}'. Còn lại: {ticketType.RemainingCapacity}",
+                Details = $"Hoàn lại {count} vé của loại '{ticketType.Name}'. Còn lại: {ticketType.RemainingQuantity}",
                 PerformedBy = performedBy,
                 Timestamp = DateTime.UtcNow
             });
@@ -286,15 +327,20 @@ namespace TicketSystem.Application.Services
             {
                 Id = ticketType.Id,
                 EventId = ticketType.EventId,
+                TicketMode = (int)ticketType.TicketMode,
                 Name = ticketType.Name,
                 Price = ticketType.Price,
-                MaxCapacity = ticketType.MaxCapacity,
-                RemainingCapacity = ticketType.RemainingCapacity,
-                MaxPerUser = ticketType.MaxPerPerson,
+                Quantity = ticketType.Quantity,
+                RemainingQuantity = ticketType.RemainingQuantity,
+                MaxPerUser = ticketType.MaxPerUser,
+                UsageType = ticketType.UsageType.HasValue ? (int)ticketType.UsageType : null,
+                MinGroupSize = ticketType.MinGroupSize,
+                MaxGroupSize = ticketType.MaxGroupSize,
+                QRMode = ticketType.QRMode.HasValue ? (int)ticketType.QRMode : null,
+                PriceMode = ticketType.PriceMode.HasValue ? (int)ticketType.PriceMode : null,
                 SaleStartTime = ticketType.SaleStartTime,
                 SaleEndTime = ticketType.SaleEndTime,
                 DisplayOrder = ticketType.DisplayOrder,
-                AccessType = (int)ticketType.AccessType,
                 IsActive = ticketType.IsActive,
                 CreatedAt = ticketType.CreatedAt,
                 CreatedBy = ticketType.CreatedBy,

@@ -4,99 +4,108 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Entities
 {
-    // Ticket access type: ONE_TIME = 1 (chỉ vào một lần), DAILY_MULTI = 2 (vào nhiều lần theo từng ngày)
     public enum TicketAccessType
     {
-        ONE_TIME = 1,           // Check-in một lần duy nhất
-        DAILY_MULTI = 2         // Check-in được nhiều lần, mỗi ngày tối đa 1 lần
+        ONE_TIME = 1,
+        DAILY_MULTI = 2
     }
 
-    // Thực thể quản lý các loại vé trong một sự kiện
-    // Mỗi loại vé có giá, sức chứa, thời gian bán riêng biệt
+    // Supports 2 ticket types: INDIVIDUAL and GROUP
     public class TicketType : BaseEntity
     {
-        // ID của sự kiện mà loại vé này thuộc về
         public Guid EventId { get; set; }
         public virtual Event? Event { get; set; }
 
-        // Tên loại vé (VD: "VIP", "Student", "Normal") - dùng để xác định chính sách hoàn tiền
+        public TicketMode TicketMode { get; set; } = TicketMode.INDIVIDUAL;
         public string Name { get; set; } = string.Empty;
-
-        // Giá vé (đơn vị: VND)
         public decimal Price { get; set; }
-
-        // Sức chứa tối đa - tổng của tất cả TicketTypes không được vượt Event.MaxCapacity
-        public int MaxCapacity { get; set; }
-
-        // Sức chứa còn lại (cập nhật khi mua vé) - ban đầu = MaxCapacity
-        public int RemainingCapacity { get; set; }
-
-        // Tối đa số vé mỗi người có thể mua - phải > 0
-        public int MaxPerPerson { get; set; }
-
-        // Thời điểm bắt đầu bán
+        public int Quantity { get; set; }
+        public int RemainingQuantity { get; set; }
+        public int MaxPerUser { get; set; }
+        public UsageType? UsageType { get; set; }
+        public int? MinGroupSize { get; set; }
+        public int? MaxGroupSize { get; set; }
+        public QRMode? QRMode { get; set; }
+        public PriceMode? PriceMode { get; set; }
         public DateTime SaleStartTime { get; set; }
-
-        // Thời điểm kết thúc bán - phải sau SaleStartTime và không được sau Event.StartTime
         public DateTime SaleEndTime { get; set; }
-
-        // Thứ tự hiển thị trên giao diện
         public int DisplayOrder { get; set; }
-
-        // Kiểu vé: ONE_TIME (1) hoặc DAILY_MULTI (2)
-        public TicketAccessType AccessType { get; set; } = TicketAccessType.ONE_TIME;
-
-        // Trạng thái hoạt động - khi false không thể mua vé loại này
         public bool IsActive { get; set; } = true;
 
-        // Danh sách vé thuộc loại vé này
-        public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+        public TicketAccessType AccessType { get; set; } = TicketAccessType.ONE_TIME;
 
-        // Xác định chính sách hoàn tiền dựa trên tên loại vé
-        // - Tên chứa "vip" → FullRefund
-        // - Tên chứa "student" → NoRefund
-        // - Còn lại → PartialRefund
-        public RefundPolicy GetRefundPolicy()
+        public int MaxCapacity
         {
-            var lowerName = Name.ToLower();
-            if (lowerName.Contains("vip"))
-                return RefundPolicy.FullRefund;
-            if (lowerName.Contains("student"))
-                return RefundPolicy.NoRefund;
-            return RefundPolicy.PartialRefund;
+            get => Quantity;
+            set => Quantity = value;
         }
 
-        // Trừ sức chứa khi có người mua vé - ném exception nếu sức chứa không đủ
+        public int RemainingCapacity
+        {
+            get => RemainingQuantity;
+            set => RemainingQuantity = value;
+        }
+
+        public int MaxPerPerson
+        {
+            get => MaxPerUser;
+            set => MaxPerUser = value;
+        }
+
+        public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+        // Validate data consistency
+        public bool IsValid(string? eventMaxCapacity = null)
+        {
+            // Common validations
+            if (Quantity <= 0) return false;
+            if (MaxPerUser <= 0) return false;
+            if (SaleEndTime <= SaleStartTime) return false;
+
+            // Individual tickets
+            if (TicketMode == TicketMode.INDIVIDUAL)
+            {
+                if (UsageType == null) return false;
+                if (MinGroupSize != null || MaxGroupSize != null) return false;
+                if (QRMode != null || PriceMode != null) return false;
+            }
+
+            // Group tickets
+            if (TicketMode == TicketMode.GROUP)
+            {
+                if (UsageType != null) return false;
+                if (MinGroupSize == null || MaxGroupSize == null) return false;
+                if (MinGroupSize < 2) return false;
+                if (MaxGroupSize < MinGroupSize) return false;
+                if (QRMode == null || PriceMode == null) return false;
+            }
+
+            return true;
+        }
+
+        // Reserve capacity when ticket is purchased
         public void ReserveCapacity(int count)
         {
             if (count <= 0)
                 throw new InvalidOperationException("Số lượng phải lớn hơn 0");
 
-            if (RemainingCapacity < count)
+            if (RemainingQuantity < count)
                 throw new InvalidOperationException(
-                    $"Không đủ sức chứa. Còn lại: {RemainingCapacity}, yêu cầu: {count}");
+                    $"Không đủ sức chứa. Còn lại: {RemainingQuantity}, yêu cầu: {count}");
 
-            RemainingCapacity -= count;
+            RemainingQuantity -= count;
         }
 
-        // Cộng lại sức chứa khi hủy đơn/hoàn vé - không được vượt MaxCapacity
+        // Release capacity when ticket is cancelled
         public void ReleaseCapacity(int count)
         {
             if (count <= 0)
                 throw new InvalidOperationException("Số lượng phải lớn hơn 0");
 
-            RemainingCapacity += count;
-            
-            if (RemainingCapacity > MaxCapacity)
-                RemainingCapacity = MaxCapacity;
-        }
-    }
+            RemainingQuantity += count;
 
-    // Enum xác định chính sách hoàn tiền
-    public enum RefundPolicy
-    {
-        FullRefund = 0,      // Hoàn toàn bộ số tiền
-        PartialRefund = 1,   // Hoàn một phần (50-80%)
-        NoRefund = 2         // Không hoàn tiền
+            if (RemainingQuantity > Quantity)
+                RemainingQuantity = Quantity;
+        }
     }
 }

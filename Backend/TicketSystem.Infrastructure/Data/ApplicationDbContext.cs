@@ -44,10 +44,22 @@ namespace TicketSystem.Infrastructure.Data
                     t.HasCheckConstraint("CK_SaleTime", "[SaleStartTime] < [SaleEndTime]");
                 });
                 entity.HasKey(e => e.Id);
+                
+                // Properties
                 entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Price).HasPrecision(18, 2).IsRequired();
+                entity.Property(e => e.Quantity).IsRequired();
+                entity.Property(e => e.RemainingQuantity).IsRequired();
+                entity.Property(e => e.MaxPerUser).IsRequired();
+                entity.Property(e => e.TicketMode).HasConversion<int>();
+                entity.Property(e => e.UsageType).HasConversion<int?>();
+                entity.Property(e => e.QRMode).HasConversion<int?>();
+                entity.Property(e => e.PriceMode).HasConversion<int?>();
+                
+                // Deprecated properties kept for backward compatibility
                 entity.Property(e => e.AccessType).HasConversion<int>();
                 
+                // Foreign key
                 entity.HasOne(e => e.Event)
                     .WithMany(e => e.TicketTypes)
                     .HasForeignKey(e => e.EventId)

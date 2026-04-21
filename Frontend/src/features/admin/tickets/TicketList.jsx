@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, Modal, message, Space, Button, Card, Row, Col, Tag } from 'antd';
 import { Settings } from 'lucide-react';
 import apiClient from '../../../services/apiClient';
-import TicketTypesAdmin from '../../../pages/TicketTypesAdmin';
+import TicketTypesAdmin from '../../../pages/TicketTypesAdminV2';
 
 export function TicketList() {
   const [events, setEvents] = useState([]);
