@@ -30,4 +30,13 @@ namespace TicketSystem.Domain.Common
         SingleQRForGroup = 1, // Mode 1: Một mã QR tổng cho cả đoàn
         IndividualQRPerMember = 2 // Mode 2: Mỗi thành viên một mã QR riêng
     }
+
+     public enum EventStatus
+    {
+        Draft = 0,      // Đang soạn thảo, chưa hiển thị cho người dùng
+        Active = 1,     // Đã xuất bản, có thể mua vé
+        Ongoing = 2,    // Đang diễn ra
+        Completed = 3,  // Đã kết thúc
+        Cancelled = 4   // Đã hủy
+    }
 }

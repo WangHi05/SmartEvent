@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Services;
+using TicketSystem.Application.Interfaces;
+using TicketSystem.Infrastructure.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace TicketSystem.API.Controllers
 {
@@ -9,10 +12,10 @@ namespace TicketSystem.API.Controllers
     [Route("api/[controller]")]
     public class EventsController : ControllerBase
     {
-        private readonly EventService _eventService;
+        private readonly IEventService _eventService;
         private readonly ILogger<EventsController> _logger;
 
-        public EventsController(EventService eventService, ILogger<EventsController> logger)
+        public EventsController(IEventService eventService, ILogger<EventsController> logger)
         {
             _eventService = eventService;
             _logger = logger;
@@ -55,7 +58,7 @@ namespace TicketSystem.API.Controllers
 
         /// Tạo mới Event
         [HttpPost]
-        // [Authorize(Roles = "Admin,Manager")] // Uncomment khi đã có authentication
+        [Authorize(Roles = "Admin,Manager")] 
         public async Task<ActionResult<EventResponseDto>> CreateEvent([FromBody] CreateEventDto dto)
         {
             try
@@ -82,7 +85,7 @@ namespace TicketSystem.API.Controllers
 
         /// Cập nhật Event
         [HttpPut("{id}")]
-        // [Authorize(Roles = "Admin,Manager")]
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult<EventResponseDto>> UpdateEvent(Guid id, [FromBody] UpdateEventDto dto)
         {
             try
@@ -111,7 +114,7 @@ namespace TicketSystem.API.Controllers
         
         /// Xóa Event
         [HttpDelete("{id}")]
-        // [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteEvent(Guid id)
         {
             try
@@ -133,6 +136,22 @@ namespace TicketSystem.API.Controllers
                 _logger.LogError(ex, "Error deleting event {EventId}", id);
                 return StatusCode(500, new { message = "Có lỗi xảy ra khi xóa sự kiện" });
             }
+        }
+
+         /// <summary>
+        /// API Tìm kiếm và phân trang Sự kiện
+        /// </summary>
+        /// <remarks>Dùng [FromQuery] để nhận tham số từ chuỗi URL (vd: ?keyword=concert, pageNumber=1)</remarks>
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchEvents([FromQuery] EventSearchRequest request)
+        {
+            // Validate dữ liệu đầu vào cơ bản
+            if (request.PageNumber < 1) request.PageNumber = 1;
+            if (request.PageSize < 1 || request.PageSize > 100) request.PageSize = 10;
+
+            var result = await _eventService.SearchEventsAsync(request);
+            
+            return Ok(result);
         }
     }
 }

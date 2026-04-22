@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using TicketSystem.Domain.Common;
+using System.ComponentModel.DataAnnotations;
 
 namespace TicketSystem.Domain.Entities
 {
@@ -46,5 +47,20 @@ namespace TicketSystem.Domain.Entities
 
         // Logic kiểm soát tải (Helper method)
         public bool IsFull() => CurrentOccupancy >= MaxCapacity;
+
+        [Required]
+        public EventStatus Status { get; set; } = EventStatus.Draft;
+
+        // Logic kiểm tra xem có được phép chuyển trạng thái không
+        public bool CanTransitionTo(EventStatus nextStatus)
+        {
+            return Status switch
+            {
+                EventStatus.Draft => nextStatus == EventStatus.Active || nextStatus == EventStatus.Cancelled,
+                EventStatus.Active => nextStatus == EventStatus.Ongoing || nextStatus == EventStatus.Cancelled,
+                EventStatus.Ongoing => nextStatus == EventStatus.Completed,
+                _ => false
+            };
+        }
     }
 }

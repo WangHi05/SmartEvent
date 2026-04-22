@@ -3,29 +3,103 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using TicketSystem.Application.DTOs;
+using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
+using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.Services
 {
     
     /// Service xử lý logic nghiệp vụ liên quan đến Event
-    
-    public class EventService
+    /// </summary>
+    public class EventService : IEventService 
     {
         private readonly IGenericRepository<Event> _eventRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IApplicationDbContext _context;
 
         public EventService(
             IGenericRepository<Event> eventRepository,
             IGenericRepository<AuditLog> auditLogRepository,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IApplicationDbContext context)
         {
             _eventRepository = eventRepository;
             _auditLogRepository = auditLogRepository;
             _httpContextAccessor = httpContextAccessor;
+            _context = context;
+        }
+
+        public async Task<PagedResult<EventResponseDto>> SearchEventsAsync(EventSearchRequest request)
+        {
+            // 1. Khởi tạo Query cơ bản (Chưa gọi xuống DB)
+            // AsNoTracking() giúp tăng hiệu năng cho các truy vấn chỉ đọc (Read-only)
+            var query = _context.Events.AsNoTracking().AsQueryable();
+
+            // 2. Áp dụng các bộ lọc (Filters) động
+            if (!string.IsNullOrWhiteSpace(request.Keyword))
+            {
+                var keyword = request.Keyword.Trim().ToLower();
+                // Tìm kiếm tương đối (LIKE %keyword%) trên Tên và Mô tả
+                query = query.Where(e => e.Name.ToLower().Contains(keyword) || 
+                                         e.Description.ToLower().Contains(keyword));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Location))
+            {
+                query = query.Where(e => e.Location.Contains(request.Location));
+            }
+
+            if (request.FromDate.HasValue)
+            {
+                query = query.Where(e => e.StartTime >= request.FromDate.Value);
+            }
+
+            if (request.ToDate.HasValue)
+            {
+                query = query.Where(e => e.StartTime <= request.ToDate.Value);
+            }
+
+            if (request.Status.HasValue)
+            {
+                query = query.Where(e => e.Status == request.Status.Value);
+            }
+
+            // 3. Tính tổng số lượng bản ghi (để Front-end làm phân trang)
+            int totalCount = await query.CountAsync();
+
+            // 4. Áp dụng Phân trang (Pagination) và Projection (Select mapping)
+            var items = await query
+                .OrderByDescending(e => e.CreatedAt) // Ưu tiên sự kiện mới tạo lên đầu
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .Select(e => new EventResponseDto
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Description = e.Description,
+                    Location = e.Location,
+                    StartTime = e.StartTime,
+                    EndTime = e.EndTime,
+                    MaxCapacity = e.MaxCapacity,
+                    // Lưu ý: CurrentOccupancy và BasePrice tạm thời gán từ Event, 
+                    // sau này có thể logic nghiệp vụ phức tạp hơn từ Ticket/TicketType
+                    IsFull = e.MaxCapacity <= 0 // Giả lập logic IsFull
+                })
+                .ToListAsync(); // <-- Lúc này câu lệnh SQL SELECT mới thực sự chạy
+
+            // 5. Trả về kết quả bọc trong PagedResult
+            return new PagedResult<EventResponseDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = request.PageNumber,
+                PageSize = request.PageSize
+            };
         }
 
         
@@ -177,7 +251,31 @@ namespace TicketSystem.Application.Services
             return true;
         }
 
-        
+        public async Task<bool> UpdateStatusAsync(Guid eventId, EventStatus newStatus)
+        {
+            var eventEntity = await _eventRepository.GetByIdAsync(eventId);
+            if (eventEntity == null) return false;
+
+            // TODO (Người B): Mở comment dòng này khi bạn đã thêm thuộc tính 'Status' vào class Event.cs
+            eventEntity.Status = newStatus;
+            
+            eventEntity.UpdatedAt = DateTime.UtcNow;
+
+            await _eventRepository.UpdateAsync(eventEntity);
+
+            await LogAuditAsync(new AuditLog
+            {
+                Action = "UpdateStatus",
+                EntityType = "Event",
+                EntityId = eventEntity.Id,
+                PerformedBy = "System", // Hoặc lấy user ID từ HttpContext
+                Details = $"Updated event status to: {newStatus}"
+            });
+
+            return true;
+        }
+
+        /// <summary>
         /// Map Entity sang DTO
         
         private EventResponseDto MapToResponseDto(Event eventEntity)

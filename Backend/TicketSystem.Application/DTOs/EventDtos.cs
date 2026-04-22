@@ -1,5 +1,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using TicketSystem.Domain.Entities;
+using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.DTOs
 {
@@ -94,5 +96,16 @@ namespace TicketSystem.Application.DTOs
         public int PageNumber { get; set; }
         public int PageSize { get; set; }
         public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
+    }
+
+    public class EventSearchRequest
+    {
+        public string? Keyword { get; set; }
+        public string? Location { get; set; }
+        public DateTime? FromDate { get; set; }
+        public DateTime? ToDate { get; set; }
+        public EventStatus? Status { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
     }
 }

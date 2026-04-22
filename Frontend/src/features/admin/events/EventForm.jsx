@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, InputNumber, Button, message } from 'antd';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -16,21 +16,23 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
   const isEdit = !!eventData;
 
   useEffect(() => {
-    if (eventData) {
-      // Populate form khi edit
-      form.setFieldsValue({
-        name: eventData.name,
-        description: eventData.description,
-        location: eventData.location,
-        timeRange: [dayjs(eventData.startTime), dayjs(eventData.endTime)],
-        maxCapacity: eventData.maxCapacity,
-        basePrice: eventData.basePrice,
-        cancellationDeadlineHours: eventData.cancellationDeadlineHours,
-      });
-    } else {
-      form.resetFields();
+    if (visible) {
+      if (eventData) {
+        // Populate form khi edit
+        form.setFieldsValue({
+          name: eventData.name,
+          description: eventData.description,
+          location: eventData.location,
+          timeRange: [dayjs(eventData.startTime), dayjs(eventData.endTime)],
+          maxCapacity: eventData.maxCapacity,
+          basePrice: eventData.basePrice,
+          cancellationDeadlineHours: eventData.cancellationDeadlineHours,
+        });
+      } else {
+        form.resetFields();
+      }
     }
-  }, [eventData, form]);
+  }, [visible, eventData, form]);
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -48,11 +50,11 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
 
       if (isEdit) {
         // Update
-        await apiClient.put(`/api/events/${eventData.id}`, { id: eventData.id, ...payload });
+        await axiosClient.put(`/events/${eventData.id}`, { id: eventData.id, ...payload });
         message.success('Cập nhật sự kiện thành công!');
       } else {
         // Create
-        await apiClient.post('/api/events', payload);
+        await axiosClient.post('/events', payload);
         message.success('Tạo sự kiện mới thành công!');
       }
 

@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Tag, Popconfirm, message, Input } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
 
 /**
- * Component danh sách Events với chức năng CRUD
+ * Component danh sách Events
+ * Đã nâng cấp: Server-side Pagination & Search với kỹ thuật Debounce
  */
 const EventList = () => {
   const [events, setEvents] = useState([]);
@@ -16,22 +17,46 @@ const EventList = () => {
     pageSize: 10,
     total: 0,
   });
+  
   const [searchText, setSearchText] = useState('');
+  // State để lưu từ khóa sau khi đã debounce (ngừng gõ)
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  
   const [formVisible, setFormVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // Fetch danh sách events
-  const fetchEvents = async (page = 1, pageSize = 10) => {
+  // KỸ THUẬT DEBOUNCE: Đợi 500ms sau khi người dùng ngừng gõ mới cập nhật từ khóa tìm kiếm
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchText);
+    }, 500);
+
+    // Cleanup function: Xóa timeout cũ nếu người dùng tiếp tục gõ
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchText]);
+
+  // Fetch dữ liệu mỗi khi page, pageSize hoặc từ khóa tìm kiếm (đã debounce) thay đổi
+  const fetchEvents = useCallback(async (page = 1, pageSize = 10, keyword = '') => {
     setLoading(true);
     try {
-      const response = await apiClient.get('/api/events', {
-        params: { pageNumber: page, pageSize },
+      // ĐỔI SANG GỌI API SEARCH CHÚNG TA VỪA TẠO Ở BACKEND
+      const response = await axiosClient.get('/events/search', {
+        params: { 
+          pageNumber: page, 
+          pageSize: pageSize,
+          keyword: keyword // Truyền từ khóa xuống Database để tìm
+        },
       });
-      setEvents(response.data.items);
+      
+      const data = response.data || response; // Lấy data an toàn
+      
+      setEvents(data.items || []);
       setPagination({
-        current: response.data.pageNumber,
-        pageSize: response.data.pageSize,
-        total: response.data.totalCount,
+        current: data.pageNumber || page,
+        pageSize: data.pageSize || pageSize,
+        total: data.totalCount || 0,
       });
     } catch (error) {
       console.error('Error fetching events:', error);
@@ -39,18 +64,20 @@ const EventList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []); // useCallback giúp hàm không bị tạo lại liên tục
 
+  // Gọi API lần đầu và mỗi khi debouncedSearch thay đổi
   useEffect(() => {
-    fetchEvents();
-  }, []);
+    // Reset về trang 1 mỗi khi đổi từ khóa tìm kiếm
+    fetchEvents(1, pagination.pageSize, debouncedSearch);
+  }, [debouncedSearch, fetchEvents]);
 
   // Xử lý xóa event
   const handleDelete = async (id) => {
     try {
-      await apiClient.delete(`/api/events/${id}`);
+      await axiosClient.delete(`/events/${id}`);
       message.success('Xóa sự kiện thành công');
-      fetchEvents(pagination.current, pagination.pageSize);
+      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch);
     } catch (error) {
       console.error('Error deleting event:', error);
       message.error(error.response?.data?.message || 'Không thể xóa sự kiện');
@@ -69,9 +96,9 @@ const EventList = () => {
     setFormVisible(true);
   };
 
-  // Xử lý phân trang
+  // Xử lý khi user bấm chuyển trang trên UI
   const handleTableChange = (newPagination) => {
-    fetchEvents(newPagination.current, newPagination.pageSize);
+    fetchEvents(newPagination.current, newPagination.pageSize, debouncedSearch);
   };
 
   // Xử lý quản lý ticket types
@@ -86,9 +113,6 @@ const EventList = () => {
       title: 'Tên sự kiện',
       dataIndex: 'name',
       key: 'name',
-      filteredValue: searchText ? [searchText] : null,
-      onFilter: (value, record) =>
-        record.name.toLowerCase().includes(value.toLowerCase()),
       render: (text) => <strong>{text}</strong>,
     },
     {
@@ -101,7 +125,6 @@ const EventList = () => {
       dataIndex: 'startTime',
       key: 'startTime',
       render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
-      sorter: (a, b) => new Date(a.startTime) - new Date(b.startTime),
     },
     {
       title: 'Sức chứa',
@@ -114,20 +137,24 @@ const EventList = () => {
       ),
     },
     {
+      title: 'Giá vé',
+      dataIndex: 'basePrice',
+      key: 'basePrice',
+      render: (price) => `${price?.toLocaleString('vi-VN')} VNĐ`,
+    },
+    {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
+        // Tạm thời tính trạng thái theo thời gian. 
+        // Sau này có trường Status từ DB sẽ map thẳng enum ở đây
         const now = new Date();
         const start = new Date(record.startTime);
         const end = new Date(record.endTime);
         
-        if (now < start) {
-          return <Tag color="blue">Sắp diễn ra</Tag>;
-        } else if (now >= start && now <= end) {
-          return <Tag color="green">Đang diễn ra</Tag>;
-        } else {
-          return <Tag color="gray">Đã kết thúc</Tag>;
-        }
+        if (now < start) return <Tag color="blue">Sắp diễn ra</Tag>;
+        if (now >= start && now <= end) return <Tag color="green">Đang diễn ra</Tag>;
+        return <Tag color="gray">Đã kết thúc</Tag>;
       },
     },
     {
@@ -137,11 +164,7 @@ const EventList = () => {
       width: 180,
       render: (_, record) => (
         <Space size="small">
-          <Button
-            type="link"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
-          >
+          <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             Sửa
           </Button>
           <Popconfirm
@@ -164,17 +187,14 @@ const EventList = () => {
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
         <Input
-          placeholder="Tìm kiếm theo tên sự kiện"
+          placeholder="Tìm kiếm theo tên hoặc mô tả..."
           prefix={<SearchOutlined />}
           style={{ width: 300 }}
+          value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
         />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={handleCreate}
-        >
+        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           Tạo sự kiện mới
         </Button>
       </div>
@@ -184,7 +204,11 @@ const EventList = () => {
         dataSource={events}
         rowKey="id"
         loading={loading}
-        pagination={pagination}
+        pagination={{
+          ...pagination,
+          showSizeChanger: true,
+          showTotal: (total) => `Tổng cộng ${total} sự kiện`
+        }}
         onChange={handleTableChange}
         scroll={{ x: 1200 }}
       />
@@ -195,7 +219,7 @@ const EventList = () => {
           setFormVisible(false);
           setSelectedEvent(null);
         }}
-        onSuccess={() => fetchEvents(pagination.current, pagination.pageSize)}
+        onSuccess={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch)}
         eventData={selectedEvent}
       />
     </div>

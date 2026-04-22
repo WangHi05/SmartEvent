@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, InputNumber, Switch, Button, Select, Divider, message, Descriptions, Tag } from 'antd';
 import { SaveOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 
 const { Option } = Select;
 
@@ -23,9 +23,11 @@ const SettingsPage = () => {
   // Lấy cấu hình hiện tại
   const fetchSettings = async () => {
     try {
-      const response = await apiClient.get('/api/settings');
-      form.setFieldsValue(response.data);
-      setSelectedPolicy(response.data.defaultRefundStrategy);
+      const response = await axiosClient.get('/settings');
+      const data = response.data || response;
+      
+      form.setFieldsValue(data);
+      setSelectedPolicy(data.defaultRefundStrategy);
     } catch (error) {
       console.error('Error fetching settings:', error);
       message.error('Không thể tải cấu hình hệ thống');
@@ -35,8 +37,9 @@ const SettingsPage = () => {
   // Lấy danh sách chính sách hoàn tiền
   const fetchRefundPolicies = async () => {
     try {
-      const response = await apiClient.get('/api/tickets/refund-policies');
-      setRefundPolicies(response.data);
+      const response = await axiosClient.get('/tickets/refund-policies');
+      const data = response.data || response;
+      setRefundPolicies(data || []);
     } catch (error) {
       console.error('Error fetching refund policies:', error);
     }
@@ -46,7 +49,7 @@ const SettingsPage = () => {
   const handleSave = async (values) => {
     setLoading(true);
     try {
-      await apiClient.put('/api/settings', values);
+      await axiosClient.put('/settings', values);
       message.success('Lưu cấu hình thành công!');
     } catch (error) {
       console.error('Error saving settings:', error);

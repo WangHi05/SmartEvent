@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Tag, DatePicker, Select, Input, Button, Space, Tooltip } from 'antd';
 import { SearchOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -41,12 +41,16 @@ const AuditLogsView = () => {
         ...filters,
       };
 
-      const response = await apiClient.get('/api/auditlogs', { params });
-      setLogs(response.data.items);
+      const response = await axiosClient.get('/auditlogs', { params });
+      
+      // Lấy data an toàn: Nếu response đã bị bóc vỏ thì dùng luôn response, nếu chưa thì lấy response.data
+      const data = response.data || response; 
+
+      setLogs(data.items || []); // Tránh lỗi undefined items
       setPagination({
-        current: response.data.pageNumber,
-        pageSize: response.data.pageSize,
-        total: response.data.totalCount,
+        current: data.pageNumber || page,
+        pageSize: data.pageSize || pageSize,
+        total: data.totalCount || 0,
       });
     } catch (error) {
       console.error('Error fetching audit logs:', error);
