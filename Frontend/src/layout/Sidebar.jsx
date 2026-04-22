@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut } from 'lucide-react';
+import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
@@ -45,6 +45,7 @@ console.log("Quyền đã được chuẩn hóa:", userRole);
     { path: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
     { path: '/events', label: 'Quản lý Sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
     { path: '/tickets', label: 'Vé & Soát vé', icon: QrCode, roles: ['admin', 'manager', 'staff'] },
+    { path: '/checkin', label: 'Soát vé (Quét QR)', icon: ScanLine, roles: ['admin', 'manager', 'staff'] },
     { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
     { path: '/audit-logs', label: 'Lịch sử thao tác', icon: FileText, roles: ['admin', 'manager'] },
     { path: '/settings', label: 'Cấu hình', icon: Settings, roles: ['admin'] },

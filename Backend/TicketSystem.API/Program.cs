@@ -1,6 +1,7 @@
 using TicketSystem.Infrastructure.Data;
 using TicketSystem.Infrastructure.Repositories;
-using TicketSystem.Infrastructure.Security; 
+using TicketSystem.Infrastructure.Security;
+using TicketSystem.Infrastructure.Services; 
 using TicketSystem.Application.Services;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
@@ -17,6 +18,11 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
         b => b.MigrationsAssembly("TicketSystem.Infrastructure")));
 
+// Đăng ký IApplicationDbContext trỏ tới cùng một instance của ApplicationDbContext
+// Điều này đảm bảo Request gửi lên dùng chung 1 kết nối Database
+builder.Services.AddScoped<IApplicationDbContext>(provider => 
+    provider.GetRequiredService<ApplicationDbContext>());
+
 // 2. Đăng ký Repositories và Hạ tầng
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>(); // Đăng ký UserRepository cụ thể
@@ -27,12 +33,13 @@ builder.Services.AddScoped<IPasswordHasher, PasswordHasher>(); // Đăng ký Pas
 builder.Services.AddHttpContextAccessor();
 
 // 3. Đăng ký Application Services (DEPENDENCY INVERSION)
-// Đổi từ AddScoped<UserService> sang AddScoped<IUserService, UserService>
 builder.Services.AddScoped<IUserService, UserService>();
 // Các service khác cũng nên chuyển sang dùng Interface tương tự
 builder.Services.AddScoped<EventService, EventService>();
 builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<TicketTypeValidationService>();
+builder.Services.AddScoped<IEventService, EventService>();
+builder.Services.AddScoped<ITicketCheckInService, TicketCheckInService>();
 
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
@@ -106,10 +113,7 @@ app.UseCors("AllowFrontend");
 // 1. Phải gọi UseAuthentication (Xác minh thẻ căn cước) TRƯỚC
 app.UseAuthentication(); 
 // 2. Rồi mới gọi UseAuthorization (Kiểm tra quyền vào cổng)
-app.UseAuthorization();  
-
-// XÓA DÒNG NÀY (Không dùng Middleware cũ nữa)
-// app.UseRoleAuthorization(); 
+app.UseAuthorization();   
 
 app.MapControllers();
 

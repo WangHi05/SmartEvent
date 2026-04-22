@@ -38,7 +38,7 @@ namespace TicketSystem.Application.Services
         // 4. Ghi AuditLog
         // NOTE: Method này đã được moved sang CheckInService.cs trong kiến trúc mới
         // Code được comment để giữ nguyên tham khảo nhưng không gây lỗi compile
-        /*
+        
         public async Task<CancelTicketResponseDto> CancelTicketAsync(CancelTicketDto request, string performedBy)
         {
             var ticket = await _ticketRepository.GetByIdAsync(request.TicketId);
@@ -53,7 +53,7 @@ namespace TicketSystem.Application.Services
             }
 
             // Kiểm tra điều kiện hủy vé
-            if (ticket.Status == TicketStatus.CheckedIn)
+            if (ticket.Status == TicketStatus.CHECKED_IN)
             {
                 return new CancelTicketResponseDto
                 {
@@ -63,7 +63,7 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            if (ticket.Status == TicketStatus.Cancelled || ticket.Status == TicketStatus.Refunded)
+             if (ticket.Status == TicketStatus.CANCELLED)
             {
                 return new CancelTicketResponseDto
                 {
@@ -79,13 +79,13 @@ namespace TicketSystem.Application.Services
             string policySource = "Default";
 
             // Nếu ticket có TicketTypeId, lấy policy từ TicketType
-            if (ticket.TicketTypeId.HasValue)
+            if (ticket.TicketTypeId != Guid.Empty)
             {
-                var ticketType = await _ticketTypeRepository.GetByIdAsync(ticket.TicketTypeId.Value);
+                var ticketType = await _ticketTypeRepository.GetByIdAsync(ticket.TicketTypeId);
                 if (ticketType != null)
                 {
-                    var refundPolicy = ticketType.GetRefundPolicy();
-                    strategyKey = refundPolicy.ToString(); // "FullRefund", "PartialRefund", "NoRefund"
+                    //var refundPolicy = ticketType.GetRefundPolicy();
+                    strategyKey = "PartialRefund";  // "FullRefund", "PartialRefund", "NoRefund"
                     policySource = $"TicketType({ticketType.Name})";
                 }
             }
@@ -116,7 +116,7 @@ namespace TicketSystem.Application.Services
             var refundAmount = refundStrategy.CalculateRefundAmount(ticket, cancellationTime);
 
             // Cập nhật trạng thái vé
-            ticket.Status = refundAmount > 0 ? TicketStatus.Refunded : TicketStatus.Cancelled;
+            ticket.Status = TicketStatus.CANCELLED;
             ticket.UpdatedAt = cancellationTime;
             ticket.UpdatedBy = performedBy;
 
@@ -191,7 +191,7 @@ namespace TicketSystem.Application.Services
 
             return ipAddress.ToString();
         }
-        */
+        
     }
 
     

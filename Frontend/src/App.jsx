@@ -14,6 +14,7 @@ import { SettingsPage } from './features/admin/settings';
 import { AuditLogsView } from './features/admin/audit-logs';
 import { UserList } from './features/admin/users';
 import { TicketList } from './features/admin/tickets';
+import CheckInPage from './features/admin/checkin/CheckInPage';
 
 import Login from './pages/Login'; 
 import Register from './pages/Register'; 
@@ -38,8 +39,8 @@ function App() {
             <Route path="users" element={<UserList />} />
             <Route path="audit-logs" element={<AuditLogsView />} />
             <Route path="settings" element={<SettingsPage />} />
-            
             <Route path="tickets" element={<TicketList />} />
+            <Route path="checkin" element={<CheckInPage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/login" replace />} />
