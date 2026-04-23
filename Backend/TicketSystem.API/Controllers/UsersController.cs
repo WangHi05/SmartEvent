@@ -62,7 +62,7 @@ namespace TicketSystem.API.Controllers
         public async Task<ActionResult<UserResponseDto>> Register([FromBody] CreateUserDto dto)
         {
             // Fix cứng Role là Staff (hoặc Customer) cho người dùng tự đăng ký
-            dto.Role = "Staff"; 
+            dto.Role = "Customer"; 
             var result = await _userService.CreateUserAsync(dto, "System_Register");
             return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }

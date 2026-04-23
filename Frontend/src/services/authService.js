@@ -30,7 +30,7 @@ export const authService = {
         // Gắn thêm Role mặc định là "Staff" (hoặc "Customer") vào gói dữ liệu trước khi gửi đi
         const payload = {
             ...userData,
-            role: "Staff" 
+            role: "Customer" 
         };
         // Nhớ gọi đúng đường dẫn API register
         return await axiosClient.post('/users/register', payload); 

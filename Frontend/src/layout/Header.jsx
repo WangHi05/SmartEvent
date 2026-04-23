@@ -25,6 +25,10 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
     case 'staff':
       roleDisplay = 'Nhân viên';
       break;
+    case '3':
+    case 'customer':
+      roleDisplay = 'Khách hàng';
+      break;
     default:
       roleDisplay = 'Chưa xác định';
   }

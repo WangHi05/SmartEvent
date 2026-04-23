@@ -157,6 +157,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
             <Select.Option value="Admin">Admin</Select.Option>
             <Select.Option value="Manager">Manager</Select.Option>
             <Select.Option value="Staff">Staff</Select.Option>
+            <Select.Option value="Customer">Customer</Select.Option>
           </Select>
         </Form.Item>
 
