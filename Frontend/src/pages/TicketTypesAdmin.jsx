@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Space, Modal, Form, Input, InputNumber, DatePicker, Switch, message, Popconfirm, Tag, Alert, Card } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import apiClient from '../services/apiClient';
+import axiosClient from '../api/axiosClient';
 import dayjs from 'dayjs';
 
 const TicketTypesAdmin = ({ eventId }) => {
@@ -17,7 +17,7 @@ const TicketTypesAdmin = ({ eventId }) => {
   // Fetch event details
   const loadEventDetails = async () => {
     try {
-      const res = await apiClient.get(`/api/events/${eventId}`);
+      const res = await axiosClient.get(`/events/${eventId}`);
       setEvent(res.data);
     } catch (err) {
       console.error('Lỗi tải thông tin sự kiện', err);
@@ -28,7 +28,7 @@ const TicketTypesAdmin = ({ eventId }) => {
     if (!eventId) return;
     setLoading(true);
     try {
-      const res = await apiClient.get(`/api/events/${eventId}/ticket-types/paged`, {
+      const res = await axiosClient.get(`/events/${eventId}/ticket-types/paged`, {
         params: { pageNumber: page, pageSize }
       });
       setTicketTypes(res.data.data.items || []);
@@ -88,10 +88,10 @@ const TicketTypesAdmin = ({ eventId }) => {
       };
 
       if (modal.mode === 'create') {
-        await apiClient.post(`/api/events/${eventId}/ticket-types`, payload);
+        await axiosClient.post(`/events/${eventId}/ticket-types`, payload);
         message.success('Tạo loại vé thành công');
       } else {
-        await apiClient.put(`/api/ticket-types/${modal.data.id}`, payload);
+        await axiosClient.put(`/ticket-types/${modal.data.id}`, payload);
         message.success('Cập nhật loại vé thành công');
       }
 
@@ -105,7 +105,7 @@ const TicketTypesAdmin = ({ eventId }) => {
 
   const handleDelete = async (id) => {
     try {
-      await apiClient.delete(`/api/ticket-types/${id}`);
+      await axiosClient.delete(`/ticket-types/${id}`);
       message.success('Xóa loại vé thành công');
       loadTicketTypes(pageNum);
     } catch (err) {

@@ -150,6 +150,73 @@ namespace TicketSystem.Application.Services
             };
         }
 
+        public async Task<bool> ForgotPasswordAsync(string email)
+        {
+            // 1. Tìm user theo email (cần thêm method GetByEmailAsync vào IUserRepository)
+            // Tạm thời mock: var user = await _userRepository.GetByEmailAsync(email);
+            var (users, _) = await _userRepository.GetPagedUsersAsync(1, 1, email, null);
+            var user = users.FirstOrDefault(u => u.Email == email);
+            
+            if (user == null || !user.IsActive) return false;
+
+            // 2. Tạo Token
+            var token = user.GeneratePasswordResetToken();
+            await _userRepository.UpdateAsync(user);
+
+            // 3. Gửi Email (GỌI DI IEmailService TẠI ĐÂY)
+            // Ví dụ: await _emailService.SendResetPasswordEmailAsync(user.Email, token);
+            await LogAuditAsync("ForgotPassword", "User", user.Id, "System", $"Generated reset token for {email}");
+
+            return true;
+        }
+
+        public async Task<bool> ResetPasswordAsync(string email, string token, string newPassword)
+        {
+            var (users, _) = await _userRepository.GetPagedUsersAsync(1, 1, email, null);
+            var user = users.FirstOrDefault(u => u.Email == email);
+
+            if (user == null) return false;
+
+            var newHash = _passwordHasher.HashPassword(newPassword);
+            var success = user.ResetPassword(token, newHash);
+
+            if (success)
+            {
+                await _userRepository.UpdateAsync(user);
+                await LogAuditAsync("ResetPassword", "User", user.Id, "System", $"Password reset successful for {email}");
+            }
+            return success;
+        }
+
+        public async Task<AuthResponseDto?> ExternalLoginAsync(string email, string fullName, string provider, string providerId)
+        {
+            // 1. Kiểm tra user đã tồn tại chưa
+            var (users, _) = await _userRepository.GetPagedUsersAsync(1, 1, email, null);
+            var user = users.FirstOrDefault(u => u.Email == email);
+
+            if (user == null)
+            {
+                // 2. Nếu chưa có, tự động đăng ký (Auto Register)
+                user = User.CreateSocialUser(email, fullName, provider, providerId);
+                await _userRepository.AddAsync(user);
+                await LogAuditAsync("Register", "User", user.Id, "System", $"Auto registered via {provider}");
+            }
+            else if (user.Provider != provider)
+            {
+                // Link tài khoản nếu cần thiết (Tùy logic nghiệp vụ)
+            }
+
+            // 3. Cấp phát JWT Token của hệ thống
+            var token = _jwtTokenGenerator.GenerateToken(user);
+            await LogAuditAsync("Login", "User", user.Id, user.Username, $"Logged in via {provider}");
+
+            return new AuthResponseDto
+            {
+                User = MapToResponseDto(user),
+                Token = token
+            };
+        }
+
         private UserResponseDto MapToResponseDto(User user)
         {
             return new UserResponseDto

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, Modal, message, Space, Button, Card, Row, Col, Tag } from 'antd';
 import { Settings } from 'lucide-react';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 import TicketTypesAdmin from '../../../pages/TicketTypesAdminV2';
 
 export function TicketList() {
@@ -17,7 +17,7 @@ export function TicketList() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/events');
+      const response = await axiosClient.get('/events');
       setEvents(response.data.items || []);
     } catch (err) {
       message.error('Lỗi tải danh sách sự kiện');

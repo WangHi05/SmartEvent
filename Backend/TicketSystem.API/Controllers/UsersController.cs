@@ -80,6 +80,42 @@ namespace TicketSystem.API.Controllers
             return Ok(result);
         }
 
+        // 1. API QUÊN MẬT KHẨU
+        [HttpPost("forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        {
+            var success = await _userService.ForgotPasswordAsync(dto.Email);
+            if (!success) 
+                return BadRequest(new { message = "Không tìm thấy email hoặc tài khoản chưa kích hoạt." });
+            
+            return Ok(new { message = "Email xác nhận đã được gửi." });
+        }
+
+        // 2. API ĐẶT LẠI MẬT KHẨU
+        [HttpPost("reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            var success = await _userService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+            if (!success) 
+                return BadRequest(new { message = "Mã xác nhận không đúng hoặc đã hết hạn." });
+            
+            return Ok(new { message = "Đặt lại mật khẩu thành công." });
+        }
+
+        // 3. API SOCIAL LOGIN (GOOGLE / FACEBOOK)
+        [HttpPost("external-login")]
+        [AllowAnonymous]
+        public async Task<ActionResult<AuthResponseDto>> ExternalLogin([FromBody] ExternalLoginDto dto)
+        {
+            var result = await _userService.ExternalLoginAsync(dto.Email, dto.Name, dto.Provider, dto.ProviderId);
+            if (result == null) 
+                return BadRequest(new { message = "Đăng nhập thất bại." });
+            
+            return Ok(result);
+        }
+
         // Cập nhật thông tin User
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Manager")]
@@ -112,5 +148,25 @@ namespace TicketSystem.API.Controllers
     {
         public string Username { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+    }
+
+    public class ForgotPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+    }
+
+    public class ResetPasswordDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Token { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
+    }
+
+    public class ExternalLoginDto
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+        public string ProviderId { get; set; } = string.Empty;
     }
 }
