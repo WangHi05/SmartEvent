@@ -1,203 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import { Card, Form, InputNumber, Switch, Button, Select, Divider, message, Descriptions, Tag } from 'antd';
-import { SaveOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import React, { useEffect, useState } from 'react';
+import {
+  Card,
+  Form,
+  InputNumber,
+  Switch,
+  Button,
+  Select,
+  Divider,
+  message,
+  Descriptions,
+} from 'antd';
+import { ReloadOutlined, SaveOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 
-const { Option } = Select;
+const REFUND_POLICY_OPTIONS = [
+  { label: 'Hoàn 100% (Full Refund)', value: '1' },
+  { label: 'Hoàn một phần theo thời gian (Partial Refund)', value: '2' },
+  { label: 'Không hoàn tiền (No Refund)', value: '3' },
+];
 
-/**
- * Component Settings Page - Cấu hình hệ thống
- * Bao gồm cấu hình chính sách hoàn tiền, hủy vé
- */
 const SettingsPage = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [refundPolicies, setRefundPolicies] = useState([]);
-  const [selectedPolicy, setSelectedPolicy] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchSettings();
-    fetchRefundPolicies();
   }, []);
 
-  // Lấy cấu hình hiện tại
   const fetchSettings = async () => {
     try {
+      setLoading(true);
       const response = await axiosClient.get('/settings');
-      const data = response.data || response;
-      
-      form.setFieldsValue(data);
-      setSelectedPolicy(data.defaultRefundStrategy);
+      const settingsList = response.data || response;
+      const settingsMap = {};
+
+      (settingsList || []).forEach((setting) => {
+        settingsMap[setting.settingKey] = setting.settingValue;
+      });
+
+      form.setFieldsValue({
+        RefundPolicy: settingsMap.RefundPolicy || '2',
+        CancelHoursBeforeEvent: Number(settingsMap.CancelHoursBeforeEvent || 24),
+        RefundFeePercent: Number(settingsMap.RefundFeePercent || 2.5),
+        AutoRefund: settingsMap.AutoRefund === 'true',
+      });
     } catch (error) {
-      console.error('Error fetching settings:', error);
       message.error('Không thể tải cấu hình hệ thống');
-    }
-  };
-
-  // Lấy danh sách chính sách hoàn tiền
-  const fetchRefundPolicies = async () => {
-    try {
-      const response = await axiosClient.get('/tickets/refund-policies');
-      const data = response.data || response;
-      setRefundPolicies(data || []);
-    } catch (error) {
-      console.error('Error fetching refund policies:', error);
-    }
-  };
-
-  // Lưu cấu hình
-  const handleSave = async (values) => {
-    setLoading(true);
-    try {
-      await axiosClient.put('/settings', values);
-      message.success('Lưu cấu hình thành công!');
-    } catch (error) {
-      console.error('Error saving settings:', error);
-      message.error(error.response?.data?.message || 'Không thể lưu cấu hình');
     } finally {
       setLoading(false);
     }
   };
 
-  // Lấy thông tin policy được chọn
-  const getSelectedPolicyInfo = () => {
-    return refundPolicies.find(p => p.type === selectedPolicy);
+  const handleSave = async (values) => {
+    try {
+      setSaving(true);
+      await Promise.all([
+        axiosClient.put('/settings/RefundPolicy', { value: String(values.RefundPolicy) }),
+        axiosClient.put('/settings/CancelHoursBeforeEvent', { value: String(values.CancelHoursBeforeEvent) }),
+        axiosClient.put('/settings/RefundFeePercent', { value: String(values.RefundFeePercent) }),
+        axiosClient.put('/settings/AutoRefund', { value: values.AutoRefund ? 'true' : 'false' }),
+      ]);
+      message.success('Lưu cấu hình thành công');
+      await fetchSettings();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể lưu cấu hình');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <div style={{ padding: '24px', maxWidth: 1200, margin: '0 auto' }}>
       <h2 style={{ marginBottom: 24 }}>Cấu hình hệ thống</h2>
 
-      <Card title="Chính sách hoàn tiền và hủy vé" style={{ marginBottom: 24 }}>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSave}
-          initialValues={{
-            defaultRefundStrategy: 'Partial',
-            defaultCancellationDeadlineHours: 48,
-            enableAutoRefund: true,
-            refundProcessingFeePercent: 0,
-          }}
-        >
+      <Card
+        title="Chính sách hoàn tiền và hủy vé"
+        style={{ marginBottom: 24 }}
+        loading={loading}
+        extra={
+          <Button icon={<ReloadOutlined />} onClick={fetchSettings}>
+            Làm mới
+          </Button>
+        }
+      >
+        <Form form={form} layout="vertical" onFinish={handleSave}>
           <Form.Item
-            label="Chính sách hoàn tiền mặc định"
-            name="defaultRefundStrategy"
-            tooltip="Chọn chính sách hoàn tiền áp dụng chung cho tất cả sự kiện"
+            label="* Chính sách hoàn tiền mặc định"
+            name="RefundPolicy"
             rules={[{ required: true, message: 'Vui lòng chọn chính sách' }]}
           >
-            <Select
-              placeholder="Chọn chính sách hoàn tiền"
-              onChange={(value) => setSelectedPolicy(value)}
-            >
-              {refundPolicies.map(policy => (
-                <Option key={policy.type} value={policy.type}>
-                  {policy.name}
-                </Option>
-              ))}
-            </Select>
+            <Select placeholder="Chọn chính sách hoàn tiền" options={REFUND_POLICY_OPTIONS} />
           </Form.Item>
-
-          {/* Hiển thị thông tin policy được chọn */}
-          {selectedPolicy && getSelectedPolicyInfo() && (
-            <Card
-              size="small"
-              style={{ marginBottom: 16, backgroundColor: '#f6f8fa' }}
-            >
-              <Descriptions column={1} size="small">
-                <Descriptions.Item label={<strong>Chính sách</strong>}>
-                  <Tag color="blue">{getSelectedPolicyInfo().name}</Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label={<strong>Mô tả</strong>}>
-                  {getSelectedPolicyInfo().description}
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-          )}
 
           <Divider />
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <Form.Item
-              label="Thời hạn hủy vé mặc định (giờ)"
-              name="defaultCancellationDeadlineHours"
-              tooltip="Số giờ trước sự kiện mà khách hàng có thể hủy vé"
+              label="* Thời hạn hủy vé tối thiểu (giờ)"
+              name="CancelHoursBeforeEvent"
               rules={[
                 { required: true, message: 'Vui lòng nhập thời hạn' },
                 { type: 'number', min: 0, max: 720, message: 'Từ 0 đến 720 giờ' },
               ]}
             >
-              <InputNumber
-                style={{ width: '100%' }}
-                min={0}
-                max={720}
-                placeholder="Ví dụ: 48"
-                addonAfter="giờ"
-              />
+              <InputNumber style={{ width: '100%' }} min={0} max={720} addonAfter="giờ" />
             </Form.Item>
 
             <Form.Item
               label="Phí xử lý hoàn tiền (%)"
-              name="refundProcessingFeePercent"
-              tooltip="Phần trăm phí khấu trừ khi hoàn tiền"
-              rules={[
-                { type: 'number', min: 0, max: 100, message: 'Từ 0 đến 100%' },
-              ]}
+              name="RefundFeePercent"
+              rules={[{ type: 'number', min: 0, max: 100, message: 'Từ 0 đến 100%' }]}
             >
-              <InputNumber
-                style={{ width: '100%' }}
-                min={0}
-                max={100}
-                step={0.1}
-                placeholder="Ví dụ: 2.5"
-                addonAfter="%"
-              />
+              <InputNumber style={{ width: '100%' }} min={0} max={100} step={0.1} addonAfter="%" />
             </Form.Item>
           </div>
 
-          <Form.Item
-            label="Bật hoàn tiền tự động"
-            name="enableAutoRefund"
-            valuePropName="checked"
-            tooltip="Tự động xử lý hoàn tiền khi hủy vé đủ điều kiện"
-          >
-            <Switch
-              checkedChildren="Bật"
-              unCheckedChildren="Tắt"
-            />
+          <Form.Item label="Bật hoàn tiền tự động" name="AutoRefund" valuePropName="checked">
+            <Switch checkedChildren="Bật" unCheckedChildren="Tắt" />
           </Form.Item>
 
           <Divider />
 
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={loading}
-              size="large"
-            >
+            <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={saving} size="large">
               Lưu cấu hình
             </Button>
           </Form.Item>
         </Form>
       </Card>
 
-      {/* Card hướng dẫn */}
-      <Card
-        title={<span><InfoCircleOutlined /> Hướng dẫn</span>}
-        size="small"
-      >
+      <Card title={<span><InfoCircleOutlined /> Hướng dẫn</span>} size="small">
         <Descriptions column={1} size="small">
-          <Descriptions.Item label="Full Refund">
-            Hoàn 100% giá trị vé khi hủy trước thời hạn quy định
-          </Descriptions.Item>
-          <Descriptions.Item label="Partial Refund">
-            Hoàn tiền theo tỷ lệ: 75% (≥48h), 50% (24-48h), 25% (6-24h), 0% (&lt;6h)
-          </Descriptions.Item>
-          <Descriptions.Item label="No Refund">
-            Không hoàn tiền trong mọi trường hợp (vé khuyến mãi, vé đặc biệt)
-          </Descriptions.Item>
+          <Descriptions.Item label="Full Refund">Hoàn 100% giá trị vé (trừ phí xử lý)</Descriptions.Item>
+          <Descriptions.Item label="Partial Refund">Hoàn theo mốc: &gt;7 ngày: 100%, 3-7 ngày: 75%, 1-3 ngày: 50%, &lt;24h: 0%</Descriptions.Item>
+          <Descriptions.Item label="No Refund">Không hoàn tiền trong mọi trường hợp</Descriptions.Item>
         </Descriptions>
       </Card>
     </div>

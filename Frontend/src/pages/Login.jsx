@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 const Login = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [formData, setFormData] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -18,10 +19,27 @@ const Login = () => {
         setError('');
 
         try {
-            await authService.login(formData.username, formData.password);
-            navigate('/dashboard');
+            const authResponse = await authService.login(formData.username, formData.password);
+            const rawRole = (authResponse?.user?.role || authResponse?.user?.Role || '').toString().toLowerCase();
+            const query = new URLSearchParams(location.search);
+            const redirectPath = query.get('redirect');
+
+            if (redirectPath && redirectPath.startsWith('/')) {
+                navigate(redirectPath, { replace: true });
+                return;
+            }
+
+            if (rawRole === 'customer' || rawRole === '3') {
+                navigate('/customer/events', { replace: true });
+            } else {
+                navigate('/dashboard', { replace: true });
+            }
         } catch (err) {
-            setError(err.message);
+            setError(
+                err?.response?.data?.message ||
+                err?.message ||
+                'Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản.'
+            );
         } finally {
             setIsLoading(false);
         }

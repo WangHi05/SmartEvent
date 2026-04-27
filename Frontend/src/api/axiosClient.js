@@ -39,8 +39,8 @@ axiosClient.interceptors.response.use(
             console.warn("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
             
             // Xóa dữ liệu cũ và đá người dùng văng ra trang Login
-            localStorage.removeItem('jwt_token');
-            localStorage.removeItem('user_info');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
             
             // Chuyển hướng (Tuỳ thuộc bạn dùng react-router-dom)
             window.location.href = '/login'; 

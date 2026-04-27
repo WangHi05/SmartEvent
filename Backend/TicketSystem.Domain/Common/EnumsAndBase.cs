@@ -40,4 +40,33 @@ namespace TicketSystem.Domain.Common
         Completed = 3,  // Đã kết thúc
         Cancelled = 4   // Đã hủy
     }
+
+    public enum PaymentMethod
+    {
+        VNPAY = 1,      // Thanh toán qua VNPay
+        QRPayment = 2,  // Thanh toán QR (ảo)
+        Counter = 3     // Thanh toán tại quầy
+    }
+
+    public enum PaymentStatus
+    {
+        Pending = 0,    // Chờ thanh toán
+        Completed = 1,  // Đã thanh toán
+        Failed = 2,     // Thanh toán thất bại
+        Cancelled = 3   // Đã hủy
+    }
+
+    public enum OrderStatus
+    {
+        Pending = 0,    // Chờ xử lý
+        Confirmed = 1,  // Đã xác nhận
+        Cancelled = 2   // Đã hủy
+    }
+
+    public enum RefundPolicy
+    {
+        FullRefund = 1,      // Hoàn 100%
+        PartialRefund = 2,   // Hoàn một phần tùy theo thời gian
+        NoRefund = 3         // Không hoàn tiền
+    }
 }

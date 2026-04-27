@@ -23,7 +23,6 @@ namespace TicketSystem.Infrastructure.Services
             {
                 var ticket = await _context.Tickets
                     .Include(t => t.TicketType)
-                        .ThenInclude(tt => tt.Event) 
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null) return CheckInResponse.Fail("Vé không tồn tại trên hệ thống.");
@@ -36,8 +35,11 @@ namespace TicketSystem.Infrastructure.Services
                 if (ticket.Status == TicketStatus.CHECKED_IN)
                     return CheckInResponse.Fail("Vé này đã được sử dụng trước đó.");
 
-                // 3. Kiểm tra hết hạn
-                var eventEntity = ticket.TicketType?.Event;
+                // 3. Kiểm tra hết hạn - Load Event từ context
+                var eventEntity = ticket.TicketType != null 
+                    ? await _context.Events.FirstOrDefaultAsync(e => e.Id == ticket.TicketType.EventId)
+                    : null;
+                
                 if (eventEntity != null && DateTime.UtcNow > eventEntity.EndTime.ToUniversalTime())
                     return CheckInResponse.Fail("Sự kiện đã kết thúc, vé không còn hiệu lực.");
 
@@ -66,6 +68,24 @@ namespace TicketSystem.Infrastructure.Services
                 else
                 {
                     ticket.CheckInLogs.Add(log);
+                }
+
+                // 4.5 Cập nhật sức chứa sự kiện
+                if (eventEntity != null)
+                {
+                    eventEntity.CurrentOccupancy += 1;
+                    eventEntity.UpdatedAt = DateTime.UtcNow;
+                }
+
+                // 4.6 Cập nhật số vé còn lại - Load TicketType từ context để đảm bảo tracking
+                if (ticket.TicketType != null)
+                {
+                    var ticketTypeFromContext = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == ticket.TicketType.Id);
+                    if (ticketTypeFromContext != null)
+                    {
+                        ticketTypeFromContext.RemainingQuantity -= 1;
+                        ticketTypeFromContext.UpdatedAt = DateTime.UtcNow;
+                    }
                 }
 
                 // 5. LƯU DỮ LIỆU & XỬ LÝ LỖI CONCURRENCY (XUNG ĐỘT)

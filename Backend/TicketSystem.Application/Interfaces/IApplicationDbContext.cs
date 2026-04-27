@@ -13,7 +13,13 @@ namespace TicketSystem.Application.Interfaces
     {
         DbSet<Event> Events { get; }
         DbSet<Ticket> Tickets { get; }
-        // DbSet<TicketType> TicketTypes { get; }
+        DbSet<TicketType> TicketTypes { get; }
+        DbSet<User> Users { get; }
+        DbSet<Order> Orders { get; }
+        DbSet<Payment> Payments { get; }
+        DbSet<CheckInLog> CheckInLogs { get; }
+        DbSet<AuditLog> AuditLogs { get; }
+        DbSet<SystemSettings> SystemSettings { get; }
 
         // Phương thức lưu thay đổi vào DB
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

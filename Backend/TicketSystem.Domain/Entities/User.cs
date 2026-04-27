@@ -13,6 +13,9 @@ namespace TicketSystem.Domain.Entities
         public UserRole Role { get; private set; }
         public bool IsActive { get; private set; }
 
+        // Navigation properties
+        public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
+
         protected User() { } 
 
         public static User Create(string username, string passwordHash, string fullName, string email, UserRole role, string createdBy)

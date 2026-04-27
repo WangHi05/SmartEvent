@@ -40,6 +40,9 @@ builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<TicketTypeValidationService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<ITicketCheckInService, TicketCheckInService>();
+builder.Services.AddScoped<IOrderService, OrderService>();
+builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
 
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();

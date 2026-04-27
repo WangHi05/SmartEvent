@@ -14,11 +14,19 @@ public enum TicketStatus
 public class Ticket : BaseEntity
 {
     public Guid TicketTypeId { get; set; }
+    public Guid? OrderId { get; set; } // Foreign key to Order
     public string? QrCode { get; set; }
     public TicketStatus Status { get; set; } = TicketStatus.ACTIVE;
+    
+    // Cancel + Refund related fields
+    public DateTime? CancelledAt { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public string? CancelReason { get; set; }
+    public bool IsCheckedIn { get; set; } = false; // True nếu vé đã check-in
 
     // Relationships
     public virtual TicketType? TicketType { get; set; }
+    public virtual Order? Order { get; set; }
     public virtual ICollection<CheckInLog> CheckInLogs { get; set; } = new List<CheckInLog>();
 }
 

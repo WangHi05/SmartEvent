@@ -16,14 +16,17 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     // Lấy token từ localStorage (nếu có authentication)
-    const token = localStorage.getItem('authToken');
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Mock role header cho middleware (tạm thời)
-    const userRole = localStorage.getItem('userRole') || 'Admin';
-    config.headers['X-User-Role'] = userRole;
+    // Gửi role hiện tại nếu có (hỗ trợ middleware legacy)
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const userRole = user?.role || user?.Role;
+    if (userRole) {
+      config.headers['X-User-Role'] = userRole;
+    }
 
     return config;
   },
@@ -40,7 +43,8 @@ apiClient.interceptors.response.use(
   (error) => {
     // Xử lý lỗi 401 - Unauthorized
     if (error.response?.status === 401) {
-      localStorage.removeItem('authToken');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       window.location.href = '/login';
     }
 
