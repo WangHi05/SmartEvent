@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
-import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine } from 'lucide-react';
+import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
@@ -32,23 +32,16 @@ switch (rawRole) {
         userRole = '';
 }
 
-// DEBUG để kiểm tra lại
-console.log("Giá trị gốc từ DB:", rawRole);
-console.log("Quyền đã được chuẩn hóa:", userRole);
-
-  // DEBUG: In ra màn hình console để em theo dõi (Bấm F12 để xem)
-  console.log("Dữ liệu User từ LocalStorage:", user);
-  console.log("Quyền (Role) hiện tại là:", userRole);
-
   // 2. DANH SÁCH MENU ĐÃ ĐƯỢC CẤU HÌNH ĐƯỜNG DẪN (path) VÀ QUYỀN (roles)
   const menuItems = [
-    { path: '/dashboard', label: 'Tổng quan', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
-    { path: '/events', label: 'Quản lý Sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
+    { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
     { path: '/tickets', label: 'Vé & Soát vé', icon: QrCode, roles: ['admin', 'manager', 'staff'] },
+    { path: '/bookings', label: 'Quản lý đặt vé', icon: ClipboardList, roles: ['admin', 'manager', 'staff'] },
     { path: '/checkin', label: 'Soát vé (Quét QR)', icon: ScanLine, roles: ['admin', 'manager', 'staff'] },
     { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
-    { path: '/audit-logs', label: 'Lịch sử thao tác', icon: FileText, roles: ['admin', 'manager'] },
-    { path: '/settings', label: 'Cấu hình', icon: Settings, roles: ['admin'] },
+    { path: '/audit-logs', label: 'Theo dõi hoạt động', icon: FileText, roles: ['admin', 'manager'] },
+    { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] },
   ];
 
   // Hàm xử lý đăng xuất

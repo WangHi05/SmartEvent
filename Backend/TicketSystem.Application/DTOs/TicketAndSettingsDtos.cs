@@ -75,4 +75,49 @@ namespace TicketSystem.Application.DTOs
             set => _pageSize = value > 20 ? 20 : value;
         }
     }
+
+    /// <summary>
+    /// DTO cho yêu cầu hủy đơn hàng
+    /// </summary>
+    public class CancelOrderRequestDto
+    {
+        [StringLength(500)]
+        public string? Reason { get; set; }
+    }
+
+    /// <summary>
+    /// DTO trả về kết quả hủy đơn hàng
+    /// </summary>
+    public class CancelOrderResponseDto
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public decimal RefundAmount { get; set; }
+        public DateTime? CancelledAt { get; set; }
+        public string? ErrorCode { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho kết quả kiểm tra xem có thể hủy hay không
+    /// </summary>
+    public class CancelValidationDto
+    {
+        public bool CanCancel { get; set; }
+        public string? ReasonCannotCancel { get; set; }
+        public decimal EstimatedRefundAmount { get; set; }
+    }
+
+    /// <summary>
+    /// DTO cho tính toán hoàn tiền
+    /// </summary>
+    public class CalculateRefundDto
+    {
+        public decimal TotalPrice { get; set; }
+        public decimal RefundPercentage { get; set; }
+        public decimal RefundBeforeFee { get; set; }
+        public decimal RefundFeePercent { get; set; }
+        public decimal RefundFeeAmount { get; set; }
+        public decimal FinalRefundAmount { get; set; }
+        public string RefundReason { get; set; } = string.Empty;
+    }
 }

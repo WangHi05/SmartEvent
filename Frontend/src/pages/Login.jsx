@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { authService } from '../services/authService';
 
 export default function Login() {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({ username: '', password: '', rememberMe: false });
+    const location = useLocation();
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -59,7 +59,23 @@ export default function Login() {
             } else {
                 setError(`Không thể kết nối đến dịch vụ ${provider}!`);
             }
-        } finally {
+            const authResponse = await authService.login(formData.username, formData.password);
+            const rawRole = (authResponse?.user?.role || authResponse?.user?.Role || '').toString().toLowerCase();
+            const query = new URLSearchParams(location.search);
+            const redirectPath = query.get('redirect');
+
+            if (redirectPath && redirectPath.startsWith('/')) {
+                navigate(redirectPath, { replace: true });
+                return;
+            }
+
+            if (rawRole === 'customer' || rawRole === '3') {
+                navigate('/customer/events', { replace: true });
+            } else {
+                navigate('/dashboard', { replace: true });
+            }
+        }finally 
+        {
             setIsLoading(false);
         }
     };

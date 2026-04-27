@@ -18,6 +18,9 @@ namespace TicketSystem.Infrastructure.Data
         public DbSet<Ticket> Tickets { get; set; }
         public DbSet<CheckInLog> CheckInLogs { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<Payment> Payments { get; set; }
+        public DbSet<SystemSettings> SystemSettings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -75,6 +78,8 @@ namespace TicketSystem.Infrastructure.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.QrCode).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Status).HasConversion<int>();
+                entity.Property(e => e.CancelReason).HasMaxLength(500);
+                entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
 
                 entity.HasOne(e => e.TicketType)
                     .WithMany(tt => tt.Tickets)
@@ -83,6 +88,7 @@ namespace TicketSystem.Infrastructure.Data
 
                 entity.HasIndex(e => e.QrCode).IsUnique();
                 entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.IsCheckedIn);
             });
 
             // 4. CheckInLog Configuration
@@ -97,6 +103,75 @@ namespace TicketSystem.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasIndex(e => new { e.TicketId, e.CheckinDate }).IsUnique();
+            });
+
+            // 5. Order Configuration
+            modelBuilder.Entity<Order>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.TotalPrice).HasPrecision(18, 2).IsRequired();
+                entity.Property(e => e.OrderStatus).HasConversion<int>();
+                entity.Property(e => e.Quantity).IsRequired();
+                entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
+                entity.Property(e => e.ConfirmedBy).HasMaxLength(100);
+
+                entity.HasOne(e => e.User)
+                    .WithMany(u => u.Orders)
+                    .HasForeignKey(e => e.UserId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.Event)
+                    .WithMany(ev => ev.Orders)
+                    .HasForeignKey(e => e.EventId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.TicketType)
+                    .WithMany()
+                    .HasForeignKey(e => e.TicketTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => new { e.UserId, e.EventId });
+                entity.HasIndex(e => e.CreatedAt);
+                entity.HasIndex(e => e.OrderStatus);
+                entity.HasIndex(e => new { e.UserId, e.OrderStatus });
+            });
+
+            // 6. Payment Configuration
+            modelBuilder.Entity<Payment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Amount).HasPrecision(18, 2).IsRequired();
+                entity.Property(e => e.PaymentMethod).HasConversion<int>();
+                entity.Property(e => e.PaymentStatus).HasConversion<int>();
+                entity.Property(e => e.TransactionReference).HasMaxLength(255);
+
+                entity.HasOne(e => e.Order)
+                    .WithMany(o => o.Payments)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(e => e.CreatedAt);
+            });
+
+            // 7. Ticket - Order Relationship Configuration
+            modelBuilder.Entity<Ticket>(entity =>
+            {
+                entity.HasOne(e => e.Order)
+                    .WithMany(o => o.Tickets)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.NoAction);
+            });
+
+            // 8. SystemSettings Configuration
+            modelBuilder.Entity<SystemSettings>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.SettingKey).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.SettingValue).HasMaxLength(500).IsRequired();
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.DataType).HasMaxLength(50).IsRequired();
+
+                entity.HasIndex(e => e.SettingKey).IsUnique();
             });
         }
     }

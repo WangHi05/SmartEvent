@@ -30,6 +30,7 @@ namespace TicketSystem.Domain.Entities
         // Navigation properties
         public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
         public virtual ICollection<Domain.Entities.TicketType> TicketTypes { get; set; } = new List<Domain.Entities.TicketType>();
+        public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 
         // Tự tính EventMode từ StartTime/EndTime
         public EventMode GetEventMode()

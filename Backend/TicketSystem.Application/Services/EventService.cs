@@ -86,9 +86,8 @@ namespace TicketSystem.Application.Services
                     StartTime = e.StartTime,
                     EndTime = e.EndTime,
                     MaxCapacity = e.MaxCapacity,
-                    // Lưu ý: CurrentOccupancy và BasePrice tạm thời gán từ Event, 
-                    // sau này có thể logic nghiệp vụ phức tạp hơn từ Ticket/TicketType
-                    IsFull = e.MaxCapacity <= 0 // Giả lập logic IsFull
+                    CurrentOccupancy = e.CurrentOccupancy,
+                    IsFull = e.CurrentOccupancy >= e.MaxCapacity
                 })
                 .ToListAsync(); // <-- Lúc này câu lệnh SQL SELECT mới thực sự chạy
 

@@ -17,6 +17,9 @@ namespace TicketSystem.Domain.Entities
         public string Provider { get; private set; } = "Local"; // Local, Google, Facebook
         public string? ProviderId { get; private set; } // ID từ Google/Facebook
 
+        // Navigation properties
+        public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
+
         protected User() { } 
 
         public static User Create(string username, string passwordHash, string fullName, string email, UserRole role, string createdBy)

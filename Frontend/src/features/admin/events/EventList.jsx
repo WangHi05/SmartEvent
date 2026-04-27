@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Tag, Popconfirm, message, Input } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
@@ -72,6 +72,15 @@ const EventList = () => {
     fetchEvents(1, pagination.pageSize, debouncedSearch);
   }, [debouncedSearch, fetchEvents]);
 
+  // Auto-refresh dữ liệu mỗi 1 giây để cập nhật sức chứa realtime
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch);
+    }, 1000); // Refresh mỗi 1 giây
+
+    return () => clearInterval(interval); // Cleanup interval
+  }, [pagination.current, pagination.pageSize, debouncedSearch, fetchEvents]);
+
   // Xử lý xóa event
   const handleDelete = async (id) => {
     try {
@@ -137,12 +146,6 @@ const EventList = () => {
       ),
     },
     {
-      title: 'Giá vé',
-      dataIndex: 'basePrice',
-      key: 'basePrice',
-      render: (price) => `${price?.toLocaleString('vi-VN')} VNĐ`,
-    },
-    {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
@@ -185,7 +188,7 @@ const EventList = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Input
           placeholder="Tìm kiếm theo tên hoặc mô tả..."
           prefix={<SearchOutlined />}
@@ -194,9 +197,14 @@ const EventList = () => {
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-          Tạo sự kiện mới
-        </Button>
+        <Space>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch)}>
+            Refresh
+          </Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+            Tạo sự kiện mới
+          </Button>
+        </Space>
       </div>
 
       <Table

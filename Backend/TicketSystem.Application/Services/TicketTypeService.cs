@@ -172,7 +172,18 @@ namespace TicketSystem.Application.Services
             // Lưu giá trị cũ để logging
             var oldPrice = ticketType.Price;
             var oldQuantity = ticketType.Quantity;
+            var oldRemainingQuantity = ticketType.RemainingQuantity;
             var oldSaleTimes = $"{ticketType.SaleStartTime:yyyy-MM-dd HH:mm} - {ticketType.SaleEndTime:yyyy-MM-dd HH:mm}";
+
+            // Sold count lấy từ dữ liệu Ticket thực tế để tự phục hồi các bản ghi bị lệch RemainingQuantity.
+            var soldCount = await _ticketTypeRepository.GetSoldCountAsync(id);
+
+            // Không cho giảm Quantity xuống thấp hơn số vé đã bán
+            if (request.Quantity < soldCount)
+            {
+                throw new InvalidOperationException(
+                    $"Không thể cập nhật số lượng xuống {request.Quantity} vì đã có {soldCount} vé được bán");
+            }
 
             // Validate tên duy nhất (nếu thay đổi tên)
             if (!string.IsNullOrEmpty(request.Name) && request.Name != ticketType.Name)
@@ -188,6 +199,8 @@ namespace TicketSystem.Application.Services
             ticketType.Name = request.Name.Trim();
             ticketType.Price = request.Price;
             ticketType.Quantity = request.Quantity;
+            // Đồng bộ RemainingQuantity theo số vé đã bán để tránh bị kẹt 0 vé còn lại.
+            ticketType.RemainingQuantity = request.Quantity - soldCount;
             ticketType.MaxPerUser = request.MaxPerUser;
             ticketType.TicketMode = (TicketMode)request.TicketMode;
             ticketType.UsageType = request.UsageType.HasValue ? (UsageType)request.UsageType : null;
