@@ -33,6 +33,9 @@ import { SettingsPage } from './features/admin/settings';
 import CheckInPage from './features/admin/checkin/CheckInPage';
 import BookingManagementPage from './features/admin/bookings/BookingManagementPage';
 
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword'; 
+
 const ROLE_MAP = {
   '0': 'admin',
   '1': 'manager',
@@ -81,6 +84,8 @@ function App() {
           {/* PUBLIC ROUTES */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* ADMIN / MANAGER / STAFF ROUTES */}
           <Route

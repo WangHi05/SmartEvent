@@ -34,7 +34,6 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
   }
 
   // 4. LẤY CHỮ CÁI ĐẦU TIÊN CỦA TÊN LÀM AVATAR
-  // Ví dụ: "Đình Quang Huy" -> Tách theo dấu cách -> Lấy chữ cái đầu của từ cuối cùng -> "H"
   const nameParts = fullName.trim().split(' ');
   const lastName = nameParts[nameParts.length - 1];
   const avatarLetter = lastName ? lastName.charAt(0).toUpperCase() : 'U';

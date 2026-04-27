@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TicketSystem.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using TicketSystem.Infrastructure.Data;
 namespace TicketSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260425155418_AddAuthFieldsToUser")]
+    partial class AddAuthFieldsToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -168,182 +171,11 @@ namespace TicketSystem.Infrastructure.Migrations
                         });
                 });
 
-            modelBuilder.Entity("TicketSystem.Domain.Entities.Order", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CancelRequestAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ConfirmedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ConfirmedBy")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("EventId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("OrderStatus")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<decimal?>("RefundAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("RefundedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("TicketTypeId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("TotalPrice")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("EventId");
-
-                    b.HasIndex("OrderStatus");
-
-                    b.HasIndex("TicketTypeId");
-
-                    b.HasIndex("UserId", "EventId");
-
-                    b.HasIndex("UserId", "OrderStatus");
-
-                    b.ToTable("Orders");
-                });
-
-            modelBuilder.Entity("TicketSystem.Domain.Entities.Payment", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("PaymentMethod")
-                        .HasColumnType("int");
-
-                    b.Property<int>("PaymentStatus")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TransactionReference")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("OrderId");
-
-                    b.ToTable("Payments");
-                });
-
-            modelBuilder.Entity("TicketSystem.Domain.Entities.SystemSettings", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("DataType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("SettingKey")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("SettingValue")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UpdatedBy")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("SettingKey")
-                        .IsUnique();
-
-                    b.ToTable("SystemSettings");
-                });
-
             modelBuilder.Entity("TicketSystem.Domain.Entities.Ticket", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CancelReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -354,20 +186,10 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<Guid?>("EventId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("IsCheckedIn")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid?>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<string>("QrCode")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<decimal?>("RefundAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("decimal(18,2)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -384,10 +206,6 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
-
-                    b.HasIndex("IsCheckedIn");
-
-                    b.HasIndex("OrderId");
 
                     b.HasIndex("QrCode")
                         .IsUnique();
@@ -559,62 +377,17 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Navigation("Ticket");
                 });
 
-            modelBuilder.Entity("TicketSystem.Domain.Entities.Order", b =>
-                {
-                    b.HasOne("TicketSystem.Domain.Entities.Event", "Event")
-                        .WithMany("Orders")
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("TicketSystem.Domain.Entities.TicketType", "TicketType")
-                        .WithMany()
-                        .HasForeignKey("TicketTypeId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("TicketSystem.Domain.Entities.User", "User")
-                        .WithMany("Orders")
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
-
-                    b.Navigation("TicketType");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("TicketSystem.Domain.Entities.Payment", b =>
-                {
-                    b.HasOne("TicketSystem.Domain.Entities.Order", "Order")
-                        .WithMany("Payments")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Order");
-                });
-
             modelBuilder.Entity("TicketSystem.Domain.Entities.Ticket", b =>
                 {
                     b.HasOne("TicketSystem.Domain.Entities.Event", null)
                         .WithMany("Tickets")
                         .HasForeignKey("EventId");
 
-                    b.HasOne("TicketSystem.Domain.Entities.Order", "Order")
-                        .WithMany("Tickets")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("TicketSystem.Domain.Entities.TicketType", "TicketType")
                         .WithMany("Tickets")
                         .HasForeignKey("TicketTypeId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Order");
 
                     b.Navigation("TicketType");
                 });
@@ -632,16 +405,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.Event", b =>
                 {
-                    b.Navigation("Orders");
-
                     b.Navigation("TicketTypes");
-
-                    b.Navigation("Tickets");
-                });
-
-            modelBuilder.Entity("TicketSystem.Domain.Entities.Order", b =>
-                {
-                    b.Navigation("Payments");
 
                     b.Navigation("Tickets");
                 });
@@ -654,11 +418,6 @@ namespace TicketSystem.Infrastructure.Migrations
             modelBuilder.Entity("TicketSystem.Domain.Entities.TicketType", b =>
                 {
                     b.Navigation("Tickets");
-                });
-
-            modelBuilder.Entity("TicketSystem.Domain.Entities.User", b =>
-                {
-                    b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618
         }

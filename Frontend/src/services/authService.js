@@ -2,55 +2,91 @@ import axiosClient from '../api/axiosClient';
 import useAuthStore from '../store/useAuthStore';
 
 export const authService = {
-    login: async (username, password) => {
+    // Thêm tham số rememberMe (mặc định là true nếu không truyền)
+    login: async (username, password, rememberMe = true) => {
         const response = await axiosClient.post('/users/authenticate', { username, password });
+        
+        console.log("Dữ liệu Backend trả về:", response);
 
-        // Lấy token (bao lô cả trường hợp Backend trả về 'Token' viết hoa hoặc 'token' viết thường)
         const tokenToSave = response.token || response.Token;
         const userToSave = response.user || response.User;
 
-        if (tokenToSave && userToSave) {
-            // 1. Token vẫn lưu ở LocalStorage vì Axios Interceptor cần đọc nó trước mỗi request
-            localStorage.setItem('token', tokenToSave);
+        if (tokenToSave) {
+            // SỬA LỖI Ở ĐÂY: 
+            // 1. Đồng bộ dùng key 'jwt_token' (thay vì 'token')
+            // 2. Bổ sung lưu 'user_info' (vì hàm getCurrentUser bên dưới đang gọi nó)
+            if (rememberMe) {
+                localStorage.setItem('token', tokenToSave);
+                localStorage.setItem('user_info', JSON.stringify(userToSave));
+            } else {
+                sessionStorage.setItem('token', tokenToSave);
+                sessionStorage.setItem('user_info', JSON.stringify(userToSave));
+            }
             
-            // 2. GỌI ZUSTAND Ở ĐÂY: Cập nhật thông tin User vào Global State
-            // Khi dòng này chạy, Component Header sẽ lập tức nhận tín hiệu và đổi tên!
+            // Cập nhật Zustand Store
             useAuthStore.getState().setUser(userToSave);
         } else {
-            throw new Error('Phản hồi đăng nhập không hợp lệ từ máy chủ.');
+            throw new Error("Không nhận được token từ máy chủ!");
         }
         
         return response;
     },
 
     register: async (userData) => {
-        // Gắn thêm Role mặc định là "Staff" (hoặc "Customer") vào gói dữ liệu trước khi gửi đi
         const payload = {
             ...userData,
             role: "Customer" 
         };
-        // Nhớ gọi đúng đường dẫn API register
         return await axiosClient.post('/users/register', payload); 
     },
 
     logout: () => {
-        // Xóa sạch dấu vết khi đăng xuất
+        // Quét sạch cả localStorage và sessionStorage
         localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        useAuthStore.getState().logout();
+        localStorage.removeItem('user_info');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user_info');
         
-        // Điều hướng về trang chủ hoặc trang đăng nhập
+        useAuthStore.getState().setUser(null);
         window.location.href = '/login';
     },
     
-    // Hàm tiện ích kiểm tra xem đã login chưa
-    isAuthenticated: () => {
-        return !!localStorage.getItem('token');
+    forgotPassword: async (email) => {
+        // Gọi API backend yêu cầu gửi email reset pass
+        return await axiosClient.post('/users/forgot-password', { email });
     },
 
-    // Hàm tiện ích lấy thông tin user hiện tại
+    resetPassword: async (email, token, newPassword) => {
+        // Gọi API backend để đặt lại mật khẩu mới
+        return await axiosClient.post('/users/reset-password', { email, token, newPassword });
+    },
+
+    //Đăng nhập bằng Google / Facebook
+    externalLogin: async (providerData) => {
+        const response = await axiosClient.post('/users/external-login', providerData);
+        
+        // Phải xử lý lưu token y hệt như hàm login bình thường
+        const tokenToSave = response.token || response.Token;
+        const userToSave = response.user || response.User;
+
+        if (tokenToSave) {
+            // Đăng nhập mxh mặc định là lưu vào localStorage
+            localStorage.setItem('token', tokenToSave);
+            localStorage.setItem('user_info', JSON.stringify(userToSave));
+            useAuthStore.getState().setUser(userToSave);
+        }
+        return response;
+    },
+
+    isAuthenticated: () => {
+        // Phải kiểm tra ở cả 2 nơi (trường hợp user không tick Ghi nhớ đăng nhập)
+        const hasLocalToken = !!localStorage.getItem('token');
+        const hasSessionToken = !!sessionStorage.getItem('token');
+        return hasLocalToken || hasSessionToken;
+    },
+
     getCurrentUser: () => {
-        const userStr = localStorage.getItem('user');
+        const userStr = localStorage.getItem('user_info') || sessionStorage.getItem('user_info');
         if (userStr) return JSON.parse(userStr);
         return null;
     }

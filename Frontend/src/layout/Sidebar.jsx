@@ -1,13 +1,13 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { authService } from '../services/authService';
 import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
 
 // 1. LẤY THÔNG TIN USER TỪ LOCAL STORAGE ĐỂ PHÂN QUYỀN
-const userStr = localStorage.getItem('user');
-const user = userStr ? JSON.parse(userStr) : null;
+const user = authService.getCurrentUser();
 
 // Lấy giá trị thô từ LocalStorage (chữ hoặc số) và ép kiểu về chuỗi chữ thường
 const rawRole = (user?.role || user?.Role || '').toString().toLowerCase();
@@ -46,9 +46,7 @@ switch (rawRole) {
 
   // Hàm xử lý đăng xuất
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    authService.logout(); 
   };
 
   return (

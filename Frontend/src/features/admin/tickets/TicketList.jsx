@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs, Modal, message, Space, Button, Card, Row, Col, Tag } from 'antd';
+import { Modal, message, Button, Card, Row, Col, Tag } from 'antd';
 import { Settings } from 'lucide-react';
-import apiClient from '../../../services/apiClient';
+import axiosClient from '../../../api/axiosClient';
 import TicketTypesAdmin from '../../../pages/TicketTypesAdminV2';
+import dayjs from 'dayjs';
 
 export function TicketList() {
   const [events, setEvents] = useState([]);
@@ -17,8 +18,12 @@ export function TicketList() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get('/api/events');
-      setEvents(response.data.items || []);
+      // SỬA BẪY 1: Gọi API search (cho đồng bộ với EventList) và lấy data an toàn
+      const response = await axiosClient.get('/events/search', {
+        params: { pageNumber: 1, pageSize: 100 } // Lấy tạm 100 sự kiện
+      });
+      const data = response.data || response;
+      setEvents(data.items || []);
     } catch (err) {
       message.error('Lỗi tải danh sách sự kiện');
       console.error(err);
@@ -32,9 +37,23 @@ export function TicketList() {
     setTicketTypesVisible(true);
   };
 
-  // Phân chia sự kiện thành 2 nhóm: ShortDay (1) và MultiDay (2)
-  const shortDayEvents = events.filter(e => e.eventMode === 1);
-  const multiDayEvents = events.filter(e => e.eventMode === 2);
+  // SỬA BẪY 2: Tự tính toán sự kiện ngắn ngày hay dài ngày dựa vào StartTime và EndTime
+  const shortDayEvents = [];
+  const multiDayEvents = [];
+
+  events.forEach(event => {
+    const start = dayjs(event.startTime);
+    const end = dayjs(event.endTime);
+    
+    // Nếu ngày bắt đầu và ngày kết thúc giống nhau -> Ngắn ngày
+    if (start.format('YYYY-MM-DD') === end.format('YYYY-MM-DD')) {
+      shortDayEvents.push(event);
+    } else {
+      // Dài ngày: Tính số ngày diễn ra (Làm tròn lên)
+      event.eventDurationDays = Math.ceil(end.diff(start, 'hour') / 24);
+      multiDayEvents.push(event);
+    }
+  });
 
   const EventCard = ({ event }) => (
     <Card
@@ -54,12 +73,18 @@ export function TicketList() {
     >
       <div className="space-y-2 text-sm">
         <p><strong>Địa điểm:</strong> {event.location}</p>
-        <p><strong>Ngày bắt đầu:</strong> {event.startTime ? new Date(event.startTime).toLocaleString('vi-VN') : 'N/A'}</p>
-        <p><strong>Ngày kết thúc:</strong> {event.endTime ? new Date(event.endTime).toLocaleString('vi-VN') : 'N/A'}</p>
-        {event.eventMode === 2 && (
+        <p><strong>Ngày bắt đầu:</strong> {event.startTime ? dayjs(event.startTime).format('DD/MM/YYYY HH:mm') : 'N/A'}</p>
+        <p><strong>Ngày kết thúc:</strong> {event.endTime ? dayjs(event.endTime).format('DD/MM/YYYY HH:mm') : 'N/A'}</p>
+        
+        {/* Chỉ hiển thị tem số ngày cho sự kiện Dài ngày */}
+        {event.eventDurationDays && (
           <p><strong>Kéo dài:</strong> <Tag color="blue">{event.eventDurationDays} ngày</Tag></p>
         )}
-        <p><strong>Sức chứa:</strong> {event.currentOccupancy} / {event.maxCapacity} {event.isFull && <Tag color="red">Hết chỗ</Tag>}</p>
+        
+        <p>
+            <strong>Sức chứa:</strong> {event.currentOccupancy} / {event.maxCapacity} 
+            {event.isFull && <Tag color="red" style={{marginLeft: '8px'}}>Hết chỗ</Tag>}
+        </p>
       </div>
     </Card>
   );
@@ -71,11 +96,13 @@ export function TicketList() {
         <p className="text-sm text-gray-500 mt-1">Quản lý loại vé và thông tin vé của các sự kiện</p>
       </div>
 
-      {events.length === 0 ? (
+      {loading ? (
+          <div className="text-center py-10">Đang tải dữ liệu...</div>
+      ) : events.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-96 text-gray-400 bg-gray-50 rounded-lg border border-dashed border-gray-300">
           <Settings size={48} className="mb-4 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-600">Không có sự kiện nào</h3>
-          <p className="text-sm">Vui lòng tạo sự kiện trước.</p>
+          <p className="text-sm">Vui lòng tạo sự kiện ở menu Quản lý Sự kiện trước.</p>
         </div>
       ) : (
         <div className="space-y-8">
@@ -119,6 +146,7 @@ export function TicketList() {
         onCancel={() => setTicketTypesVisible(false)}
         width={1000}
         footer={null}
+        destroyOnClose={true} // Tránh lỗi dữ liệu cũ khi mở Modal mới
       >
         {selectedEventForTicketTypes && (
           <TicketTypesAdmin eventId={selectedEventForTicketTypes.id} />
