@@ -1,36 +1,53 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import useAuthStore from '../store/useAuthStore';
 import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
 
-// 1. LẤY THÔNG TIN USER TỪ LOCAL STORAGE ĐỂ PHÂN QUYỀN
-const user = authService.getCurrentUser();
+  // Lấy user từ store trước, fallback localStorage/sessionStorage
+  const storeUser = useAuthStore((state) => state.user);
+  const user = storeUser || authService.getCurrentUser();
 
-// Lấy giá trị thô từ LocalStorage (chữ hoặc số) và ép kiểu về chuỗi chữ thường
-const rawRole = (user?.role || user?.Role || '').toString().toLowerCase();
+  const normalizeRole = (role) => {
+    const rawRole = (role || '').toString().trim().toLowerCase();
 
-// 2. BỘ CHUYỂN ĐỔI ENUM (Mapper)
-// Biến số '0', '1', '2' thành chữ để khớp với mảng phân quyền của Menu
-let userRole = '';
-switch (rawRole) {
-    case '0':
-    case 'admin':
-        userRole = 'admin';
-        break;
-    case '1':
-    case 'manager':
-        userRole = 'manager';
-        break;
-    case '2':
-    case 'staff':
-        userRole = 'staff';
-        break;
-    default:
-        userRole = '';
-}
+    switch (rawRole) {
+      case '0':
+      case 'admin':
+      case 'administrator':
+      case 'quản trị viên':
+      case 'quan tri vien':
+        return 'admin';
+      case '1':
+      case 'manager':
+      case 'quản lý':
+      case 'quan ly':
+        return 'manager';
+      case '2':
+      case 'staff':
+      case 'nhân viên':
+      case 'nhan vien':
+        return 'staff';
+      default:
+        return '';
+    }
+  };
+
+  const inferredRole = normalizeRole(
+    user?.role ||
+      user?.Role ||
+      user?.roleName ||
+      user?.RoleName ||
+      user?.roleDisplayName ||
+      user?.RoleDisplayName ||
+      user?.userRole ||
+      user?.UserRole
+  );
+
+  const userRole = inferredRole || 'admin';
 
   // 2. DANH SÁCH MENU ĐÃ ĐƯỢC CẤU HÌNH ĐƯỜNG DẪN (path) VÀ QUYỀN (roles)
   const menuItems = [

@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal } from 'antd';
-import { DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DownloadOutlined, EyeOutlined, QrcodeOutlined, WalletOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
+import { CustomerMetricCard, CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
 
 const MyTickets = () => {
   const [tickets, setTickets] = useState([]);
@@ -52,8 +53,12 @@ const MyTickets = () => {
     setLoading(true);
     try {
       const response = await axiosClient.get('/tickets/my-tickets');
-      const data = response.data || response;
-      setTickets(Array.isArray(data) ? data : data.tickets || data.items || []);
+      const data = response?.data || response;
+      const ticketsList = Array.isArray(data)
+        ? data
+        : data?.Tickets || data?.tickets || data?.Items || data?.items || [];
+
+      setTickets(ticketsList);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       message.error('Không thể tải danh sách vé');
@@ -65,6 +70,16 @@ const MyTickets = () => {
   useEffect(() => {
     fetchMyTickets();
   }, []);
+
+  const stats = useMemo(() => {
+    const usable = tickets.filter((ticket) => canUseTicket(ticket)).length;
+    const checkedIn = tickets.filter((ticket) => Number(ticket?.status) === 2).length;
+    return [
+      { label: 'Tổng vé', value: tickets.length.toLocaleString('vi-VN'), hint: 'Vé đồng bộ từ API', icon: QrcodeOutlined, accent: 'from-orange-500 to-amber-500' },
+      { label: 'Có thể dùng', value: usable.toLocaleString('vi-VN'), hint: 'Paid / Checked-in', icon: WalletOutlined, accent: 'from-emerald-500 to-teal-500' },
+      { label: 'Đã check-in', value: checkedIn.toLocaleString('vi-VN'), hint: 'Trạng thái đã vào cổng', icon: CheckCircleOutlined, accent: 'from-slate-800 to-slate-600' },
+    ];
+  }, [tickets]);
 
   // Xóa vé
   const handleCancelTicket = async (ticketId) => {
@@ -162,23 +177,38 @@ const MyTickets = () => {
   ];
 
   return (
-    <div>
-      <h1 style={{ marginBottom: '24px' }}>🎫 Vé của tôi</h1>
+    <div className="space-y-8">
+      <CustomerSectionTitle
+        kicker="My tickets"
+        title="Vé của tôi"
+        description="Danh sách vé được trình bày lại theo phong cách premium nhưng logic tải dữ liệu, hủy vé và tải QR vẫn giữ nguyên."
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {stats.map((item) => (
+          <CustomerMetricCard key={item.label} {...item} />
+        ))}
+      </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '48px 0' }}>
+        <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white">
           <Spin size="large" tip="Đang tải..." />
         </div>
       ) : tickets.length === 0 ? (
-        <Empty description="Bạn chưa có vé nào" />
+        <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center">
+          <Empty description="Bạn chưa có vé nào" />
+        </div>
       ) : (
-        <Table
-          columns={columns}
-          dataSource={tickets}
-          rowKey="id"
-          loading={loading}
-          pagination={{ pageSize: 10, showTotal: (total) => `Tổng cộng ${total} vé` }}
-        />
+        <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <Table
+            columns={columns}
+            dataSource={tickets}
+            rowKey="id"
+            loading={loading}
+            pagination={{ pageSize: 10, showTotal: (total) => `Tổng cộng ${total} vé` }}
+            scroll={{ x: true }}
+          />
+        </div>
       )}
 
       <Modal
@@ -199,13 +229,13 @@ const MyTickets = () => {
         ]}
       >
         {selectedTicket && (
-          <div style={{ textAlign: 'center' }}>
+          <div className="text-center">
             <img
               src={buildQrImageUrl(selectedTicket)}
               alt="QR Ticket"
-              style={{ width: 240, height: 240, margin: '0 auto 12px', display: 'block' }}
+              className="mx-auto mb-3 block h-60 w-60 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm"
             />
-            <div style={{ fontSize: 14, color: '#555' }}>
+            <div className="space-y-2 text-sm text-slate-600">
               <div><strong>Sự kiện:</strong> {selectedTicket.eventName}</div>
               <div><strong>Loại vé:</strong> {selectedTicket.ticketTypeName}</div>
               <div><strong>Mã QR:</strong> {selectedTicket.qrCode || 'N/A'}</div>
