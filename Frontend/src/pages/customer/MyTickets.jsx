@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal } from 'antd';
-import { DeleteOutlined, DownloadOutlined, EyeOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
+import DynamicTicketCard from '../../components/DynamicTicketCard';
 
 const MyTickets = () => {
   const [tickets, setTickets] = useState([]);
@@ -52,8 +53,26 @@ const MyTickets = () => {
     setLoading(true);
     try {
       const response = await axiosClient.get('/tickets/my-tickets');
-      const data = response.data || response;
-      setTickets(Array.isArray(data) ? data : data.tickets || data.items || []);
+      console.log("Raw API Response:", response); // In ra Console để Debug cấu trúc thật
+      
+      const resData = response.data || response;
+      let ticketList = [];
+
+      // Logic bóc tách dữ liệu an toàn, quét qua nhiều định dạng DTO khác nhau
+      if (Array.isArray(resData)) {
+        ticketList = resData;
+      } else if (resData.data && Array.isArray(resData.data)) {
+        ticketList = resData.data;
+      } else if (resData.data && resData.data.tickets) {
+        ticketList = resData.data.tickets;
+      } else if (resData.tickets) {
+        ticketList = resData.tickets;
+      } else if (resData.items) {
+        ticketList = resData.items;
+      }
+
+      console.log("Parsed Ticket List:", ticketList);
+      setTickets(ticketList);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       message.error('Không thể tải danh sách vé');
@@ -93,10 +112,10 @@ const MyTickets = () => {
       render: (value) => value || 'N/A',
     },
     {
-      title: 'QR Code',
-      dataIndex: 'qrCode',
+      title: 'Mã bảo mật',
+      dataIndex: 'qrCode', 
       key: 'qrCode',
-      render: (text) => text ? `${text.substring(0, 10)}...` : 'N/A',
+      render: () => <Tag color="red">Đã mã hóa</Tag>,
     },
     {
       title: 'Trạng thái',
@@ -128,28 +147,17 @@ const MyTickets = () => {
       render: (_, record) => (
         <Space>
           <Button
-            type="link"
+            type="primary"
             icon={<EyeOutlined />}
             disabled={!canUseTicket(record)}
             onClick={() => handleViewQr(record)}
           >
-            Xem QR
-          </Button>
-          <Button 
-            type="link" 
-            icon={<DownloadOutlined />}
-            disabled={!canUseTicket(record)}
-            onClick={() => handleDownloadQr(record)}
-          >
-            Tải vé
+            Mở Vé
           </Button>
           {record.status === 1 && (
             <Popconfirm
               title="Hủy vé?"
-              description="Bạn có chắc chắn muốn hủy vé này không?"
               onConfirm={() => handleCancelTicket(record.id)}
-              okText="Hủy"
-              cancelText="Không"
             >
               <Button type="link" danger icon={<DeleteOutlined />}>
                 Hủy vé
@@ -182,35 +190,23 @@ const MyTickets = () => {
       )}
 
       <Modal
-        title={`Mã QR vé ${selectedTicket ? `#${selectedTicket.id?.slice(0, 8)}` : ''}`}
+        title="Vé vào cổng điện tử"
         open={qrModalOpen}
         onCancel={() => setQrModalOpen(false)}
         footer={[
           <Button key="close" onClick={() => setQrModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button
-            key="download"
-            type="primary"
-            onClick={() => selectedTicket && handleDownloadQr(selectedTicket)}
-          >
-            Tải QR
-          </Button>,
+             Đóng
+          </Button>
         ]}
+        width={400}
       >
         {selectedTicket && (
-          <div style={{ textAlign: 'center' }}>
-            <img
-              src={buildQrImageUrl(selectedTicket)}
-              alt="QR Ticket"
-              style={{ width: 240, height: 240, margin: '0 auto 12px', display: 'block' }}
-            />
-            <div style={{ fontSize: 14, color: '#555' }}>
-              <div><strong>Sự kiện:</strong> {selectedTicket.eventName}</div>
-              <div><strong>Loại vé:</strong> {selectedTicket.ticketTypeName}</div>
-              <div><strong>Mã QR:</strong> {selectedTicket.qrCode || 'N/A'}</div>
-            </div>
-          </div>
+          <DynamicTicketCard 
+             ticketId={selectedTicket.id}
+             secretKey={selectedTicket.qrCode} 
+             eventName={selectedTicket.eventName}
+             ticketTypeName={selectedTicket.ticketTypeName}
+          />
         )}
       </Modal>
     </div>

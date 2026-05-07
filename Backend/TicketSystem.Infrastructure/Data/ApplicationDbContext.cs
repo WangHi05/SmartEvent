@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common;
 using TicketSystem.Application.Interfaces;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace TicketSystem.Infrastructure.Data
 {
@@ -26,6 +27,20 @@ namespace TicketSystem.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
+                v => v.ToUniversalTime(),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+                }
+            }
             // 1. Event Configuration
             modelBuilder.Entity<Event>(entity =>
             {
@@ -76,7 +91,7 @@ namespace TicketSystem.Infrastructure.Data
             modelBuilder.Entity<Ticket>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.QrCode).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.SecretKey).HasMaxLength(16).IsRequired();
                 entity.Property(e => e.Status).HasConversion<int>();
                 entity.Property(e => e.CancelReason).HasMaxLength(500);
                 entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
@@ -86,7 +101,7 @@ namespace TicketSystem.Infrastructure.Data
                     .HasForeignKey(e => e.TicketTypeId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasIndex(e => e.QrCode).IsUnique();
+                entity.HasIndex(e => e.SecretKey).IsUnique();
                 entity.HasIndex(e => e.Status);
                 entity.HasIndex(e => e.IsCheckedIn);
             });
@@ -173,6 +188,8 @@ namespace TicketSystem.Infrastructure.Data
 
                 entity.HasIndex(e => e.SettingKey).IsUnique();
             });
+
+            
         }
     }
 }

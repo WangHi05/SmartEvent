@@ -91,8 +91,20 @@ namespace TicketSystem.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<string>("Note")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("PeopleCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StaffId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("TicketId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -354,20 +366,26 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<Guid?>("EventId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("GroupSize")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsBadgePrinted")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsCheckedIn")
                         .HasColumnType("bit");
 
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("QrCode")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
                     b.Property<decimal?>("RefundAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("SecretKey")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -381,6 +399,12 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<string>("UpdatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("ValidFrom")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ValidTo")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
                     b.HasIndex("EventId");
@@ -389,7 +413,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.HasIndex("QrCode")
+                    b.HasIndex("SecretKey")
                         .IsUnique();
 
                     b.HasIndex("Status");

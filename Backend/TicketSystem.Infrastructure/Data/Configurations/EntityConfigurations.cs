@@ -8,7 +8,10 @@ public class EventConfiguration : IEntityTypeConfiguration<Event>
 {
     public void Configure(EntityTypeBuilder<Event> builder)
     {
-        builder.ToTable("Events");
+        builder.ToTable("Events", t => 
+        {
+            t.HasCheckConstraint("CK_EventTime", "[StartTime] < [EndTime]");
+        });
         builder.HasKey(e => e.Id);
 
         builder.Property(e => e.Name).HasMaxLength(255).IsRequired();
@@ -26,7 +29,11 @@ public class TicketTypeConfiguration : IEntityTypeConfiguration<TicketType>
 {
     public void Configure(EntityTypeBuilder<TicketType> builder)
     {
-        builder.ToTable("TicketTypes");
+        builder.ToTable("TicketTypes", t => 
+        {
+            t.HasCheckConstraint("CK_SaleTime", "[SaleStart] < [SaleEnd]");
+        });
+
         builder.HasKey(t => t.Id);
 
         builder.Property(t => t.Name).HasMaxLength(100).IsRequired();
@@ -51,8 +58,8 @@ public class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.ToTable("Tickets");
         builder.HasKey(t => t.Id);
 
-        builder.Property(t => t.QrCode).HasMaxLength(100).IsRequired();
-        builder.HasIndex(t => t.QrCode).IsUnique();
+        builder.Property(t => t.SecretKey).HasMaxLength(16).IsRequired();
+        builder.HasIndex(t => t.SecretKey).IsUnique();
         builder.Property(t => t.Status)
             .HasConversion<int>();
 

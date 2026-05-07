@@ -41,32 +41,36 @@ const TicketTypesAdmin = ({ eventId }) => {
   const GROUP_PRESETS = ['Vé đoàn thường', 'Vé đoàn VIP', 'Vé đoàn công ty', 'Vé đoàn học sinh'];
 
   // Fetch event details
-  const loadEventDetails = async () => {
-    try {
-      const res = await axiosClient.get(`/events/${eventId}`);
-      setEvent(res.data.data);
-    } catch (err) {
-      console.error('Lỗi tải thông tin sự kiện', err);
-    }
-  };
+const loadEventDetails = async () => {
+  try {
+      const response = await axiosClient.get(`/events/${eventId}`);
+      // Lấy dữ liệu an toàn, bất chấp axios có interceptor hay không
+      const eventData = response.data?.data || response.data || response;
+      setEvent(eventData);
+  } catch (error) {
+      console.error("Lỗi tải thông tin sự kiện:", error);
+  }
+};
 
-  const loadTicketTypes = async (page = 1) => {
-    if (!eventId) return;
-    setLoading(true);
-    try {
-      const res = await axiosClient.get(`/events/${eventId}/ticket-types/paged`, {
-        params: { pageNumber: page, pageSize }
-      });
-      setTicketTypes(res.data.data.items || []);
-      setTotal(res.data.data.totalCount || 0);
-      setPageNum(page);
-    } catch (err) {
-      message.error('Lỗi tải danh sách loại vé');
-      console.error(err);
-    } finally {
+// 2. Sửa hàm loadTicketTypes (Khoảng dòng 60)
+const loadTicketTypes = async () => {
+  try {
+      setLoading(true);
+      const response = await axiosClient.get(`events/${eventId}/ticket-types`);
+      
+      // Trích xuất mảng dữ liệu an toàn (Safe Extraction)
+      const responseData = response.data || response;
+      const itemsList = responseData.items || responseData.data || responseData;
+      
+      // Đảm bảo dữ liệu đưa vào State luôn là một mảng (Array)
+      setTicketTypes(Array.isArray(itemsList) ? itemsList : []);
+  } catch (error) {
+      console.error("Lỗi tải danh sách loại vé:", error);
+      message.error('Không thể tải danh sách loại vé');
+  } finally {
       setLoading(false);
-    }
-  };
+  }
+};
 
   useEffect(() => {
     loadEventDetails();

@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Mvc;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Services;
 using TicketSystem.Application.Interfaces;
-using TicketSystem.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 
 namespace TicketSystem.API.Controllers

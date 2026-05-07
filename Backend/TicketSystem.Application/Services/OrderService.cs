@@ -87,8 +87,11 @@ public class OrderService : IOrderService
                 Id = ticketId,
                 TicketTypeId = createOrderDto.TicketTypeId,
                 OrderId = order.Id,
-                // QR code must match the Ticket Id in dbo.Tickets
-                QrCode = ticketId.ToString("D"),
+
+                ValidFrom = eventEntity.StartTime,
+                ValidTo = eventEntity.EndTime,
+                SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
+
                 Status = TicketStatus.ACTIVE,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy
@@ -254,8 +257,9 @@ public class OrderService : IOrderService
             {
                 Id = ticketId,
                 TicketTypeId = order.TicketTypeId,
-                OrderId = order.Id,
-                QrCode = ticketId.ToString("D"),
+                ValidFrom = order.Event.StartTime, 
+                ValidTo = order.Event.EndTime,
+                SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
                 Status = TicketStatus.ACTIVE,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = confirmedBy
@@ -457,7 +461,9 @@ public class OrderService : IOrderService
             Id = t.Id,
             EventName = t.TicketType?.Event?.Name ?? "Unknown Event",
             TicketTypeName = t.TicketType?.Name ?? "Unknown Type",
-            QrCode = t.QrCode,
+            
+            QrCode = t.SecretKey, 
+            
             Status = MapTicketUiStatus(t),
             StatusName = GetTicketStatusName(MapTicketUiStatus(t)),
             CreatedAt = t.CreatedAt,
