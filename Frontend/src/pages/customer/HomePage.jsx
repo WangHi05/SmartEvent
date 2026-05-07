@@ -88,25 +88,25 @@ const HomePage = () => {
 
   return (
     <div className="space-y-12 pb-4">
-      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-slate-950 text-white shadow-[0_30px_80px_rgba(15,23,42,0.2)]">
+      <section className="overflow-hidden rounded-[40px] border border-slate-200 bg-slate-950 text-white shadow-[0_30px_80px_rgba(15,23,42,0.2)]">
         <Carousel autoplay autoplaySpeed={5000} dots={{ className: '!bottom-8' }}>
           {heroSlides.map((slide, index) => (
             <div key={slide.title}>
-              <div className={`relative min-h-[560px] overflow-hidden bg-gradient-to-br ${slide.accent} px-6 py-10 sm:px-10 lg:px-14`}>
+              <div className={`relative min-h-[640px] overflow-hidden bg-gradient-to-br ${slide.accent} px-6 py-12 sm:px-10 lg:px-14 xl:px-16`}>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.12),transparent_26%)]" />
                 <div className="absolute -right-12 top-10 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
                 <div className="absolute -left-20 bottom-0 h-64 w-64 rounded-full bg-black/20 blur-3xl" />
 
-                <div className="relative grid items-center gap-8 lg:min-h-[500px] lg:grid-cols-[1.2fr_0.8fr]">
-                  <div className="max-w-3xl space-y-6">
+                <div className="relative grid items-center gap-10 lg:min-h-[540px] lg:grid-cols-[1.15fr_0.85fr]">
+                  <div className="max-w-3xl space-y-7">
                     <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/85 backdrop-blur-sm">
                       <Sparkles size={14} />
                       {slide.eyebrow}
                     </div>
-                    <h1 className="text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl">
+                    <h1 className="text-4xl font-black leading-tight tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
                       {slide.title}
                     </h1>
-                    <p className="max-w-2xl text-base leading-8 text-white/78 sm:text-lg">{slide.description}</p>
+                    <p className="max-w-2xl text-base leading-8 text-white/78 sm:text-lg xl:text-xl">{slide.description}</p>
 
                     <div className="flex flex-wrap gap-3">
                       <Button
@@ -136,7 +136,7 @@ const HomePage = () => {
 
                   <div className="relative">
                     <div className="absolute -left-6 top-8 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
-                    <div className="customer-glass relative overflow-hidden rounded-[30px] bg-white/12 p-4 text-white shadow-[0_30px_80px_rgba(15,23,42,0.25)] backdrop-blur-xl">
+                    <div className="customer-glass relative overflow-hidden rounded-[34px] bg-white/12 p-5 text-white shadow-[0_30px_80px_rgba(15,23,42,0.25)] backdrop-blur-xl">
                       <div className="mb-4 flex items-center justify-between">
                         <div>
                           <p className="text-xs uppercase tracking-[0.22em] text-white/60">Spotlight {String(index + 1).padStart(2, '0')}</p>
@@ -232,7 +232,7 @@ const HomePage = () => {
             <Spin size="large" tip="Đang tải sự kiện nổi bật..." />
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {featuredEvents.map((event) => (
               <CustomerEventCard
                 key={event.id}
@@ -290,7 +290,7 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 p-8 text-white shadow-[0_30px_80px_rgba(15,23,42,0.22)]">
+      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 p-8 text-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] lg:p-10">
         <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
           <div className="space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/80">

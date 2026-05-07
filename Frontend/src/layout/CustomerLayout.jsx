@@ -90,18 +90,18 @@ const CustomerLayout = () => {
   return (
     <div className="min-h-screen text-slate-800">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 text-white shadow-[0_20px_60px_rgba(15,23,42,0.24)] backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-5 px-5 py-4 sm:px-8 lg:px-10 xl:px-12">
           <Link to="/customer/home" className="flex items-center gap-2">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 text-xl font-black text-white shadow-lg shadow-orange-500/30">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 text-xl font-black text-white shadow-lg shadow-orange-500/30">
               S
             </div>
             <div>
-              <p className="text-lg font-extrabold tracking-tight">SmartEvent</p>
+              <p className="text-xl font-extrabold tracking-tight">SmartEvent</p>
               <p className="-mt-1 text-xs text-white/65">Premium live ticketing</p>
             </div>
           </Link>
 
-          <div className="hidden min-w-0 flex-1 xl:block">
+          <div className="hidden min-w-0 flex-1 xl:block xl:max-w-[620px]">
             <Input.Search
               size="large"
               value={searchValue}
@@ -114,13 +114,13 @@ const CustomerLayout = () => {
             />
           </div>
 
-          <nav className="hidden items-center gap-1 2xl:flex">{renderNavLinks()}</nav>
+          <nav className="hidden items-center gap-2 xl:flex">{renderNavLinks()}</nav>
 
-          <div className="hidden items-center gap-2 2xl:flex">
+          <div className="hidden items-center gap-3 xl:flex">
             {user ? (
               <Dropdown menu={{ items: userMenu }} trigger={['click']}>
-                <button className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-3 py-2 transition hover:border-orange-400/40 hover:bg-white/12">
-                  <Avatar size={34}>
+                <button className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-2.5 transition hover:border-orange-400/40 hover:bg-white/12">
+                  <Avatar size={36}>
                     {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
                   </Avatar>
                   <div className="text-left">
@@ -142,7 +142,7 @@ const CustomerLayout = () => {
           </div>
 
           <button
-            className="rounded-xl p-2 text-white hover:bg-white/10 2xl:hidden"
+            className="rounded-xl p-2 text-white hover:bg-white/10 xl:hidden"
             onClick={() => setMobileOpen(true)}
             aria-label="Open navigation"
           >
@@ -190,14 +190,14 @@ const CustomerLayout = () => {
         </Drawer>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="customer-glass rounded-[32px] p-4 sm:p-6 lg:p-8">
+      <main className="mx-auto w-full max-w-[1600px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8 xl:px-12 xl:py-10">
+        <div className="customer-glass rounded-[36px] p-5 sm:p-8 lg:p-10">
           <Outlet />
         </div>
       </main>
 
       <footer className="mt-10 border-t border-white/10 bg-slate-950 px-4 py-10 text-slate-300">
-        <div className="mx-auto grid max-w-7xl gap-8 px-0 sm:px-2 lg:grid-cols-4 lg:px-8">
+        <div className="mx-auto grid max-w-[1600px] gap-8 px-5 sm:px-8 lg:grid-cols-4 lg:px-10 xl:px-12">
           <div className="space-y-4 lg:col-span-1">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 font-black text-white shadow-lg shadow-orange-500/30">
@@ -247,7 +247,7 @@ const CustomerLayout = () => {
             </div>
           </div>
         </div>
-        <div className="mx-auto mt-8 flex max-w-7xl items-center justify-between border-t border-white/10 pt-6 text-xs text-white/50">
+        <div className="mx-auto mt-8 flex max-w-[1600px] items-center justify-between border-t border-white/10 px-5 pt-6 text-xs text-white/50 sm:px-8 lg:px-10 xl:px-12">
           <span>© 2026 SmartEvent. All rights reserved.</span>
           <span>Premium live ticketing platform</span>
         </div>

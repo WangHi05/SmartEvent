@@ -113,8 +113,8 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
     : { backgroundImage: 'linear-gradient(135deg, #111827 0%, #1f2937 40%, #f97316 100%)' };
 
   return (
-    <article className={`group overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(15,23,42,0.14)] ${className}`}>
-      <div className="relative h-64 overflow-hidden" style={imageStyle}>
+    <article className={`group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(15,23,42,0.14)] ${className}`}>
+      <div className="relative h-72 overflow-hidden" style={imageStyle}>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
           <Tag color={status.color} className="!m-0 !rounded-full !px-3 !py-1 !font-semibold">
@@ -132,7 +132,7 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
         </div>
       </div>
 
-      <div className="space-y-4 p-5">
+      <div className="space-y-4 p-6">
         <div className="space-y-2 text-sm text-slate-600">
           <div className="flex items-start gap-2">
             <CalendarDays size={16} className="mt-0.5 text-orange-500" />
@@ -157,12 +157,12 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
         </div>
 
         <div className="flex gap-3 pt-1">
-          <Button className="flex-1 !h-11 !rounded-2xl !border-slate-300 !font-semibold" onClick={onViewDetail}>
+          <Button className="flex-1 !h-12 !rounded-2xl !border-slate-300 !font-semibold" onClick={onViewDetail}>
             Xem chi tiết
           </Button>
           <Button
             type="primary"
-            className="flex-1 !h-11 !rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold shadow-lg shadow-orange-500/25"
+            className="flex-1 !h-12 !rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold shadow-lg shadow-orange-500/25"
             onClick={onBookTicket}
             disabled={isEnded || isSoldOut}
           >

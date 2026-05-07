@@ -89,19 +89,19 @@ const EventBrowse = () => {
 
   return (
     <div className="space-y-8">
-      <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-slate-950 text-white shadow-[0_25px_70px_rgba(15,23,42,0.18)]">
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 px-6 py-8 sm:px-8 lg:px-10">
+      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-slate-950 text-white shadow-[0_25px_70px_rgba(15,23,42,0.18)]">
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 px-6 py-10 sm:px-8 lg:px-12 xl:px-14">
           <div className="absolute -right-10 top-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
           <div className="absolute -left-14 bottom-0 h-56 w-56 rounded-full bg-orange-400/10 blur-3xl" />
-          <div className="relative grid gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:items-end">
-            <div className="space-y-4">
+          <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+            <div className="space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80 backdrop-blur-sm">
                 <SearchOutlined />
                 Khám phá sự kiện
               </div>
-              <h1 className="max-w-2xl text-4xl font-black tracking-tight sm:text-5xl">Hero banner lớn, search bar và card premium giống website bán vé chuyên nghiệp.</h1>
-              <p className="max-w-2xl text-base leading-8 text-white/75 sm:text-lg">
-                Giữ nguyên API, route và nút đặt vé hiện có. Chỉ nâng cấp UI để người dùng duyệt sự kiện nhanh hơn, rõ ràng hơn và đẹp hơn.
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl xl:text-6xl">Khám phá sự kiện theo phong cách rộng, thoáng và premium hơn.</h1>
+              <p className="max-w-3xl text-base leading-8 text-white/75 sm:text-lg xl:text-xl">
+                Giữ nguyên API, route và toàn bộ nút đặt vé hiện có. Chỉ nâng cấp layout để người dùng duyệt sự kiện rõ hơn trên desktop, tablet và mobile.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button type="primary" size="large" className="!h-12 !rounded-2xl !border-white !bg-white !px-6 !font-semibold !text-slate-950" onClick={() => navigate('/customer/home')}>
@@ -131,14 +131,14 @@ const EventBrowse = () => {
         </div>
       </section>
 
-      <section className="space-y-4 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
+      <section className="space-y-4 rounded-[30px] border border-slate-200 bg-white p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] lg:p-7">
         <CustomerSectionTitle
           kicker="Bộ lọc"
           title="Tìm kiếm nhanh theo keyword, danh mục và trạng thái"
           description="Keyword từ thanh header sẽ được đẩy vào đây. Tabs danh mục lọc hoàn toàn client-side, không đổi API."
         />
 
-        <div className="grid gap-4 xl:grid-cols-[1.2fr_0.6fr_0.6fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr_0.8fr]">
           <Input.Search
             placeholder="Tìm kiếm sự kiện, nghệ sĩ, workshop..."
             prefix={<SearchOutlined />}
@@ -216,8 +216,8 @@ const EventBrowse = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-2">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
             {filteredEvents.map((event) => (
               <CustomerEventCard
                 key={event.id}
@@ -228,8 +228,8 @@ const EventBrowse = () => {
             ))}
           </div>
 
-          <aside className="space-y-5">
-            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+          <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">
+            <div className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
               <CustomerSectionTitle kicker="Trending" title="Top 3 bán chạy" description="Xếp hạng theo mức độ lấp đầy chỗ ngồi." />
               <div className="mt-4 space-y-4">
                 {trendingEvents.map((event, index) => (
@@ -252,7 +252,7 @@ const EventBrowse = () => {
               </div>
             </div>
 
-            <div className="rounded-[28px] border border-slate-200 bg-gradient-to-br from-slate-950 to-orange-600 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+            <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-slate-950 to-orange-600 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Sắp diễn ra</p>
               <div className="mt-4 space-y-3">
                 {upcomingEvents.length === 0 ? (
