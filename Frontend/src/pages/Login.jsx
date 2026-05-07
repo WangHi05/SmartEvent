@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
+import { AlertCircle } from 'lucide-react';
 import { authService } from '../services/authService';
 
 export default function Login() {
@@ -8,6 +9,24 @@ export default function Login() {
     const location = useLocation();
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    const navigateAfterAuth = (authResponse) => {
+        const rawRole = (authResponse?.user?.role || authResponse?.user?.Role || '').toString().toLowerCase();
+        const query = new URLSearchParams(location.search);
+        const redirectPath = query.get('redirect');
+
+        if (redirectPath && redirectPath.startsWith('/')) {
+            navigate(redirectPath, { replace: true });
+            return;
+        }
+
+        if (rawRole === 'customer' || rawRole === '3') {
+            navigate('/customer/events', { replace: true });
+            return;
+        }
+
+        navigate('/dashboard', { replace: true });
+    };
 
     const handleChange = (e) => {
         const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
@@ -20,8 +39,8 @@ export default function Login() {
         setError('');
         
         try {
-            await authService.login(formData.username, formData.password, formData.rememberMe);
-            navigate('/dashboard'); 
+            const authResponse = await authService.login(formData.username, formData.password, formData.rememberMe);
+            navigateAfterAuth(authResponse); 
         } catch (err) {
             // Log toàn bộ object lỗi ra console để dev dễ debug
             console.error("🚨 Chi tiết lỗi trong quá trình đăng nhập:", err);
@@ -51,28 +70,13 @@ export default function Login() {
                 provider: provider,
                 providerId: '123456' 
             };
-            await authService.externalLogin(mockProviderData);
-            navigate('/dashboard');
+            const authResponse = await authService.externalLogin(mockProviderData);
+            navigateAfterAuth(authResponse);
         } catch (err) {
              if (err.response) {
                 setError(`Đăng nhập ${provider} thất bại: ${err.response.data?.message}`);
             } else {
                 setError(`Không thể kết nối đến dịch vụ ${provider}!`);
-            }
-            const authResponse = await authService.login(formData.username, formData.password);
-            const rawRole = (authResponse?.user?.role || authResponse?.user?.Role || '').toString().toLowerCase();
-            const query = new URLSearchParams(location.search);
-            const redirectPath = query.get('redirect');
-
-            if (redirectPath && redirectPath.startsWith('/')) {
-                navigate(redirectPath, { replace: true });
-                return;
-            }
-
-            if (rawRole === 'customer' || rawRole === '3') {
-                navigate('/customer/events', { replace: true });
-            } else {
-                navigate('/dashboard', { replace: true });
             }
         }finally 
         {
@@ -92,7 +96,7 @@ export default function Login() {
 
                         {error && (
                             <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm flex items-start">
-                                <Settings className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
+                                <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0 mt-0.5" />
                                 <span className="break-words">{error}</span>
                             </div>
                         )}

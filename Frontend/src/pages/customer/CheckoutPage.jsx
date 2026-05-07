@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Button, Radio, Divider, message, Empty } from 'antd';
-import { ArrowLeftOutlined, CreditCardOutlined, QrcodeOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import { ArrowLeftOutlined, CreditCardOutlined, QrcodeOutlined, ShoppingCartOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import axiosClient from '../../api/axiosClient';
+import { CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
 
 const CheckoutPage = () => {
   const location = useLocation();
@@ -13,9 +14,9 @@ const CheckoutPage = () => {
 
   if (!bookingData) {
     return (
-      <div style={{ padding: '50px 20px' }}>
+      <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center">
         <Empty description="Không tìm thấy dữ liệu đơn hàng" />
-        <Button type="primary" block onClick={() => navigate('/customer/events')}>
+        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-2xl !border-orange-500 !bg-orange-500">
           Quay lại danh sách sự kiện
         </Button>
       </div>
@@ -73,124 +74,110 @@ const CheckoutPage = () => {
     }
   };
 
+  const paymentOptions = [
+    {
+      value: 1,
+      title: 'VNPay',
+      description: 'Thanh toán qua cổng VNPay (thẻ ngân hàng, ví điện tử, ...)',
+      icon: CreditCardOutlined,
+      accent: 'from-orange-500 to-amber-500',
+    },
+    {
+      value: 2,
+      title: 'QR Payment',
+      description: 'Thanh toán qua mã QR (phương thức ảo/demo)',
+      icon: QrcodeOutlined,
+      accent: 'from-emerald-500 to-teal-500',
+    },
+    {
+      value: 3,
+      title: 'Thanh toán tại quầy',
+      description: 'Thanh toán khi nhận vé tại quầy (nhân viên xác nhận)',
+      icon: ShoppingCartOutlined,
+      accent: 'from-slate-800 to-slate-600',
+    },
+  ];
+
   return (
-    <div style={{ padding: '24px 0' }}>
-      {/* Header */}
-      <div style={{ marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <Button 
-          type="text" 
-          icon={<ArrowLeftOutlined />} 
-          onClick={() => navigate(-1)}
-        >
-          Quay lại
-        </Button>
-        <h2 style={{ margin: 0 }}>Thanh toán</h2>
-      </div>
+    <div className="space-y-8 py-2">
+      <CustomerSectionTitle
+        kicker="Checkout"
+        title="Thanh toán"
+        description="Giữ nguyên luồng tạo đơn và VNPay nhưng đưa vào giao diện premium, dễ đọc và rõ nút hành động."
+        action={(
+          <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+            Quay lại
+          </Button>
+        )}
+      />
 
       <Row gutter={[24, 24]}>
-        {/* Order Summary */}
-        <Col xs={24} md={14}>
-          <Card title="Tóm tắt đơn hàng">
-            <div style={{ marginBottom: '16px' }}>
-              <strong>Sự kiện:</strong> {bookingData.eventName}
+        <Col xs={24} lg={14}>
+          <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]" bodyStyle={{ padding: 24 }}>
+            <h3 className="text-xl font-black text-slate-950">Tóm tắt đơn hàng</h3>
+            <p className="mt-1 text-sm text-slate-500">Kiểm tra lại sự kiện, loại vé và số lượng trước khi thanh toán.</p>
+
+            <div className="mt-6 rounded-3xl bg-slate-950 p-5 text-white">
+              <p className="text-xs uppercase tracking-[0.2em] text-white/60">Sự kiện</p>
+              <p className="mt-2 text-2xl font-black">{bookingData.eventName}</p>
+              <p className="mt-2 text-sm text-white/70">Tổng cộng: {formatCurrency(bookingData.totalPrice)}</p>
             </div>
 
-            <Divider />
-
-            <div style={{ marginBottom: '16px' }}>
-              <strong>Chi tiết vé:</strong>
-            </div>
-
-            {bookingData.selections.map((selection, index) => (
-              <div
-                key={index}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  marginBottom: '8px',
-                  padding: '8px',
-                  backgroundColor: '#fafafa',
-                  borderRadius: '4px'
-                }}
-              >
-                <div>
-                  <div>{selection.ticketTypeName}</div>
-                  <div style={{ fontSize: '12px', color: '#666' }}>
-                    {selection.quantity} × {selection.price?.toLocaleString('vi-VN')}₫
+            <div className="mt-6 space-y-3">
+              {bookingData.selections.map((selection, index) => (
+                <div key={index} className="flex items-start justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div>
+                    <p className="font-bold text-slate-950">{selection.ticketTypeName}</p>
+                    <p className="text-sm text-slate-500">{selection.quantity} × {formatCurrency(selection.price)}</p>
                   </div>
+                  <div className="text-right font-black text-slate-950">{formatCurrency(selection.subtotal)}</div>
                 </div>
-                <div style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                  {selection.subtotal?.toLocaleString('vi-VN')}₫
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
 
             <Divider />
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 'bold' }}>
-              <span>Tổng cộng:</span>
-              <span style={{ color: '#1890ff', fontSize: '20px' }}>
-                {bookingData.totalPrice.toLocaleString('vi-VN')}₫
-              </span>
+            <div className="flex items-center justify-between">
+              <span className="text-base font-semibold text-slate-600">Tổng cộng</span>
+              <span className="text-3xl font-black text-orange-600">{formatCurrency(bookingData.totalPrice)}</span>
             </div>
           </Card>
         </Col>
 
-        {/* Payment Method Selection */}
-        <Col xs={24} md={10}>
-          <Card title="Chọn phương thức thanh toán">
+        <Col xs={24} lg={10}>
+          <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]" bodyStyle={{ padding: 24 }}>
+            <CustomerSectionTitle kicker="Payment" title="Chọn phương thức thanh toán" description="Thiết kế card chọn payment rõ hơn nhưng không đổi action create-order hay VNPay redirect." />
+
             <Radio.Group
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 24 }}
             >
-              <Card
-                style={{
-                  cursor: 'pointer',
-                  border: paymentMethod === 1 ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                  padding: '12px'
-                }}
-              >
-                <Radio value={1}>
-                  <CreditCardOutlined style={{ marginRight: '8px' }} />
-                  <strong>VNPay</strong>
-                  <div style={{ fontSize: '12px', color: '#666', marginLeft: '24px' }}>
-                    Thanh toán qua cổng VNPay (thẻ ngân hàng, ví điện tử, ...)
-                  </div>
-                </Radio>
-              </Card>
-
-              <Card
-                style={{
-                  cursor: 'pointer',
-                  border: paymentMethod === 2 ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                  padding: '12px'
-                }}
-              >
-                <Radio value={2}>
-                  <QrcodeOutlined style={{ marginRight: '8px' }} />
-                  <strong>QR Payment</strong>
-                  <div style={{ fontSize: '12px', color: '#666', marginLeft: '24px' }}>
-                    Thanh toán qua mã QR (phương thức ảo/demo)
-                  </div>
-                </Radio>
-              </Card>
-
-              <Card
-                style={{
-                  cursor: 'pointer',
-                  border: paymentMethod === 3 ? '2px solid #1890ff' : '1px solid #d9d9d9',
-                  padding: '12px'
-                }}
-              >
-                <Radio value={3}>
-                  <ShoppingCartOutlined style={{ marginRight: '8px' }} />
-                  <strong>Thanh toán tại quầy</strong>
-                  <div style={{ fontSize: '12px', color: '#666', marginLeft: '24px' }}>
-                    Thanh toán khi nhận vé tại quầy (nhân viên xác nhận)
-                  </div>
-                </Radio>
-              </Card>
+              {paymentOptions.map((option) => {
+                const Icon = option.icon;
+                const selected = paymentMethod === option.value;
+                return (
+                  <Card
+                    key={option.value}
+                    onClick={() => setPaymentMethod(option.value)}
+                    className={`cursor-pointer !rounded-3xl border transition ${selected ? 'border-orange-400 shadow-[0_18px_40px_rgba(249,115,22,0.15)]' : 'border-slate-200 hover:border-slate-300'}`}
+                    bodyStyle={{ padding: 18 }}
+                  >
+                    <Radio value={option.value} className="w-full">
+                      <div className="flex items-start gap-4">
+                        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${option.accent} text-white`}>
+                          <Icon />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-950">{option.title}</p>
+                          <p className="mt-1 text-sm text-slate-500">{option.description}</p>
+                        </div>
+                        {selected ? <CheckCircleOutlined className="ml-auto text-emerald-500" /> : null}
+                      </div>
+                    </Radio>
+                  </Card>
+                );
+              })}
             </Radio.Group>
 
             <Divider />
@@ -202,17 +189,12 @@ const CheckoutPage = () => {
               onClick={handlePlaceOrder}
               loading={loading}
               disabled={loading}
+              className="!h-12 !rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold"
             >
-              Đặt hàng ({bookingData.totalPrice.toLocaleString('vi-VN')}₫)
+              Đặt hàng ({formatCurrency(bookingData.totalPrice)})
             </Button>
 
-            <Button
-              type="default"
-              block
-              style={{ marginTop: '8px' }}
-              onClick={() => navigate(-1)}
-              disabled={loading}
-            >
+            <Button type="default" block className="mt-3 !h-12 !rounded-2xl" onClick={() => navigate(-1)} disabled={loading}>
               Hủy
             </Button>
           </Card>

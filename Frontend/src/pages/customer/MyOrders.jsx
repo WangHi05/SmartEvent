@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Table, Tag, Select, Space, Button, Drawer, Descriptions, message } from 'antd';
-import { EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, CalendarOutlined, DollarOutlined, ShoppingCartOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
+import { CustomerMetricCard, CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
 
 const paymentColorMap = {
   Pending: 'gold',
@@ -30,12 +31,12 @@ const MyOrders = () => {
         },
       });
 
-      const data = response.data || response;
-      setOrders(data.items || []);
+      const data = response?.data || response;
+      setOrders(data?.Items || data?.items || data?.Orders || data?.orders || []);
       setPagination({
-        current: data.pageNumber || page,
-        pageSize: data.pageSize || pageSize,
-        total: data.totalCount || 0,
+        current: data?.PageNumber || data?.pageNumber || page,
+        pageSize: data?.PageSize || data?.pageSize || pageSize,
+        total: data?.TotalCount || data?.totalCount || 0,
       });
     } catch (error) {
       message.error(error.response?.data?.message || 'Không thể tải lịch sử đặt vé');
@@ -47,7 +48,7 @@ const MyOrders = () => {
   const openDetail = async (orderId) => {
     try {
       const response = await axiosClient.get(`/orders/${orderId}`);
-      setSelectedOrder(response.data || response);
+      setSelectedOrder(response?.data || response);
       setDetailOpen(true);
     } catch (error) {
       message.error(error.response?.data?.message || 'Không thể tải chi tiết đơn hàng');
@@ -57,6 +58,16 @@ const MyOrders = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  const stats = useMemo(() => {
+    const paid = orders.filter((order) => order.paymentStatusName === 'Paid').length;
+    const pending = orders.filter((order) => order.paymentStatusName === 'Pending').length;
+    return [
+      { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'from-orange-500 to-amber-500' },
+      { label: 'Đã thanh toán', value: paid.toLocaleString('vi-VN'), hint: 'Paid orders', icon: DollarOutlined, accent: 'from-emerald-500 to-teal-500' },
+      { label: 'Đang chờ', value: pending.toLocaleString('vi-VN'), hint: 'Pending orders', icon: CalendarOutlined, accent: 'from-slate-800 to-slate-600' },
+    ];
+  }, [orders]);
 
   const columns = [
     {
@@ -100,13 +111,25 @@ const MyOrders = () => {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-black text-slate-900">Lịch sử đặt vé</h1>
+    <div className="space-y-8">
+      <CustomerSectionTitle
+        kicker="My orders"
+        title="Lịch sử đặt vé"
+        description="Giao diện theo kiểu dashboard giúp xem đơn hàng rõ hơn, nhưng giữ nguyên API, lọc và drawer chi tiết."
+      />
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {stats.map((item) => (
+          <CustomerMetricCard key={item.label} {...item} />
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-slate-500">Xem toàn bộ lịch sử đơn hàng, lọc theo trạng thái thanh toán và mở drawer chi tiết khi cần.</p>
         <Space>
           <Select
             allowClear
-            style={{ width: 200 }}
+            style={{ width: 220 }}
             placeholder="Lọc trạng thái thanh toán"
             value={paymentStatus}
             onChange={(value) => {
@@ -123,17 +146,20 @@ const MyOrders = () => {
         </Space>
       </div>
 
-      <Table
-        rowKey="id"
-        columns={columns}
-        dataSource={orders}
-        loading={loading}
-        pagination={{
-          ...pagination,
-          showSizeChanger: true,
-        }}
-        onChange={(p) => fetchOrders(p.current, p.pageSize, paymentStatus)}
-      />
+      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={orders}
+          loading={loading}
+          pagination={{
+            ...pagination,
+            showSizeChanger: true,
+          }}
+          onChange={(p) => fetchOrders(p.current, p.pageSize, paymentStatus)}
+          scroll={{ x: true }}
+        />
+      </div>
 
       <Drawer
         title={`Chi tiết đơn #${selectedOrder?.id?.slice(0, 8) || ''}`}
@@ -147,7 +173,7 @@ const MyOrders = () => {
             <Descriptions.Item label="Sự kiện">{selectedOrder.eventName}</Descriptions.Item>
             <Descriptions.Item label="Loại vé">{selectedOrder.ticketTypeName}</Descriptions.Item>
             <Descriptions.Item label="Số lượng">{selectedOrder.quantity}</Descriptions.Item>
-            <Descriptions.Item label="Tổng tiền">{Number(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}₫</Descriptions.Item>
+            <Descriptions.Item label="Tổng tiền">{formatCurrency(selectedOrder.totalPrice)}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
             <Descriptions.Item label="Ngày tạo">{dayjs(selectedOrder.createdAt).format('DD/MM/YYYY HH:mm:ss')}</Descriptions.Item>
