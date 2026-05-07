@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace TicketSystem.API.Controllers
 {
@@ -20,40 +21,51 @@ namespace TicketSystem.API.Controllers
         private readonly IOrderService _orderService;
         private readonly ICancelOrderService _cancelOrderService;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<TicketsController> _logger;
 
         public OrdersController(
             IOrderService orderService, 
             ICancelOrderService cancelOrderService,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ILogger<TicketsController> logger)
         {
             _orderService = orderService;
             _cancelOrderService = cancelOrderService;
             _configuration = configuration;
+            _logger = logger;
         }
 
         /// <summary>
         /// Create a new order for booking tickets
         /// </summary>
+        [Authorize]
         [HttpPost]
-        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto createOrderDto)
+        public async Task<IActionResult> CreateOrder([FromBody] CreateOrderDto request)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Lấy Claim ID của người dùng. Nếu em dùng JWT chuẩn, nó thường là NameIdentifier.
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null) 
+                return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ hoặc thiếu Token." });
+
+            if (!Guid.TryParse(userIdClaim.Value, out Guid userId))
+                return BadRequest(new { message = "Định dạng ID người dùng bị lỗi." });
+            
+            string createdBy = User.FindFirst(ClaimTypes.Name)?.Value ?? "Customer_Online";
+
             try
             {
-                if (!ModelState.IsValid)
-                    return BadRequest(ModelState);
-
-                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (!Guid.TryParse(userId, out var userIdGuid))
-                    return Unauthorized(new { message = "Invalid user ID" });
-
-                var username = User.FindFirst(ClaimTypes.Name)?.Value ?? "System";
-
-                var result = await _orderService.CreateOrderAsync(userIdGuid, createOrderDto, username);
-                return CreatedAtAction(nameof(CreateOrder), result);
+                // Gọi tầng Application để xử lý nghiệp vụ
+                var result = await _orderService.CreateOrderAsync(userId, request, createdBy);
+                return Ok(result); // Trả về 200 OK cùng dữ liệu đơn hàng
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = ex.Message });
+                _logger.LogError(ex, "Lỗi khi tạo đơn hàng cho User {UserId}", userId);
+                // Trả về 400 Bad Request kèm câu thông báo lỗi nghiệp vụ (ví dụ: "Sự kiện đã đầy")
+                return BadRequest(new { message = ex.Message }); 
             }
         }
 

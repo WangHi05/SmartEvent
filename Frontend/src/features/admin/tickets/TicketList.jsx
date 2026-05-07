@@ -146,7 +146,7 @@ export function TicketList() {
         onCancel={() => setTicketTypesVisible(false)}
         width={1000}
         footer={null}
-        destroyOnClose={true} // Tránh lỗi dữ liệu cũ khi mở Modal mới
+        destroyOnHidden={true} // Tránh lỗi dữ liệu cũ khi mở Modal mới
       >
         {selectedEventForTicketTypes && (
           <TicketTypesAdmin eventId={selectedEventForTicketTypes.id} />

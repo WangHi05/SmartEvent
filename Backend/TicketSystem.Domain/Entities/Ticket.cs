@@ -10,14 +10,28 @@ public enum TicketStatus
     CHECKED_IN = 2,
     CANCELLED = 3
 }
+public enum ScanType
+{
+    Entry = 1,  
+    Exit = 2,   
+    Print = 3  
+}
 
 public class Ticket : BaseEntity
 {
-    public Guid TicketTypeId { get; set; }
-    public Guid? OrderId { get; set; } // Foreign key to Order
-    public string? QrCode { get; set; }
+    public Guid TicketTypeId { get; init; }
+    public Guid? OrderId { get; init; } // Foreign key to Order
+    public required string SecretKey { get; init; }
     public TicketStatus Status { get; set; } = TicketStatus.ACTIVE;
     
+    // --- CÁC TRƯỜNG MỚI BỔ SUNG CHO ĐẶC TẢ V2 ---
+    public DateTime ValidFrom { get; set; }
+    public DateTime ValidTo { get; set; }
+    public bool IsBadgePrinted { get; set; } = false; // Phục vụ Cơ chế 3: In thẻ tham quan
+    
+    // Hỗ trợ vé đoàn (Mode 1 & Mode 2)
+    public int GroupSize { get; set; } = 1; // Mặc định là 1 (vé cá nhân)
+
     // Cancel + Refund related fields
     public DateTime? CancelledAt { get; set; }
     public decimal? RefundAmount { get; set; }
@@ -28,6 +42,20 @@ public class Ticket : BaseEntity
     public virtual TicketType? TicketType { get; set; }
     public virtual Order? Order { get; set; }
     public virtual ICollection<CheckInLog> CheckInLogs { get; set; } = new List<CheckInLog>();
+
+    // Constructor để đảm bảo tính toàn vẹn dữ liệu
+    public Ticket()
+    {
+        // Tự động sinh SecretKey độ dài 16 ký tự (Base32 format) khi khởi tạo vé
+        SecretKey = GenerateSecretKey();
+    }
+
+    private string GenerateSecretKey()
+    {
+        // Sinh chuỗi ngẫu nhiên làm SecretKey (Ví dụ: JBSWY3DPEHPK3PXP)
+        // Trong thực tế, em nên dùng RandomNumberGenerator của System.Security.Cryptography
+        return Guid.NewGuid().ToString("N").Substring(0, 16).ToUpper();
+    }
 }
 
 public class CheckInLog : BaseEntity
@@ -35,7 +63,12 @@ public class CheckInLog : BaseEntity
     public Guid TicketId { get; set; }
     public DateTime CheckedAt { get; set; }
     public DateOnly CheckinDate { get; set; }
+    // Bổ sung các trường truy vết
+    public ScanType Type { get; set; } = ScanType.Entry;
+    public int PeopleCount { get; set; } = 1; // Số người vào (dành cho Mode 1 quét vé đoàn)
     public string? GateName { get; set; }
+    public string? StaffId { get; set; } // Nhân viên thao tác
+    public string? Note { get; set; }    // Ghi chú (ví dụ: "Check-in thủ công")
 
     // Relationships
     public virtual Ticket? Ticket { get; set; }

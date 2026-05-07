@@ -3,6 +3,7 @@ import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal } fr
 import { DeleteOutlined, DownloadOutlined, EyeOutlined, QrcodeOutlined, WalletOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
+import DynamicTicketCard from '../../components/DynamicTicketCard';
 import { CustomerMetricCard, CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
 
 const MyTickets = () => {
@@ -11,11 +12,6 @@ const MyTickets = () => {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
 
-  const buildQrImageUrl = (ticket) => {
-    const qrPayload = ticket?.qrCode || `TICKET-${ticket?.id || ''}`;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(qrPayload)}`;
-  };
-
   const canUseTicket = (ticket) => Number(ticket?.status) === 1 || Number(ticket?.status) === 2;
 
   const handleViewQr = (ticket) => {
@@ -23,42 +19,28 @@ const MyTickets = () => {
     setQrModalOpen(true);
   };
 
-  const handleDownloadQr = async (ticket) => {
-    if (!canUseTicket(ticket)) {
-      message.warning('Vé đang ở trạng thái chờ thanh toán, chưa thể tải QR.');
-      return;
-    }
-
-    try {
-      const qrUrl = buildQrImageUrl(ticket);
-      const response = await fetch(qrUrl);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = `ticket-${ticket.id}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(blobUrl);
-      message.success('Đã tải mã QR về máy');
-    } catch (error) {
-      message.error('Không thể tải mã QR, vui lòng thử lại');
-    }
-  };
-
   // Fetch my tickets
   const fetchMyTickets = async () => {
     setLoading(true);
     try {
       const response = await axiosClient.get('/tickets/my-tickets');
-      const data = response?.data || response;
-      const ticketsList = Array.isArray(data)
-        ? data
-        : data?.Tickets || data?.tickets || data?.Items || data?.items || [];
+      
+      const resData = response.data || response;
+      let ticketList = [];
 
-      setTickets(ticketsList);
+      if (Array.isArray(resData)) {
+        ticketList = resData;
+      } else if (resData.data && Array.isArray(resData.data)) {
+        ticketList = resData.data;
+      } else if (resData.data && resData.data.tickets) {
+        ticketList = resData.data.tickets;
+      } else if (resData.tickets) {
+        ticketList = resData.tickets;
+      } else if (resData.items) {
+        ticketList = resData.items;
+      }
+
+      setTickets(ticketList);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       message.error('Không thể tải danh sách vé');
@@ -108,10 +90,10 @@ const MyTickets = () => {
       render: (value) => value || 'N/A',
     },
     {
-      title: 'QR Code',
-      dataIndex: 'qrCode',
+      title: 'Mã bảo mật',
+      dataIndex: 'qrCode', 
       key: 'qrCode',
-      render: (text) => text ? `${text.substring(0, 10)}...` : 'N/A',
+      render: () => <Tag color="red">Đã mã hóa (TOTP)</Tag>,
     },
     {
       title: 'Trạng thái',
@@ -143,28 +125,17 @@ const MyTickets = () => {
       render: (_, record) => (
         <Space>
           <Button
-            type="link"
+            type="primary"
             icon={<EyeOutlined />}
             disabled={!canUseTicket(record)}
             onClick={() => handleViewQr(record)}
           >
-            Xem QR
-          </Button>
-          <Button 
-            type="link" 
-            icon={<DownloadOutlined />}
-            disabled={!canUseTicket(record)}
-            onClick={() => handleDownloadQr(record)}
-          >
-            Tải vé
+            Mở Vé
           </Button>
           {record.status === 1 && (
             <Popconfirm
               title="Hủy vé?"
-              description="Bạn có chắc chắn muốn hủy vé này không?"
               onConfirm={() => handleCancelTicket(record.id)}
-              okText="Hủy"
-              cancelText="Không"
             >
               <Button type="link" danger icon={<DeleteOutlined />}>
                 Hủy vé
@@ -181,7 +152,7 @@ const MyTickets = () => {
       <CustomerSectionTitle
         kicker="My tickets"
         title="Vé của tôi"
-        description="Danh sách vé được trình bày lại theo phong cách premium nhưng logic tải dữ liệu, hủy vé và tải QR vẫn giữ nguyên."
+        description="Danh sách vé được bảo mật bằng công nghệ Dynamic QR Code."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -212,35 +183,25 @@ const MyTickets = () => {
       )}
 
       <Modal
-        title={`Mã QR vé ${selectedTicket ? `#${selectedTicket.id?.slice(0, 8)}` : ''}`}
+        title={null} 
         open={qrModalOpen}
         onCancel={() => setQrModalOpen(false)}
-        footer={[
-          <Button key="close" onClick={() => setQrModalOpen(false)}>
-            Đóng
-          </Button>,
-          <Button
-            key="download"
-            type="primary"
-            onClick={() => selectedTicket && handleDownloadQr(selectedTicket)}
-          >
-            Tải QR
-          </Button>,
-        ]}
+        footer={null} 
+        closable={false}
+        width={400}
+        destroyOnHidden={true} // Bắt buộc để clear bộ đếm thời gian khi đóng
+        centered
+        styles={{ body: { padding: 0, backgroundColor: 'transparent' } }}
+        wrapClassName="custom-modal-transparent"
       >
         {selectedTicket && (
-          <div className="text-center">
-            <img
-              src={buildQrImageUrl(selectedTicket)}
-              alt="QR Ticket"
-              className="mx-auto mb-3 block h-60 w-60 rounded-3xl border border-slate-200 bg-white p-3 shadow-sm"
-            />
-            <div className="space-y-2 text-sm text-slate-600">
-              <div><strong>Sự kiện:</strong> {selectedTicket.eventName}</div>
-              <div><strong>Loại vé:</strong> {selectedTicket.ticketTypeName}</div>
-              <div><strong>Mã QR:</strong> {selectedTicket.qrCode || 'N/A'}</div>
-            </div>
-          </div>
+          <DynamicTicketCard 
+             ticketId={selectedTicket.id}
+             secretKey={selectedTicket.qrCode} 
+             eventName={selectedTicket.eventName}
+             ticketTypeName={selectedTicket.ticketTypeName}
+             onClose={() => setQrModalOpen(false)}
+          />
         )}
       </Modal>
     </div>

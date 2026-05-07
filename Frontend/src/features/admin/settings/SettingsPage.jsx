@@ -1,15 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Card,
-  Form,
-  InputNumber,
-  Switch,
-  Button,
-  Select,
-  Divider,
-  message,
-  Descriptions,
-} from 'antd';
+import {Card, Form, InputNumber, Switch, Button, Select, Divider, message, Descriptions,} from 'antd';
 import { ReloadOutlined, SaveOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 

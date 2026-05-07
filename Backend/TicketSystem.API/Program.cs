@@ -1,8 +1,8 @@
 using TicketSystem.Infrastructure.Data;
 using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Infrastructure.Security;
-using TicketSystem.Infrastructure.Services; 
 using TicketSystem.Application.Services;
+using TicketSystem.Application;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
 using TicketSystem.API.Middleware;
@@ -59,6 +59,8 @@ builder.Services.AddCors(options =>
     });
 });
 
+builder.Services.AddApplicationServices();
+
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
@@ -93,6 +95,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // Đảm bảo có AddAuthorization()
 builder.Services.AddAuthorization();
+
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 

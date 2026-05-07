@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Card, Result, Button, Typography, Descriptions, message, Tag } from 'antd';
-import { Html5QrcodeScanner, Html5QrcodeScannerState } from 'html5-qrcode';
-import { QrcodeOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, Result, Button, Typography, Descriptions, message, Tag, InputNumber, Form } from 'antd';
+import { Html5QrcodeScanner } from 'html5-qrcode';
+import { QrcodeOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, TeamOutlined, VideoCameraOutlined, VideoCameraAddOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient'; 
 
 const { Title, Text } = Typography;
@@ -11,135 +11,155 @@ const CheckInPage = () => {
   const [ticketData, setTicketData] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   
+  // State mới: Lưu số lượng khách muốn check-in (Mặc định là 1 cho vé lẻ)
+  const [peopleCount, setPeopleCount] = useState(1);
+
+  const [isCameraOpen, setIsCameraOpen] = useState(true);
+  
   const scannerRef = useRef(null);
-  // Dùng useRef thay cho useState để tránh lỗi "Stale Closure" trong callback của máy quét
-  const processingRef = useRef(false); 
-  const hasResultRef = useRef(false);
-
-  // Đồng bộ ref với state để UI và Logic không bị lệch
-  useEffect(() => {
-    hasResultRef.current = !!scanResult;
-  }, [scanResult]);
+  const isLockedRef = useRef(false); 
 
   useEffect(() => {
-    // Luôn khởi tạo mới instance trong mỗi vòng đời của component
+    if (!isCameraOpen) return;
+
+    const qrContainer = document.getElementById('qr-reader');
+    if (!qrContainer) return;
+
+    qrContainer.innerHTML = '';
+
     const scanner = new Html5QrcodeScanner(
       "qr-reader",
       { 
         fps: 10, 
         qrbox: { width: 250, height: 250 }, 
         rememberLastUsedCamera: true,
-        supportedScanTypes: [0] // Chỉ quét QR Code (loại bỏ barcode) để tăng tốc độ
+        supportedScanTypes: [0] 
       },
-      false // verbose = false
+      false
     );
     
     scannerRef.current = scanner;
-
-    // Render máy quét
     scanner.render(onScanSuccess, onScanFailure);
 
-    // CLEANUP QUAN TRỌNG: Xóa máy quét và đặt ref về null khi component bị hủy (hoặc do StrictMode)
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(error => {
-            console.log("Scanner clear internal info:", error);
-        });
-        scannerRef.current = null; // BẮT BUỘC PHẢI CÓ DÒNG NÀY ĐỂ FIX TRẮNG CAMERA
+        scannerRef.current.clear().catch(e => console.debug("Lỗi dọn dẹp camera:", e));
+        scannerRef.current = null;
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  },  [isCameraOpen]); 
 
   const onScanSuccess = async (decodedText) => {
-    // Kiểm tra thông qua Ref để luôn lấy được giá trị mới nhất, tránh gọi API 2 lần
-    if (processingRef.current || hasResultRef.current) return;
+    if (isLockedRef.current) return;
+    isLockedRef.current = true;
 
-    processingRef.current = true;
-    
-    // AN TOÀN HƠN: Chỉ pause khi máy quét đang thực sự chạy
-    if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.SCANNING) {
-      scannerRef.current.pause();
-    }
+    const qrPayload = decodedText.trim();
+    const parts = qrPayload.split('|');
 
-    // Trích xuất đúng chuẩn GUID
-    const guidRegex = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-    const match = decodedText.match(guidRegex);
-
-    if (!match) {
+    if (parts.length !== 2) {
         setScanResult('error');
-        setErrorMessage('Mã QR không chứa định dạng ID vé hợp lệ (Guid).');
-        processingRef.current = false;
+        setErrorMessage('Mã QR không đúng định dạng SmartEvent.');
         return;
     }
 
-    const ticketId = match[0];
-
     try {
-      const response = await axiosClient.post(`/tickets/${ticketId}/checkin`);
+      // Gửi số lượng người (peopleCount) lấy từ ô Input xuống Backend
+      const response = await axiosClient.post(`/checkin/scan`, {
+        qrPayload: qrPayload,
+        peopleCount: peopleCount, 
+        gateName: 'Cổng chính - Lối vào 1'
+      });
       
-      if (response.isSuccess) {
+      if (response.isSuccess || response.data?.isSuccess) {
         setScanResult('success');
-        setTicketData(response);
-        message.success('Check-in thành công!');
+        setTicketData(response.data?.data || response.data); 
+        message.success(`Check-in thành công ${peopleCount} vé!`);
+        
+        // NẾU LÀ SỰ KIỆN B2B: Bật cờ in thẻ
+        if (response.data?.data?.message?.includes("in thẻ") || response.data?.message?.includes("in thẻ")) {
+            message.info("Đang gửi lệnh đến máy in thẻ...");
+            // Gọi hàm in thẻ thực tế ở đây (Webhook/Print API)
+        }
       } else {
         setScanResult('error');
-        setErrorMessage(response.message || 'Vé không hợp lệ');
-        message.error('Check-in thất bại!');
+        setErrorMessage(response.message || response.data?.message || 'Vé không hợp lệ');
       }
     } catch (error) {
       setScanResult('error');
-      
-      // NÂNG CẤP: Chẩn đoán lỗi cực kỳ chi tiết để dev dễ dàng bắt bệnh
-      if (!error.response) {
-        setErrorMessage('Lỗi mạng: Không thể kết nối đến Backend. Hãy chắc chắn bạn đã chạy lệnh "dotnet run".');
-      } else if (error.response.status === 404) {
-        setErrorMessage(`Lỗi 404: Không tìm thấy API check-in. Hãy lưu lại file TicketsController.cs và khởi động lại Backend.`);
-      } else if (error.response.status === 400) {
-        setErrorMessage(error.response?.data?.message || 'Vé không hợp lệ hoặc đã được sử dụng.');
-      } else {
-        setErrorMessage(error.response?.data?.message || error.response?.data?.title || 'Lỗi hệ thống máy chủ.');
-      }
-
-      message.error('Có lỗi xảy ra khi gọi máy chủ!');
-    } finally {
-      processingRef.current = false;
+      setErrorMessage(error.response?.data?.message || 'Lỗi kết nối máy chủ.');
     }
   };
 
-  const onScanFailure = (error) => {
-    // Bỏ qua log để tránh spam console
-  };
+  const onScanFailure = () => {};
 
   const resetScanner = () => {
     setScanResult(null);
     setTicketData(null);
     setErrorMessage('');
-    processingRef.current = false;
-    
-    // Resume lại camera
-    if (scannerRef.current && scannerRef.current.getState() === Html5QrcodeScannerState.PAUSED) {
-      scannerRef.current.resume();
+    setPeopleCount(1); // Reset về 1
+    isLockedRef.current = false; 
+  };
+
+  const toggleCamera = () => {
+    setIsCameraOpen(!isCameraOpen);
+    // Nếu đang tắt camera, reset luôn kết quả màn hình cho sạch sẽ
+    if (isCameraOpen) {
+        resetScanner();
     }
   };
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <Title level={2}>Soát vé tại cổng (Check-in)</Title>
-        <Text type="secondary">Đưa mã QR của khách hàng vào khung hình để kiểm tra trạng thái vé.</Text>
+      <div className="mb-6 flex justify-between items-end">
+        <div>
+            <Title level={2}>Soát vé tại cổng</Title>
+            <Text type="secondary">Cơ chế tự động phân loại Vé Lẻ & Vé Đoàn</Text>
+        </div>
+        
+        {/* UI CHỌN SỐ LƯỢNG (Dành cho quét vé đoàn) */}
+        <Card size="small" className="bg-blue-50 border-blue-200">
+            <Form layout="vertical" className="mb-0">
+                <Form.Item label={<span className="font-semibold"><TeamOutlined className="mr-2"/>Số khách vào cổng:</span>} className="mb-0">
+                    <InputNumber 
+                        min={1} 
+                        max={50} 
+                        value={peopleCount} 
+                        onChange={setPeopleCount}
+                        disabled={scanResult !== null} // Khóa khi đang hiện kết quả
+                        size="large"
+                        className="w-32"
+                    />
+                    <Text type="secondary" className="ml-3 text-xs">(Sửa trước khi quét)</Text>
+                </Form.Item>
+            </Form>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* CỘT TRÁI: CAMERA QUÉT MÃ */}
-        <Card title={<span><QrcodeOutlined className="mr-2" /> Khung quét QR</span>} className="shadow-sm">
-          <div className="relative overflow-hidden rounded-lg border border-gray-200 min-h-[300px] bg-gray-50 flex items-center justify-center">
-            {/* Vùng div này sẽ được html5-qrcode tiêm giao diện camera vào */}
-            <div id="qr-reader" className="w-full h-full"></div>
+        <Card title={<span><QrcodeOutlined className="mr-2" /> Khung quét QR</span>} className="shadow-sm"
+          extra={
+            <Button 
+                type={isCameraOpen ? "default" : "primary"} 
+                danger={isCameraOpen}
+                icon={isCameraOpen ? <VideoCameraOutlined /> : <VideoCameraAddOutlined />}
+                onClick={toggleCamera}
+            >
+                {isCameraOpen ? "Tắt Camera" : "Mở Camera"}
+            </Button>
+          }
+        >
+           <div className="relative overflow-hidden rounded-lg border border-gray-200 min-h-[300px] bg-black flex items-center justify-center">
+            {isCameraOpen ? (
+                <div id="qr-reader" className="w-full h-full bg-white"></div>
+            ) : (
+                <div className="text-gray-400 flex flex-col items-center">
+                    <VideoCameraOutlined style={{ fontSize: '48px', marginBottom: '16px', opacity: 0.5 }} />
+                    <p>Camera đã được tắt để tiết kiệm pin.</p>
+                </div>
+            )}
           </div>
         </Card>
 
-        {/* CỘT PHẢI: KẾT QUẢ CHECK-IN */}
         <Card title="Kết quả soát vé" className="shadow-sm flex flex-col justify-center min-h-[400px]">
           {!scanResult && (
             <div className="text-center text-gray-400 py-12">
@@ -148,7 +168,7 @@ const CheckInPage = () => {
             </div>
           )}
 
-          {scanResult === 'success' && ticketData && (
+          {scanResult === 'success' && (
             <Result
               status="success"
               icon={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
@@ -158,10 +178,10 @@ const CheckInPage = () => {
                 <div className="text-left bg-gray-50 p-4 rounded-lg mt-4">
                   <Descriptions column={1} size="small" bordered>
                     <Descriptions.Item label="Khách hàng">
-                      <strong className="text-lg">{ticketData.customerName}</strong>
+                      <strong className="text-lg">{ticketData?.customerName || 'Khách hàng'}</strong>
                     </Descriptions.Item>
                     <Descriptions.Item label="Loại vé">
-                      <Tag color="blue" className="text-sm px-2 py-1">{ticketData.ticketTypeName}</Tag>
+                      <Tag color="blue" className="text-sm px-2 py-1">{ticketData?.ticketTypeName || 'Vé sự kiện'}</Tag>
                     </Descriptions.Item>
                     <Descriptions.Item label="Thời gian">
                       {new Date().toLocaleTimeString('vi-VN')}
