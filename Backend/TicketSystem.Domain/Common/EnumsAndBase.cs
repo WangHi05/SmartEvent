@@ -26,6 +26,7 @@ namespace TicketSystem.Domain.Common
         Group = 2       // Vé đoàn
     }
 
+    
     public enum QRCodeMode
     {
         SingleQRForGroup = 1, // Mode 1: Một mã QR tổng cho cả đoàn

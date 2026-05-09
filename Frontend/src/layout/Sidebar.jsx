@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import useAuthStore from '../store/useAuthStore';
-import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList } from 'lucide-react';
+import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
@@ -53,9 +53,10 @@ const Sidebar = ({ sidebarOpen }) => {
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
     { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
-    { path: '/tickets', label: 'Vé & Soát vé', icon: QrCode, roles: ['admin', 'manager', 'staff'] },
+    { path: '/tickets', label: 'Vé & Soát vé', icon: Ticket, roles: ['admin', 'manager', 'staff'] },
     { path: '/bookings', label: 'Quản lý đặt vé', icon: ClipboardList, roles: ['admin', 'manager', 'staff'] },
     { path: '/checkin', label: 'Soát vé (Quét QR)', icon: ScanLine, roles: ['admin', 'manager', 'staff'] },
+    { path: '/checkinHD', label: 'Help Desk', icon: Headset, roles: ['admin', 'manager', 'staff'] },
     { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
     { path: '/audit-logs', label: 'Theo dõi hoạt động', icon: FileText, roles: ['admin', 'manager'] },
     { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] },

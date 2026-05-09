@@ -4,6 +4,7 @@ using TicketSystem.Application.Events;
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities; 
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using OtpNet;
 using MediatR;
 using System;
@@ -16,33 +17,37 @@ namespace TicketSystem.Application.Services
     {
         private readonly IApplicationDbContext _context;
         private readonly IMediator _mediator;
-        private const int ANTI_PASSBACK_MINUTES = 2; 
-
-        public TicketCheckInService(IApplicationDbContext context, IMediator mediator)
+        private readonly IMemoryCache _cache; 
+        
+        public TicketCheckInService(IApplicationDbContext context, IMediator mediator, IMemoryCache cache)
         {
             _context = context;
             _mediator = mediator;
+            _cache = cache;
         }
 
         public async Task<CheckInResponse> ManualCheckInAsync(Guid ticketId, int peopleCount, string staffId, string reason)
         {
-            // API này chỉ dành cho Role Admin/Quầy hỗ trợ (Bỏ qua bước quét mã TOTP)
             var ticket = await _context.Tickets
-                .Include(t => t.TicketType)
-                .Include(t => t.CheckInLogs)
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
 
             if (ticket == null || ticket.Status != TicketStatus.ACTIVE)
-                return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc không thể sử dụng." };
+                return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã sử dụng hết." };
 
             var now = DateTime.Now;
             
-            var totalEntered = ticket.CheckInLogs.Sum(l => l.PeopleCount);
-            if (totalEntered + peopleCount > ticket.GroupSize)
-                return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn. Chỉ còn lại {ticket.GroupSize - totalEntered} lượt." };
+            // DÙNG REMAINING SLOTS THAY VÌ SUM LOG
+            if (ticket.RemainingSlots < peopleCount)
+                return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn. Đoàn chỉ còn lại {ticket.RemainingSlots} chỗ trống." };
+
+            ticket.RemainingSlots -= peopleCount;
+
+            if (ticket.RemainingSlots == 0)
+                ticket.Status = TicketStatus.CHECKED_IN;
 
             var log = new CheckInLog
             {
+                Id = Guid.NewGuid(),
                 TicketId = ticket.Id,
                 CheckedAt = now,
                 CheckinDate = DateOnly.FromDateTime(now),
@@ -50,15 +55,21 @@ namespace TicketSystem.Application.Services
                 PeopleCount = peopleCount,
                 GateName = "Quầy Hỗ Trợ (Help Desk)",
                 StaffId = staffId,
-                Note = reason // Ghi chú: "Mất điện thoại", "Không có mạng"...
+                Note = reason 
             };
 
             await _context.CheckInLogs.AddAsync(log);
 
-            if (totalEntered + peopleCount >= ticket.GroupSize)
-                ticket.Status = TicketStatus.CHECKED_IN;
-
-            await _context.SaveChangesAsync(default);
+            try
+            {
+                // BẮT LỖI OCC
+                await _context.SaveChangesAsync(default);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                return new CheckInResponse { IsSuccess = false, Message = "Vé này vừa được thao tác bởi một nhân viên khác. Vui lòng kiểm tra lại số lượng." };
+            }
+            
             return CheckInResponse.Success("Thành công", $"Đã check-in thủ công {peopleCount} người.");
         }
 
@@ -69,48 +80,41 @@ namespace TicketSystem.Application.Services
             {
                 return new CheckInResponse { IsSuccess = false, Message = "Định dạng QR không hợp lệ." };
             }
-            
-            string clientOtp = parts[1];
+
+            // IDEMPOTENCY (TÍNH LŨY ĐẲNG - CHỐNG DOUBLE SCAN)
+            string lockKey = $"checkin_lock_{ticketId}";
+            if (_cache.TryGetValue(lockKey, out _))
+            {
+                return new CheckInResponse { IsSuccess = false, Message = "Hệ thống đang xử lý vé này, vui lòng chờ 3 giây để tránh quét trùng." };
+            }
+            _cache.Set(lockKey, true, TimeSpan.FromSeconds(3)); // Khóa vé trong 3 giây
 
             try
             {
+                string clientOtp = parts[1];
+
                 var ticket = await _context.Tickets
                     .Include(t => t.TicketType)
-                    .Include(t => t.CheckInLogs)
                     .Include(t => t.Order)
                         .ThenInclude(o => o.User)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null || ticket.Status != TicketStatus.ACTIVE)
-                    return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã bị hủy." };
+                    return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã hết chỗ." };
 
                 // 1. Xác thực TOTP (Dynamic QR)
                 var totp = new Totp(Base32Encoding.ToBytes(ticket.SecretKey));
                 var window = new VerificationWindow(previous: 1, future: 1);
-                bool isOtpValid = totp.VerifyTotp(clientOtp, out long timeStepMatched, window);
-                
-                if (!isOtpValid)
+                if (!totp.VerifyTotp(clientOtp, out long timeStepMatched, window))
                 {
                     return new CheckInResponse { IsSuccess = false, Message = "Mã QR đã hết hạn. Vui lòng làm mới mã trên ứng dụng." };
                 }
 
-                // 2. KIỂM TRA THỜI GIAN HIỆU LỰC (Chuẩn hóa)
-                // Lỗi "Bất đồng bộ dữ liệu" (Data Inconsistency)
-                // Khi Admin đổi ngày Event, nếu hệ thống không có Domain Event cập nhật lại Ticket.ValidFrom, vé cũ sẽ bị lỗi.
-                // Ở đây ta dùng DateTime.Now để test tiện lợi theo Local Time của máy chủ.
+                // 2. KIỂM TRA THỜI GIAN HIỆU LỰC
                 var now = DateTime.Now; 
-                
                 if (now < ticket.ValidFrom || now > ticket.ValidTo)
                 {
-                    string fromStr = ticket.ValidFrom.ToString("dd/MM/yyyy HH:mm");
-                    string toStr = ticket.ValidTo.ToString("dd/MM/yyyy HH:mm");
-                    
-                    // Thông báo lỗi thân thiện, chuyên nghiệp cho người dùng
-                    return new CheckInResponse 
-                    { 
-                        IsSuccess = false, 
-                        Message = $"Vé chỉ có hiệu lực từ {fromStr} đến {toStr}. Vui lòng kiểm tra lại thông tin sự kiện." 
-                    };
+                    return new CheckInResponse { IsSuccess = false, Message = $"Vé ngoài giờ hiệu lực (từ {ticket.ValidFrom:dd/MM HH:mm} đến {ticket.ValidTo:dd/MM HH:mm})." };
                 }
 
                 // 3. Xử lý Cơ chế 3 (In thẻ B2B)
@@ -124,39 +128,50 @@ namespace TicketSystem.Application.Services
                     triggerPrint = true; 
                 }
 
-                // 4. Kiểm tra Anti-passback & Giới hạn
-                var lastEntry = ticket.CheckInLogs.OrderByDescending(l => l.CheckedAt).FirstOrDefault();
-                if (lastEntry != null && (now - lastEntry.CheckedAt).TotalMinutes < ANTI_PASSBACK_MINUTES)
+                // 4. KIỂM TRA SỐ LƯỢNG (VÀO MỘT PHẦN)
+                if (request.PeopleCount <= 0)
+                    return new CheckInResponse { IsSuccess = false, Message = "Số lượng người vào cổng không hợp lệ." };
+
+                if (ticket.RemainingSlots < request.PeopleCount)
                 {
-                    return new CheckInResponse { IsSuccess = false, Message = $"Quét quá nhanh. Vui lòng đợi {ANTI_PASSBACK_MINUTES} phút." };
+                    return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn của đoàn. Chỉ còn lại {ticket.RemainingSlots} chỗ trống." };
                 }
 
-                var totalEnteredToday = ticket.CheckInLogs.Where(l => l.CheckedAt.Date == now.Date).Sum(l => l.PeopleCount);
-                if (totalEnteredToday + request.PeopleCount > ticket.GroupSize)
+                // Trừ đi số vé sử dụng
+                ticket.RemainingSlots -= request.PeopleCount;
+
+                // Cập nhật trạng thái nếu dùng hết vé (Giả định AccessType dùng string hoặc config tùy em, tạm bỏ check AccessType rườm rà)
+                if (ticket.RemainingSlots == 0)
                 {
-                    return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn của đoàn. Còn lại: {ticket.GroupSize - totalEnteredToday} lượt." };
+                    ticket.Status = TicketStatus.CHECKED_IN;
                 }
 
-                // 5. Cập nhật và lưu DB
+                // 5. Ghi log
                 var log = new CheckInLog
                 {
+                    Id = Guid.NewGuid(),
                     TicketId = ticket.Id,
                     CheckedAt = now,
                     CheckinDate = DateOnly.FromDateTime(now),
                     Type = triggerPrint ? ScanType.Print : ScanType.Entry,
                     PeopleCount = request.PeopleCount,
                     GateName = request.GateName,
-                    StaffId = staffId
+                    StaffId = staffId,
+                    CreatedAt = now,
+                    CreatedBy = staffId
                 };
 
                 await _context.CheckInLogs.AddAsync(log);
                 
-                if (totalEnteredToday + request.PeopleCount >= ticket.GroupSize && ticket.TicketType.AccessType == TicketAccessType.ONE_TIME)
+                try
                 {
-                    ticket.Status = TicketStatus.CHECKED_IN;
+                    // LƯU DB VÀ BẮT LỖI OCC
+                    await _context.SaveChangesAsync(default);
                 }
-
-                await _context.SaveChangesAsync(default);
+                catch (DbUpdateConcurrencyException)
+                {
+                    return new CheckInResponse { IsSuccess = false, Message = "Vé này vừa được quét tại một cổng khác cùng lúc. Vui lòng thử lại." };
+                }
 
                 if (ticket.TicketType != null)
                 {
@@ -167,11 +182,18 @@ namespace TicketSystem.Application.Services
                     ));
                 }
 
-                return CheckInResponse.Success(ticket.Order?.User?.FullName ?? "Khách", ticket.TicketType?.Name ?? "Vé");
+                return CheckInResponse.Success(
+                    ticket.Order?.User?.FullName ?? "Khách", 
+                    $"Đã check-in {request.PeopleCount} vé. (Đoàn còn lại {ticket.RemainingSlots} chỗ)"
+                );
             }
             catch (Exception ex)
             {
                 return new CheckInResponse { IsSuccess = false, Message = "Lỗi hệ thống: " + ex.Message };
+            }
+            finally 
+            {
+                _cache.Remove(lockKey);
             }
         }
     }

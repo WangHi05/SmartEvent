@@ -16,8 +16,15 @@ const CheckInPage = () => {
 
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   
+  const peopleCountRef = useRef(1);
   const scannerRef = useRef(null);
   const isLockedRef = useRef(false); 
+
+  const handlePeopleCountChange = (value) => {
+    const val = value || 1;
+    setPeopleCount(val);
+    peopleCountRef.current = val;
+  };
 
   useEffect(() => {
     if (!isCameraOpen) return;
@@ -64,9 +71,10 @@ const CheckInPage = () => {
 
     try {
       // Gửi số lượng người (peopleCount) lấy từ ô Input xuống Backend
+      const currentCount = peopleCountRef.current;
       const response = await axiosClient.post(`/checkin/scan`, {
         qrPayload: qrPayload,
-        peopleCount: peopleCount, 
+        peopleCount: currentCount, 
         gateName: 'Cổng chính - Lối vào 1'
       });
       
@@ -96,7 +104,8 @@ const CheckInPage = () => {
     setScanResult(null);
     setTicketData(null);
     setErrorMessage('');
-    setPeopleCount(1); // Reset về 1
+    setPeopleCount(1); 
+    peopleCountRef.current = 1;
     isLockedRef.current = false; 
   };
 
@@ -116,15 +125,14 @@ const CheckInPage = () => {
             <Text type="secondary">Cơ chế tự động phân loại Vé Lẻ & Vé Đoàn</Text>
         </div>
         
-        {/* UI CHỌN SỐ LƯỢNG (Dành cho quét vé đoàn) */}
         <Card size="small" className="bg-blue-50 border-blue-200">
             <Form layout="vertical" className="mb-0">
                 <Form.Item label={<span className="font-semibold"><TeamOutlined className="mr-2"/>Số khách vào cổng:</span>} className="mb-0">
                     <InputNumber 
                         min={1} 
                         max={50} 
-                        value={peopleCount} 
-                        onChange={setPeopleCount}
+                        value={peopleCount}
+                        onChange={handlePeopleCountChange}
                         disabled={scanResult !== null} // Khóa khi đang hiện kết quả
                         size="large"
                         className="w-32"
@@ -182,6 +190,9 @@ const CheckInPage = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="Loại vé">
                       <Tag color="blue" className="text-sm px-2 py-1">{ticketData?.ticketTypeName || 'Vé sự kiện'}</Tag>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Số khách vào cổng">
+                      <strong className="text-xl text-emerald-600">{peopleCountRef.current} người</strong>
                     </Descriptions.Item>
                     <Descriptions.Item label="Thời gian">
                       {new Date().toLocaleTimeString('vi-VN')}

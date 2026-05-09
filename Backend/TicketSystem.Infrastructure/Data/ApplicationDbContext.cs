@@ -117,7 +117,7 @@ namespace TicketSystem.Infrastructure.Data
                     .HasForeignKey(e => e.TicketId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                entity.HasIndex(e => new { e.TicketId, e.CheckinDate }).IsUnique();
+                entity.HasIndex(e => new { e.TicketId, e.CheckinDate });
             });
 
             // 5. Order Configuration

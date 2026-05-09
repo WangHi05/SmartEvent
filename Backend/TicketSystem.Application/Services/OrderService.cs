@@ -49,6 +49,12 @@ public class OrderService : IOrderService
 
         var totalPrice = ticketType.Price * createOrderDto.Quantity;
 
+        // Nếu là vé đoàn (2) và tính giá theo đầu người (1)
+        if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
+        {
+            totalPrice = ticketType.Price * createOrderDto.Quantity * createOrderDto.MemberCount;
+        }
+
         var order = new Order
         {
             Id = Guid.NewGuid(),
@@ -58,6 +64,11 @@ public class OrderService : IOrderService
             TotalPrice = totalPrice,
             Quantity = createOrderDto.Quantity,
             OrderStatus = OrderStatus.Pending,
+            
+            BuyerName = createOrderDto.BuyerName ?? user.FullName, // Fallback lấy tên user
+            BuyerPhone = createOrderDto.BuyerPhone ?? user.PhoneNumber,
+            BuyerCccd = createOrderDto.BuyerCccd, 
+            
             CreatedAt = DateTime.UtcNow,
             CreatedBy = createdBy
         };
@@ -87,12 +98,12 @@ public class OrderService : IOrderService
                 Id = ticketId,
                 TicketTypeId = createOrderDto.TicketTypeId,
                 OrderId = order.Id,
-
                 ValidFrom = eventEntity.StartTime,
                 ValidTo = eventEntity.EndTime,
                 SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
-
                 Status = TicketStatus.ACTIVE,
+                GroupSize = createOrderDto.MemberCount,
+                RemainingSlots = createOrderDto.MemberCount,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy
             });
@@ -468,7 +479,9 @@ public class OrderService : IOrderService
             StatusName = GetTicketStatusName(MapTicketUiStatus(t)),
             CreatedAt = t.CreatedAt,
             EventId = t.TicketType?.EventId ?? Guid.Empty,
-            OrderId = t.OrderId ?? Guid.Empty
+            OrderId = t.OrderId ?? Guid.Empty,
+            GroupSize = t.GroupSize,
+            RemainingSlots = t.RemainingSlots
         }).ToList();
 
         return new MyTicketsResponseDto
@@ -620,12 +633,18 @@ public class OrderService : IOrderService
             1 => "Paid",
             2 => "CheckedIn",
             3 => "Cancelled",
+            4 => "Revoked",
             _ => "Unknown"
         };
     }
 
     private static int MapTicketUiStatus(Ticket ticket)
     {
+        if (ticket.Status == TicketStatus.REVOKED)
+        {
+            return 4; 
+        }
+
         if (ticket.Status == TicketStatus.CANCELLED)
         {
             return 3;

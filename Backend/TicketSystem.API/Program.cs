@@ -43,7 +43,7 @@ builder.Services.AddScoped<ITicketCheckInService, TicketCheckInService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
-
+builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 

@@ -25,6 +25,8 @@ public class TicketResponseDto
     public DateTime CreatedAt { get; set; }
     public Guid EventId { get; set; }
     public Guid OrderId { get; set; }
+    public int GroupSize { get; set; }
+    public int RemainingSlots { get; set; }
 }
 
 public class MyTicketsResponseDto
