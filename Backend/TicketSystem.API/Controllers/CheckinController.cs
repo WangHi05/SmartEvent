@@ -25,11 +25,10 @@ namespace TicketSystem.API.Controllers
 
         /// <summary>
         /// API xử lý quét mã QR tại cổng.
-        /// Yêu cầu bảo mật: Chỉ dành cho Admin, Quản lý (QL) hoặc Nhân viên (NV).
         /// </summary>
         /// <param name="request">Payload chứa mã QR quét được từ Frontend</param>
         [HttpPost("scan")]
-        [Authorize(Roles = "Admin,Manager,Staff")] // Phân quyền dựa trên Role (Module 1)
+        [Authorize(Roles = "Admin,Manager,Staff")] 
         public async Task<IActionResult> ScanTicket([FromBody] CheckInRequest request)
         {
             // 1. Kiểm tra tính hợp lệ của Model Binding cơ bản

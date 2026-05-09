@@ -7,6 +7,7 @@ namespace TicketSystem.Domain.Entities
     public class User : BaseEntity 
     {
         public string Username { get; private set; }
+        public string? PhoneNumber { get; set; }
         public string PasswordHash { get; private set; }
         public string FullName { get; private set; }
         public string Email { get; private set; }

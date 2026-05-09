@@ -26,5 +26,9 @@ namespace TicketSystem.Domain.Entities
         public virtual Domain.Entities.TicketType TicketType { get; set; }
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+        public string? BuyerName { get; set; }
+        public string? BuyerPhone { get; set; }
+        public string? BuyerCccd { get; set; }
     }
 }

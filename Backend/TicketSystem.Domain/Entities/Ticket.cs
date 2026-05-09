@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Domain.Entities;
@@ -8,7 +9,8 @@ public enum TicketStatus
 {
     ACTIVE = 1,
     CHECKED_IN = 2,
-    CANCELLED = 3
+    CANCELLED = 3,
+    REVOKED = 4
 }
 public enum ScanType
 {
@@ -31,6 +33,9 @@ public class Ticket : BaseEntity
     
     // Hỗ trợ vé đoàn (Mode 1 & Mode 2)
     public int GroupSize { get; set; } = 1; // Mặc định là 1 (vé cá nhân)
+    
+    [ConcurrencyCheck]
+    public int RemainingSlots { get; set; } = 1; // Số vé chưa checkin 
 
     // Cancel + Refund related fields
     public DateTime? CancelledAt { get; set; }

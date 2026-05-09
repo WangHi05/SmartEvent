@@ -17,6 +17,13 @@ public class CreateOrderDto
     [Required]
     [Range(1, 3, ErrorMessage = "Invalid payment method")]
     public int PaymentMethod { get; set; } // 1=VNPAY, 2=QRPayment, 3=Counter
+    
+    [Required]
+    public int MemberCount { get; set; } = 1;
+
+    public string? BuyerName { get; set; }
+    public string? BuyerPhone { get; set; }
+    public string? BuyerCccd { get; set; }
 }
 
 public class OrderResponseDto
