@@ -31,6 +31,17 @@ const Sidebar = ({ sidebarOpen }) => {
       case 'nhân viên':
       case 'nhan vien':
         return 'staff';
+      case '3':
+      case 'customer':
+      case 'khách hàng':
+      case 'khach hang':
+        return 'customer';
+      case '4':
+      case 'director':
+      case 'giam doc':
+      case 'ban tổ chức':
+      case 'ban to chuc':
+        return 'director';
       default:
         return '';
     }
@@ -52,6 +63,7 @@ const Sidebar = ({ sidebarOpen }) => {
   // 2. DANH SÁCH MENU ĐÃ ĐƯỢC CẤU HÌNH ĐƯỜNG DẪN (path) VÀ QUYỀN (roles)
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
+    { path: '/director/dashboard', label: 'Dashboard Giám đốc', icon: LayoutDashboard, roles: ['director'] },
     { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
     { path: '/tickets', label: 'Vé & Soát vé', icon: Ticket, roles: ['admin', 'manager', 'staff'] },
     { path: '/bookings', label: 'Quản lý đặt vé', icon: ClipboardList, roles: ['admin', 'manager', 'staff'] },

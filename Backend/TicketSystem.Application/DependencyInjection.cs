@@ -18,6 +18,7 @@ public static class DependencyInjection
         // 2. Đăng ký các Service khác của tầng Application
         services.AddScoped<ITicketCheckInService, TicketCheckInService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IDashboardService, DashboardService>();
         // services.AddScoped<ICancelOrderService, CancelOrderService>(); // Các service khác...
 
         return services;

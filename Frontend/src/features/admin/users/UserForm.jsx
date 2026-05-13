@@ -155,6 +155,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
         >
           <Select placeholder="Chọn vai trò">
             <Select.Option value="Admin">Admin</Select.Option>
+            <Select.Option value="Director">Giám đốc</Select.Option>
             <Select.Option value="Manager">Manager</Select.Option>
             <Select.Option value="Staff">Staff</Select.Option>
             <Select.Option value="Customer">Customer</Select.Option>

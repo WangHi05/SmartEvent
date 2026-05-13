@@ -12,6 +12,9 @@ export default function Login() {
 
     const navigateAfterAuth = (authResponse) => {
         const rawRole = (authResponse?.user?.role || authResponse?.user?.Role || '').toString().toLowerCase();
+        // Normalize numeric role codes possibly returned by backend
+        const roleMap = { '0': 'admin', '1': 'manager', '2': 'staff', '3': 'customer', '4': 'director', 'director': 'director' };
+        const role = roleMap[rawRole] || rawRole;
         const query = new URLSearchParams(location.search);
         const redirectPath = query.get('redirect');
 
@@ -20,11 +23,15 @@ export default function Login() {
             return;
         }
 
-        if (rawRole === 'customer' || rawRole === '3') {
-            navigate('/customer/events', { replace: true });
+        if (role === 'director') {
+            navigate('/director/dashboard', { replace: true });
             return;
         }
-
+        if (role === 'admin') {
+            navigate('/admin/dashboard', { replace: true });
+            return;
+        }
+        // Fallback to legacy dashboard for manager/staff
         navigate('/dashboard', { replace: true });
     };
 

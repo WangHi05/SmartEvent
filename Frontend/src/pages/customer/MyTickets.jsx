@@ -52,7 +52,7 @@ const MyTickets = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const usable = tickets.filter((ticket) => canUseTicket(ticket)).length;
+    const usable = tickets.filter((ticket) => Number(ticket?.status) === 1).length;
     const checkedIn = tickets.filter((ticket) => Number(ticket?.status) === 2 || ticket?.remainingSlots === 0).length;
     return [
       { label: 'Tổng vé', value: tickets.length.toLocaleString('vi-VN'), hint: 'Số lượng mã vé', icon: QrcodeOutlined, accent: 'from-orange-500 to-amber-500' },

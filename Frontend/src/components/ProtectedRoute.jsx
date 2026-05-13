@@ -14,6 +14,7 @@ const ROLE_MAP = {
   '1': 'manager',
   '2': 'staff',
   '3': 'customer',
+  '4': 'director',
 };
 
 const normalizeRole = (role) => {

@@ -25,6 +25,7 @@ import ContactPage from './pages/customer/ContactPage';
 
 // Import Pages - Admin/Staff
 import DashboardView from './features/dashboard/DashboardView';
+import EventManagerDashboardView from './features/dashboard/EventManagerDashboardView';
 import { EventList } from './features/admin/events';
 import { TicketList } from './features/admin/tickets';
 import { UserList } from './features/admin/users';
@@ -42,6 +43,8 @@ const ROLE_MAP = {
   '1': 'manager',
   '2': 'staff',
   '3': 'customer',
+  '4': 'director',
+  'director': 'director',
 };
 
 const normalizeRole = (role) => {
@@ -62,6 +65,9 @@ const RoleBasedHome = () => {
     return <Navigate to="/customer/events" replace />;
   }
 
+  if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
+  if (role === 'director') return <Navigate to="/director/dashboard" replace />;
+  // Fallback: staff/manager -> legacy dashboard
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -88,16 +94,18 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
 
-          {/* ADMIN / MANAGER / STAFF ROUTES */}
+          {/* ADMIN / MANAGER / STAFF / DIRECTOR ROUTES */}
           <Route
             element={
               <ProtectedRoute
                 element={<AdminShell />}
-                requiredRole={['Admin', 'Manager', 'Staff']}
+                requiredRole={['Admin', 'Manager', 'Staff', 'Director']}
               />
             }
           >
             <Route path="/dashboard" element={<DashboardView />} />
+            <Route path="/admin/dashboard" element={<DashboardView />} />
+            <Route path="/director/dashboard" element={<EventManagerDashboardView />} />
             <Route
               path="/events"
               element={<ProtectedRoute element={<EventList />} requiredRole={['Admin', 'Manager']} />}

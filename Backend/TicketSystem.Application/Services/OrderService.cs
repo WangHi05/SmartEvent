@@ -154,6 +154,7 @@ public class OrderService : IOrderService
         }
 
         latestPayment.PaymentStatus = PaymentStatus.Completed;
+        latestPayment.PaidAt = DateTime.UtcNow;
         latestPayment.TransactionReference = string.IsNullOrWhiteSpace(transactionReference)
             ? $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}"
             : transactionReference.Trim();
@@ -193,6 +194,7 @@ public class OrderService : IOrderService
         }
 
         latestPayment.PaymentStatus = PaymentStatus.Completed;
+        latestPayment.PaidAt = DateTime.UtcNow;
         latestPayment.TransactionReference = string.IsNullOrWhiteSpace(transactionReference)
             ? $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}"
             : transactionReference.Trim();
