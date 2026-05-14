@@ -60,7 +60,7 @@ const MyOrders = () => {
   }, []);
 
   const stats = useMemo(() => {
-    const paid = orders.filter((order) => order.paymentStatusName === 'Paid').length;
+    const paid = orders.filter((order) => order.paymentStatusName === 'Completed').length;
     const pending = orders.filter((order) => order.paymentStatusName === 'Pending').length;
     return [
       { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'from-orange-500 to-amber-500' },

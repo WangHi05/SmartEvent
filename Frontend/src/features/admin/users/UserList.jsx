@@ -96,6 +96,8 @@ const UserList = () => {
         return 'red';
       case 'Manager':
         return 'orange';
+      case 'Director':
+        return 'purple';
       case 'Staff':
         return 'blue';
       default:
@@ -209,6 +211,7 @@ const UserList = () => {
           onChange={(value) => setRoleFilter(value)}
         >
           <Select.Option value="Admin">Admin</Select.Option>
+          <Select.Option value="Director">Giám đốc</Select.Option>
           <Select.Option value="Manager">Manager</Select.Option>
           <Select.Option value="Staff">Staff</Select.Option>
         </Select>

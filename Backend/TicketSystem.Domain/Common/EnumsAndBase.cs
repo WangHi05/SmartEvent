@@ -17,7 +17,8 @@ namespace TicketSystem.Domain.Common
         Admin = 0,
         Manager = 1,    
         Staff = 2,      
-        Customer = 3
+        Customer = 3,
+        Director = 4
     }
 
     public enum TicketType
@@ -63,5 +64,20 @@ namespace TicketSystem.Domain.Common
         FullRefund = 1,      // Hoàn 100%
         PartialRefund = 2,   // Hoàn một phần tùy theo thời gian
         NoRefund = 3         // Không hoàn tiền
+    }
+
+    /// <summary>
+    /// Centralized role name constants to avoid littering string literals across the codebase.
+    /// Use these values when applying [Authorize] attributes or comparing role claims.
+    /// </summary>
+    public static class RoleNames
+    {
+        public const string Admin = "Admin";
+        public const string Director = "Director";
+        public const string Manager = "Manager";
+        public const string Staff = "Staff";
+        public const string Customer = "Customer";
+        // Common combinations for Authorize attributes
+        public const string AdminOrDirector = Admin + "," + Director;
     }
 }

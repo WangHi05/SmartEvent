@@ -39,7 +39,7 @@ namespace TicketSystem.Application.DTOs
         public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Role là bắt buộc")]
-        [RegularExpression("Admin|Manager|Staff|Customer", ErrorMessage = "Role phải là Admin, Manager hoặc Staff hoặc Customer")]
+        [RegularExpression("Admin|Manager|Staff|Customer|Director", ErrorMessage = "Role phải là Admin, Manager, Staff, Director hoặc Customer")]
         public string Role { get; set; } = string.Empty;
     }
 
@@ -57,7 +57,7 @@ namespace TicketSystem.Application.DTOs
         [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string? Email { get; set; }
 
-        [RegularExpression("Admin|Manager|Staff|Customer", ErrorMessage = "Role phải là Admin, Manager, Staff hoặc Customer")]
+        [RegularExpression("Admin|Manager|Staff|Customer|Director", ErrorMessage = "Role phải là Admin, Manager, Staff, Director hoặc Customer")]
         public string? Role { get; set; }
 
         public bool? IsActive { get; set; }

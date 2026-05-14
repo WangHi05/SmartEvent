@@ -77,3 +77,39 @@ public class PagedOrdersResponseDto
     public int PageNumber { get; set; }
     public int PageSize { get; set; }
 }
+
+public class ExportReportLineDto
+{
+    public int STT { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string TicketType { get; set; } = string.Empty;
+    public decimal TicketPrice { get; set; }
+    public string PaymentStatus { get; set; } = string.Empty;
+    public string? CheckinTime { get; set; }
+}
+
+public class ExportReportDataDto
+{
+    public string ReportName { get; set; } = string.Empty;
+    public string EventName { get; set; } = string.Empty;
+    public DateTime ExportDate { get; set; } = DateTime.UtcNow;
+    public List<ExportReportLineDto> Lines { get; set; } = new();
+}
+
+public class ExportSummaryReportDataDto
+{
+    public string ReportName { get; set; } = string.Empty;
+    public DateTime ExportDate { get; set; } = DateTime.UtcNow;
+    public List<EventSummaryLineDto> Lines { get; set; } = new();
+}
+
+public class EventSummaryLineDto
+{
+    public int STT { get; set; }
+    public string EventName { get; set; } = string.Empty;
+    public int TotalOrders { get; set; }
+    public int TotalTickets { get; set; }
+    public decimal TotalRevenue { get; set; }
+    public int CompletedPayments { get; set; }
+    public int PendingPayments { get; set; }
+}
