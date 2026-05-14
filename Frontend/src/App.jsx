@@ -22,6 +22,7 @@ import CheckoutPage from './pages/customer/CheckoutPage';
 import PaymentResultPage from './pages/customer/PaymentResultPage';
 import HomePage from './pages/customer/HomePage';
 import ContactPage from './pages/customer/ContactPage';
+import GuestTicketPage from './pages/customer/GuestTicketPage';
 
 // Import Pages - Admin/Staff
 import DashboardView from './features/dashboard/DashboardView';
@@ -87,6 +88,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/guest-ticket/:ticketId" element={<GuestTicketPage />} />
 
           {/* ADMIN / MANAGER / STAFF ROUTES */}
           <Route

@@ -48,6 +48,13 @@ public class Ticket : BaseEntity
     public virtual Order? Order { get; set; }
     public virtual ICollection<CheckInLog> CheckInLogs { get; set; } = new List<CheckInLog>();
 
+     // Đánh dấu vé đã được Khách mời (Guest) xác nhận nhận hay chưa
+    [ConcurrencyCheck]
+    public bool IsClaimed { get; set; } = false;
+        
+    // Chuỗi Token dùng 1 lần (One-time token) để gửi qua link chia sẻ
+    public string? ShareToken { get; set; }
+
     // Constructor để đảm bảo tính toàn vẹn dữ liệu
     public Ticket()
     {
