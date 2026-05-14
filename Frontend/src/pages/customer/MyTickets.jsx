@@ -1,22 +1,57 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal } from 'antd';
-import dayjs from 'dayjs';
+import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal, Input, Tooltip } from 'antd';
 import axiosClient from '../../api/axiosClient';
 import DynamicTicketCard from '../../components/DynamicTicketCard';
-import { DeleteOutlined, EyeOutlined, QrcodeOutlined, WalletOutlined, CheckCircleOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons';
+import { 
+  DeleteOutlined, EyeOutlined, QrcodeOutlined, WalletOutlined, 
+  CheckCircleOutlined, TeamOutlined, UserOutlined, ShareAltOutlined, CopyOutlined 
+} from '@ant-design/icons';
 import { CustomerMetricCard, CustomerSectionTitle } from '../../components/customer/CustomerPrimitives';
 
 const MyTickets = () => {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  
+  // KHAI BÁO STATE CHO MODAL QR
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
+
+  // KHAI BÁO STATE CHO MODAL CHIA SẺ VÉ (Lỗi của em nằm ở đây vì thiếu 3 dòng này)
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [isGeneratingLink, setIsGeneratingLink] = useState(false);
 
   const canUseTicket = (ticket) => Number(ticket?.status) === 1 || Number(ticket?.status) === 2;
 
   const handleViewQr = (ticket) => {
     setSelectedTicket(ticket);
     setQrModalOpen(true);
+  };
+
+  // HÀM XỬ LÝ CHIA SẺ VÉ
+  const handleShareTicket = async (ticket) => {
+    setIsGeneratingLink(true);
+    try {
+      const response = await axiosClient.post(`/ticketshare/${ticket.id}/generate-link`);
+      const resData = response.data || response;
+
+      if (resData.success || resData.token) {
+        const currentDomain = window.location.origin;
+        const fullLink = `${currentDomain}/guest-ticket/${ticket.id}?token=${resData.token}`;
+        
+        setShareLink(fullLink);
+        setShareModalOpen(true);
+      }
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể tạo link chia sẻ.');
+    } finally {
+      setIsGeneratingLink(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareLink);
+    message.success('Đã sao chép link chia sẻ vào khay nhớ tạm!');
   };
 
   const fetchMyTickets = async (isSilent = false) => {
@@ -65,7 +100,7 @@ const MyTickets = () => {
     try {
       await axiosClient.delete(`/tickets/${ticketId}`);
       message.success('Hủy vé thành công');
-      fetchMyTickets(false); // Cần có loading khi user chủ động thao tác
+      fetchMyTickets(false); 
     } catch (error) {
       message.error(error.response?.data?.message || 'Không thể hủy vé');
     }
@@ -110,7 +145,6 @@ const MyTickets = () => {
         if (record.status === 2 || record.remainingSlots === 0) return <Tag color="blue">Đã Check-in</Tag>;
         if (record.status === 0) return <Tag color="gold">Chờ thanh toán</Tag>;
 
-        // Trạng thái vé PAID (status = 1)
         if (isPartialUse) {
             return (
               <Tag color="cyan" className="border border-cyan-400">
@@ -123,31 +157,48 @@ const MyTickets = () => {
       },
     },
     {
-      title: 'Ngày tạo',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
-    },
-    {
       title: 'Thao tác',
       key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <Button
-            type="primary"
-            icon={<EyeOutlined />}
-            disabled={!canUseTicket(record) || record.remainingSlots === 0}
-            onClick={() => handleViewQr(record)}
-          >
-            Mở Vé
-          </Button>
-          {record.status === 1 && record.remainingSlots === record.groupSize && (
-            <Popconfirm title="Hủy vé?" onConfirm={() => handleCancelTicket(record.id)}>
-              <Button type="link" danger icon={<DeleteOutlined />}>Hủy</Button>
-            </Popconfirm>
-          )}
-        </Space>
-      ),
+      render: (_, record) => {
+        const isReadyToShare = record.status === 1 && !record.isClaimed;
+
+        return (
+          <Space>
+            <Button
+              type="primary"
+              icon={<EyeOutlined />}
+              disabled={!canUseTicket(record) || record.remainingSlots === 0}
+              onClick={() => handleViewQr(record)}
+            >
+              Mở Vé
+            </Button>
+
+            {/* GẮN HÀM XỬ LÝ VÀO NÚT (Lỗi của em nằm ở đây vì thiếu đoạn này) */}
+            {isReadyToShare && (
+              <Tooltip title="Tặng/Gửi vé này cho bạn bè qua Zalo, Messenger...">
+                <Button 
+                  className="border-orange-500 text-orange-500 hover:bg-orange-50"
+                  icon={<ShareAltOutlined />}
+                  onClick={() => handleShareTicket(record)}
+                  loading={isGeneratingLink}
+                >
+                  Chia sẻ
+                </Button>
+              </Tooltip>
+            )}
+
+            {record.status === 1 && record.isClaimed && (
+               <Tag color="purple">Đã tặng bạn bè</Tag>
+            )}
+
+            {record.status === 1 && record.remainingSlots === record.groupSize && !record.isClaimed && (
+              <Popconfirm title="Bạn có chắc chắn muốn hủy vé này không?" onConfirm={() => handleCancelTicket(record.id)}>
+                <Button type="text" danger icon={<DeleteOutlined />}></Button>
+              </Popconfirm>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -180,7 +231,7 @@ const MyTickets = () => {
         footer={null} 
         closable={false}
         width={400}
-        destroyOnClose={true} // Bắt buộc để clear bộ đếm thời gian khi đóng
+        destroyOnHidden={true} 
         centered
         styles={{ body: { padding: 0, backgroundColor: 'transparent' } }}
         wrapClassName="custom-modal-transparent"
@@ -193,10 +244,39 @@ const MyTickets = () => {
              ticketTypeName={selectedTicket.ticketTypeName}
              onClose={() => {
                 setQrModalOpen(false);
-                fetchMyTickets(true); // Cập nhật ngầm ngay sau khi đóng vé
+                fetchMyTickets(true); 
              }} 
           />
         )}
+      </Modal>
+
+      {/* MODAL HIỂN THỊ LINK CHIA SẺ */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-orange-600">
+            <ShareAltOutlined /> <span>Chia sẻ vé cho bạn bè</span>
+          </div>
+        }
+        open={shareModalOpen}
+        onCancel={() => setShareModalOpen(false)}
+        footer={[
+          <Button key="close" onClick={() => setShareModalOpen(false)}>
+            Đóng
+          </Button>,
+          <Button key="copy" type="primary" className="bg-orange-500" icon={<CopyOutlined />} onClick={handleCopyLink}>
+            Sao chép Link
+          </Button>
+        ]}
+      >
+        <div className="mt-4">
+          <p className="mb-2 text-slate-600">Hãy gửi đường link này cho bạn bè. Lưu ý: Đường link chỉ sử dụng được 1 lần để bảo mật!</p>
+          <Input.TextArea 
+            readOnly 
+            value={shareLink} 
+            rows={3} 
+            className="!bg-slate-50 !text-orange-600 font-medium"
+          />
+        </div>
       </Modal>
     </div>
   );

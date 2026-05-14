@@ -20,36 +20,19 @@ public class OrderService : IOrderService
     public async Task<CreateOrderResponseDto> CreateOrderAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
     {
         var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
-        if (user == null)
-        {
-            throw new Exception("User not found");
-        }
+        if (user == null) throw new Exception("User not found");
 
         var eventEntity = await _context.Events.FirstOrDefaultAsync(e => e.Id == createOrderDto.EventId);
-        if (eventEntity == null)
-        {
-            throw new Exception("Event not found");
-        }
-
-        if (eventEntity.IsFull())
-        {
-            throw new Exception("Event is at full capacity");
-        }
+        if (eventEntity == null) throw new Exception("Event not found");
+        if (eventEntity.IsFull()) throw new Exception("Event is at full capacity");
 
         var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == createOrderDto.TicketTypeId);
-        if (ticketType == null)
-        {
-            throw new Exception("Ticket type not found");
-        }
-
+        if (ticketType == null) throw new Exception("Ticket type not found");
         if (ticketType.RemainingQuantity < createOrderDto.Quantity)
-        {
             throw new Exception($"Only {ticketType.RemainingQuantity} tickets available");
-        }
 
         var totalPrice = ticketType.Price * createOrderDto.Quantity;
 
-        // Nếu là vé đoàn (2) và tính giá theo đầu người (1)
         if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
         {
             totalPrice = ticketType.Price * createOrderDto.Quantity * createOrderDto.MemberCount;
@@ -64,11 +47,9 @@ public class OrderService : IOrderService
             TotalPrice = totalPrice,
             Quantity = createOrderDto.Quantity,
             OrderStatus = OrderStatus.Pending,
-            
-            BuyerName = createOrderDto.BuyerName ?? user.FullName, // Fallback lấy tên user
+            BuyerName = createOrderDto.BuyerName ?? user.FullName,
             BuyerPhone = createOrderDto.BuyerPhone ?? user.PhoneNumber,
-            BuyerCccd = createOrderDto.BuyerCccd, 
-            
+            BuyerCccd = createOrderDto.BuyerCccd,
             CreatedAt = DateTime.UtcNow,
             CreatedBy = createdBy
         };
@@ -88,8 +69,21 @@ public class OrderService : IOrderService
         };
 
         _context.Payments.Add(payment);
+        
+        // Đọc cấu hình QrMode từ CSDL (Mặc định là 1 nếu null)
+       var currentQrMode = ticketType.QRMode ?? QRMode.SINGLE_QR;
+        
+        int totalTicketsToGenerate = createOrderDto.Quantity;
+        int slotsPerTicket = createOrderDto.MemberCount;
 
-        for (var i = 0; i < createOrderDto.Quantity; i++)
+        // Xử lý Mode 2: Tách vé lẻ cho Đoàn
+        if (currentQrMode == QRMode.SUB_QR && createOrderDto.MemberCount > 1)
+        {
+            totalTicketsToGenerate = createOrderDto.Quantity * createOrderDto.MemberCount;
+            slotsPerTicket = 1; // Mỗi vé lẻ chỉ chứa 1 người
+        }
+
+        for (var i = 0; i < totalTicketsToGenerate; i++)
         {
             var ticketId = Guid.NewGuid();
 
@@ -102,8 +96,13 @@ public class OrderService : IOrderService
                 ValidTo = eventEntity.EndTime,
                 SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
                 Status = TicketStatus.ACTIVE,
-                GroupSize = createOrderDto.MemberCount,
-                RemainingSlots = createOrderDto.MemberCount,
+                
+                GroupSize = slotsPerTicket,
+                RemainingSlots = slotsPerTicket,
+                
+                IsClaimed = false,
+                ShareToken = null,
+                
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = createdBy
             });
