@@ -166,7 +166,7 @@ const DashboardView = () => {
       </div>
 
       {/* 2. Phần phân tích AI */}
-      <AIInsightCard />
+      <AIInsightCard overviewData={overview}/>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="rounded-xl shadow-sm border border-gray-100">
