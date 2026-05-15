@@ -48,6 +48,13 @@ builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
+// Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
+builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
+
+// Khai báo: Bất cứ khi nào một Controller cần IAiAnalysisService, 
+// hãy cấp cho nó một instance của GeminiAiService.
+builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
+
 // 5. CORS Configuration (cho phép Frontend gọi API)
 builder.Services.AddCors(options =>
 {
