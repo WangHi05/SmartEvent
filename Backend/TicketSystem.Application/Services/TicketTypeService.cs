@@ -88,9 +88,14 @@ namespace TicketSystem.Application.Services
             if (request.SaleEndTime <= request.SaleStartTime)
                 throw new InvalidOperationException("Thời gian kết thúc bán phải sau thời gian bắt đầu bán");
 
-            // Validate SaleEndTime <= Event.StartTime
-            if (request.SaleEndTime > @event.StartTime)
-                throw new InvalidOperationException("Thời gian kết thúc bán không được sau khi sự kiện bắt đầu");
+            // Validate sale end depends on event type
+            var saleDeadline = GetSaleDeadline(@event);
+            if (request.SaleEndTime > saleDeadline)
+            {
+                throw new InvalidOperationException(@event.GetEventMode() == EventMode.ShortDay
+                    ? "Sự kiện 1 ngày: thời gian kết thúc bán phải trước giờ bắt đầu sự kiện"
+                    : "Sự kiện dài ngày: thời gian kết thúc bán phải trước giờ kết thúc sự kiện");
+            }
 
             // Validate total quantity doesn't exceed event capacity
             var currentTotalCapacity = await _ticketTypeRepository.GetTotalMaxCapacityByEventAsync(eventId);
@@ -353,6 +358,8 @@ namespace TicketSystem.Application.Services
                 PriceMode = ticketType.PriceMode.HasValue ? (int)ticketType.PriceMode : null,
                 SaleStartTime = ticketType.SaleStartTime,
                 SaleEndTime = ticketType.SaleEndTime,
+                IsCurrentlyOnSale = IsCurrentlyOnSale(ticketType),
+                SaleStatusName = GetSaleStatusName(ticketType),
                 DisplayOrder = ticketType.DisplayOrder,
                 IsActive = ticketType.IsActive,
                 CreatedAt = ticketType.CreatedAt,
@@ -360,6 +367,32 @@ namespace TicketSystem.Application.Services
                 UpdatedAt = ticketType.UpdatedAt,
                 UpdatedBy = ticketType.UpdatedBy
             };
+        }
+
+        private static DateTime GetSaleDeadline(Event @event)
+        {
+            return @event.GetEventMode() == EventMode.ShortDay ? @event.StartTime : @event.EndTime;
+        }
+
+        private static bool IsCurrentlyOnSale(Domain.Entities.TicketType ticketType)
+        {
+            var now = DateTime.UtcNow;
+            return ticketType.IsActive && ticketType.SaleStartTime <= now && now <= ticketType.SaleEndTime;
+        }
+
+        private static string GetSaleStatusName(Domain.Entities.TicketType ticketType)
+        {
+            if (!ticketType.IsActive)
+                return "Tắt";
+
+            var now = DateTime.UtcNow;
+            if (now < ticketType.SaleStartTime)
+                return "Chưa mở bán";
+
+            if (now <= ticketType.SaleEndTime)
+                return "Đang mở bán";
+
+            return "Đã kết thúc";
         }
 
         // Ghi log AuditLog

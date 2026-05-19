@@ -7,6 +7,7 @@ import viVN from 'antd/locale/vi_VN';
 import AdminLayout from './layout/AdminLayout';
 import CustomerLayout from './layout/CustomerLayout';
 import ProtectedRoute from './components/ProtectedRoute';
+import ChatbotWidget from './components/ChatbotWidget';
 import useAuthStore from './store/useAuthStore';
 
 // Import Pages - Auth
@@ -84,6 +85,8 @@ const LegacyBookingRedirect = () => {
 };
 
 function App() {
+  const user = useAuthStore((state) => state.user);
+  const currentRole = normalizeRole(user?.role || user?.Role);
   return (
     <ConfigProvider locale={viVN}>
       <BrowserRouter>
@@ -169,6 +172,7 @@ function App() {
           {/* DEFAULT */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {currentRole === 'customer' && <ChatbotWidget />}
       </BrowserRouter>
     </ConfigProvider>
   );

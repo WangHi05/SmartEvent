@@ -156,6 +156,15 @@ namespace TicketSystem.Application.Services
                 CreatedBy = createdBy
             };
 
+            // Set initial status based on current time
+            var now = DateTime.UtcNow;
+            if (eventEntity.EndTime < now)
+                eventEntity.Status = Domain.Common.EventStatus.Completed;
+            else if (eventEntity.StartTime <= now && now <= eventEntity.EndTime)
+                eventEntity.Status = Domain.Common.EventStatus.Ongoing;
+            else
+                eventEntity.Status = Domain.Common.EventStatus.Active;
+
             await _eventRepository.AddAsync(eventEntity);
 
             // Ghi log
@@ -205,6 +214,22 @@ namespace TicketSystem.Application.Services
             eventEntity.UpdatedAt = DateTime.UtcNow;
             eventEntity.UpdatedBy = updatedBy;
 
+            // Determine status after update based on times
+            var now2 = DateTime.UtcNow;
+            var oldStatus = eventEntity.Status;
+            Domain.Common.EventStatus newStatus;
+            if (eventEntity.EndTime < now2)
+                newStatus = Domain.Common.EventStatus.Completed;
+            else if (eventEntity.StartTime <= now2 && now2 <= eventEntity.EndTime)
+                newStatus = Domain.Common.EventStatus.Ongoing;
+            else
+                newStatus = Domain.Common.EventStatus.Active;
+
+            if (oldStatus != newStatus)
+            {
+                eventEntity.Status = newStatus;
+            }
+
             await _eventRepository.UpdateAsync(eventEntity);
 
             // Ghi log
@@ -214,7 +239,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = updatedBy,
-                Details = $"Updated event: {eventEntity.Name}"
+                Details = $"Updated event: {eventEntity.Name}. Status: {oldStatus} -> {eventEntity.Status}"
             });
 
             return MapToResponseDto(eventEntity);
@@ -291,6 +316,7 @@ namespace TicketSystem.Application.Services
                 CurrentOccupancy = eventEntity.CurrentOccupancy,
                 CancellationDeadlineHours = eventEntity.CancellationDeadlineHours,
                 IsFull = eventEntity.IsFull(),
+                Status = (int)eventEntity.Status,
                 EventMode = (int)eventEntity.GetEventMode(),
                 EventDurationDays = eventEntity.GetEventDurationDays(),
                 CreatedAt = eventEntity.CreatedAt,

@@ -56,6 +56,9 @@ builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 // hãy cấp cho nó một instance của GeminiAiService.
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 
+// HttpClient cho GeminiService (Customer Support Chatbot)
+builder.Services.AddHttpClient<IGeminiService, GeminiService>();
+
 // 5. CORS Configuration (cho phép Frontend gọi API)
 builder.Services.AddCors(options =>
 {

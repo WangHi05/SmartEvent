@@ -57,7 +57,7 @@ namespace TicketSystem.Application.Services
                 return capacityValidation;
 
             // Validate time
-            var timeValidation = ValidateSaleTime(request.SaleStartTime, request.SaleEndTime, @event.StartTime);
+            var timeValidation = ValidateSaleTime(request.SaleStartTime, request.SaleEndTime, @event);
             if (!timeValidation.IsValid)
                 return timeValidation;
 
@@ -99,7 +99,7 @@ namespace TicketSystem.Application.Services
             }
 
             // Validate time
-            var timeValidation = ValidateSaleTime(request.SaleStartTime, request.SaleEndTime, @event.StartTime);
+            var timeValidation = ValidateSaleTime(request.SaleStartTime, request.SaleEndTime, @event);
             if (!timeValidation.IsValid)
                 return timeValidation;
 
@@ -199,13 +199,18 @@ namespace TicketSystem.Application.Services
         private (bool IsValid, string? ErrorMessage) ValidateSaleTime(
             DateTime saleStartTime,
             DateTime saleEndTime,
-            DateTime eventStartTime)
+            Event @event)
         {
             if (saleEndTime <= saleStartTime)
                 return (false, "Thời gian kết thúc bán phải sau thời gian bắt đầu bán");
 
-            if (saleEndTime > eventStartTime)
-                return (false, "Thời gian kết thúc bán không được sau khi sự kiện bắt đầu");
+            var deadline = @event.GetEventMode() == EventMode.ShortDay ? @event.StartTime : @event.EndTime;
+            if (saleEndTime > deadline)
+            {
+                return @event.GetEventMode() == EventMode.ShortDay
+                    ? (false, "Sự kiện 1 ngày: thời gian kết thúc bán phải trước giờ bắt đầu sự kiện")
+                    : (false, "Sự kiện dài ngày: thời gian kết thúc bán phải trước giờ kết thúc sự kiện");
+            }
 
             return (true, null);
         }
