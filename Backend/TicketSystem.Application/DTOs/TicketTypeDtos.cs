@@ -20,6 +20,8 @@ namespace TicketSystem.Application.DTOs
         public int? PriceMode { get; set; } // nullable, chỉ cho GROUP
         public DateTime SaleStartTime { get; set; }
         public DateTime SaleEndTime { get; set; }
+        public bool IsCurrentlyOnSale { get; set; }
+        public string SaleStatusName { get; set; } = string.Empty;
         public int DisplayOrder { get; set; }
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import * as totpLib from 'totp-generator';
+import { TOTP } from 'totp-generator';
 import axiosClient from '../api/axiosClient';
 
 
@@ -73,12 +73,8 @@ const DynamicTicketCard = ({ ticketId, secretKey, eventName, ticketTypeName }) =
                     timestamp: realTimestamp 
                 };
 
-                if (totpLib.TOTP && typeof totpLib.TOTP.generate === 'function') {
-                    rawResult = totpLib.TOTP.generate(secretKey, options);
-                } else if (typeof totpLib.default === 'function') {
-                    rawResult = totpLib.default(secretKey, options);
-                } else if (typeof totpLib === 'function') {
-                    rawResult = totpLib(secretKey, options);
+                if (TOTP && typeof TOTP.generate === 'function') {
+                    rawResult = await TOTP.generate(secretKey, options);
                 } else {
                     throw new Error("Không tìm thấy hàm sinh mã hợp lệ.");
                 }

@@ -15,6 +15,7 @@ const TicketTypesAdmin = ({ eventId }) => {
   const [total, setTotal] = useState(0);
   const [ticketMode, setTicketMode] = useState(1); // 1=INDIVIDUAL, 2=GROUP
   const [errorMessage, setErrorMessage] = useState(null);
+  const [actionMessage, setActionMessage] = useState(null);
 
   // Ticket mode constants
   const TICKET_MODES = {
@@ -145,6 +146,15 @@ const loadTicketTypes = async () => {
     }
   };
 
+  const getApiErrorMessage = (err, fallbackMessage) => {
+    return (
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      err.message ||
+      fallbackMessage
+    );
+  };
+
   const handleSubmit = async (values) => {
     setErrorMessage(null);
     try {
@@ -191,9 +201,18 @@ const loadTicketTypes = async () => {
     try {
       await axiosClient.delete(`/ticket-types/${id}`);
       message.success('Xóa loại vé thành công');
+      setActionMessage({
+        type: 'success',
+        text: 'Xóa loại vé thành công',
+      });
       loadTicketTypes(pageNum);
     } catch (err) {
-      message.error(err.response?.data?.message || 'Lỗi khi xóa loại vé');
+      const errorText = getApiErrorMessage(err, 'Lỗi khi xóa loại vé');
+      message.error(errorText);
+      setActionMessage({
+        type: 'error',
+        text: errorText,
+      });
       console.error(err);
     }
   };
@@ -279,9 +298,13 @@ const loadTicketTypes = async () => {
     },
     {
       title: 'Trạng thái',
-      key: 'isActive',
-      render: (_, record) => record.isActive ? <Tag color="green">Hoạt động</Tag> : <Tag>Tắt</Tag>,
-      width: 100
+      key: 'saleStatus',
+      render: (_, record) => {
+        const status = record.saleStatusName || (record.isActive ? 'Hoạt động' : 'Tắt');
+        const color = status === 'Đang mở bán' ? 'green' : status === 'Chưa mở bán' ? 'blue' : status === 'Đã kết thúc' ? 'default' : 'red';
+        return <Tag color={color}>{status}</Tag>;
+      },
+      width: 130
     },
     {
       title: 'Thao tác',
@@ -304,6 +327,18 @@ const loadTicketTypes = async () => {
 
   return (
     <div>
+      {actionMessage && (
+        <Alert
+          type={actionMessage.type}
+          message={actionMessage.type === 'success' ? 'Thao tác thành công' : 'Thao tác thất bại'}
+          description={actionMessage.text}
+          showIcon
+          closable
+          onClose={() => setActionMessage(null)}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {/* Thông báo loại event */}
       {event && (
         <Card style={{ marginBottom: 16 }} type="inner" size="small">
