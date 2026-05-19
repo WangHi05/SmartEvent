@@ -6,6 +6,7 @@ using TicketSystem.Application;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
 using TicketSystem.API.Middleware;
+using TicketSystem.API.Hubs;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -109,6 +110,8 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddMemoryCache();
 
+builder.Services.AddSignalR();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -119,6 +122,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.MapHub<GateHub>("/gateHub");
 
 // === ĐĂNG KÝ GLOBAL EXCEPTION MIDDLEWARE Ở ĐÂY ===
 // Phải đăng ký sớm để hứng được lỗi từ các Middleware/Controller phía sau
