@@ -35,6 +35,7 @@ import { SettingsPage } from './features/admin/settings';
 import CheckInPage from './features/admin/checkin/CheckInPage';
 import HelpDeskPage from './features/admin/checkin/HelpDeskPage';
 import BookingManagementPage from './features/admin/bookings/BookingManagementPage';
+import GateControl from './features/admin/checkin/GateControl';
 
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword'; 
@@ -116,6 +117,7 @@ function App() {
             <Route path="/bookings" element={<BookingManagementPage />} />
             <Route path="/Admin/Bookings" element={<BookingManagementPage />} />
             <Route path="/checkin" element={<CheckInPage />} />
+            <Route path="/gateAD" element={<GateControl />} />
             <Route path="/checkinHD" element={<HelpDeskPage />} />
             <Route
               path="/users"

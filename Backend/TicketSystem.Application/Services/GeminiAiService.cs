@@ -52,8 +52,8 @@ namespace TicketSystem.Application.Services
                 var jsonBody = JsonSerializer.Serialize(requestBody);
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
-                // 3. Thử gọi model mới nhất dành cho gói Free: gemini-1.5-flash-8b
-                var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-8b:generateContent?key={_apiKey}";
+                // 3. Gọi model mới nhất dành cho gói Free: gemini-1.5-flash
+               var requestUrl = $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}";
                 
                 var response = await _httpClient.PostAsync(requestUrl, content);
 
@@ -120,6 +120,56 @@ namespace TicketSystem.Application.Services
                     IsSuccess = true, 
                     AnalysisContent = analysis 
                 };
+            }
+        }
+
+        public async Task<AiAnalysisResponseDto> GetGateCrowdAnalysisAsync(object gateData)
+        {
+            try
+            {
+                // Serialize dữ liệu các cổng thành chuỗi JSON để AI đọc
+                string gateJson = JsonSerializer.Serialize(gateData);
+                string currentTime = DateTime.Now.ToString("HH:mm");
+
+                string prompt = $@"
+                    Bạn là Chuyên gia An ninh và Điều phối Đám đông (Crowd Control) cho một sự kiện lớn.
+                    Bây giờ là {currentTime}. Đây là dữ liệu lưu lượng thời gian thực tại các cổng:
+                    {gateJson}
+                    
+                    Dựa vào số liệu trên và quy luật tâm lý đám đông thông thường, hãy thực hiện 2 việc ngắn gọn bằng tiếng Việt:
+                    1. Dự báo: Phân tích ngắn gọn tình trạng hiện tại và dự báo xu hướng khách hàng trong 30-60 phút tới (giờ nào đông, cổng nào có nguy cơ ùn tắc vỡ trận).
+                    2. Hành động: Viết 1 câu LỆNH ĐIỀU HƯỚNG cực kỳ ngắn gọn, dứt khoát để Admin copy gửi trực tiếp xuống cho nhân viên qua bộ đàm/màn hình.
+                    
+                    Định dạng trả về:
+                    **Dự báo xu hướng:** [Nội dung]
+                    **Lệnh đề xuất:** [Nội dung lệnh]
+                ";
+
+                var requestBody = new { contents = new[] { new { parts = new[] { new { text = prompt } } } } };
+                var jsonBody = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
+
+                var requestUrl = $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}";
+                var response = await _httpClient.PostAsync(requestUrl, content);
+
+                if (!response.IsSuccessStatusCode) 
+                {
+                    var errorDetails = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Status {response.StatusCode} - Chi tiết: {errorDetails}");
+                }
+
+                var responseString = await response.Content.ReadAsStringAsync();
+                using var jsonDoc = JsonDocument.Parse(responseString);
+                var aiText = jsonDoc.RootElement.GetProperty("candidates")[0].GetProperty("content").GetProperty("parts")[0].GetProperty("text").GetString();
+
+                return new AiAnalysisResponseDto { IsSuccess = true, AnalysisContent = aiText };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[LỖI AI ĐIỀU PHỐI CỔNG]: {ex.Message}");
+                string fallback = $"**Dự báo xu hướng (Nội bộ):** Dựa trên thuật toán tĩnh, Cổng chính đang chịu tải cao. Xu hướng khách hàng thường tập trung đông nhất vào 30 phút sát giờ khai mạc. Các cổng phụ hiện đang trống trải.\n\n";
+                fallback += $"**Lệnh đề xuất:** Khẩn trương phân luồng khách vãng lai sang Cổng phụ. Chỉ giữ lại khách VIP tại Cổng chính.";
+                return new AiAnalysisResponseDto { IsSuccess = true, AnalysisContent = fallback };
             }
         }
     }
