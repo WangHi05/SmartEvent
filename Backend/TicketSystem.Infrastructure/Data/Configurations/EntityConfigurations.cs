@@ -77,6 +77,9 @@ public class CheckInLogConfiguration : IEntityTypeConfiguration<CheckInLog>
         builder.ToTable("CheckInLogs");
         builder.HasKey(c => c.Id);
 
+        builder.Property(c => c.CheckInResult).HasMaxLength(20).IsRequired();
+        builder.Property(c => c.FailureReason).HasMaxLength(500);
+        builder.Property(c => c.QRCodeData).HasMaxLength(2000);
         builder.Property(c => c.GateName).HasMaxLength(100);
         builder.HasOne(c => c.Ticket)
             .WithMany(t => t.CheckInLogs)

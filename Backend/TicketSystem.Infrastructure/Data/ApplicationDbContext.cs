@@ -110,6 +110,9 @@ namespace TicketSystem.Infrastructure.Data
             modelBuilder.Entity<CheckInLog>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.CheckInResult).HasMaxLength(20).IsRequired();
+                entity.Property(e => e.FailureReason).HasMaxLength(500);
+                entity.Property(e => e.QRCodeData).HasMaxLength(2000);
                 entity.Property(e => e.GateName).HasMaxLength(100);
                 
                 entity.HasOne(e => e.Ticket)

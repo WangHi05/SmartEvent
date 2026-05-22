@@ -19,6 +19,12 @@ public enum ScanType
     Print = 3  
 }
 
+public enum CheckInResultType
+{
+    Success = 1,
+    Failed = 2
+}
+
 public class Ticket : BaseEntity
 {
     public Guid TicketTypeId { get; init; }
@@ -73,6 +79,8 @@ public class Ticket : BaseEntity
 public class CheckInLog : BaseEntity
 {
     public Guid TicketId { get; set; }
+    public Guid EventId { get; set; }
+    public Guid? GateId { get; set; }
     public DateTime CheckedAt { get; set; }
     public DateOnly CheckinDate { get; set; }
     // Bổ sung các trường truy vết
@@ -81,6 +89,9 @@ public class CheckInLog : BaseEntity
     public string? GateName { get; set; }
     public string? StaffId { get; set; } // Nhân viên thao tác
     public string? Note { get; set; }    // Ghi chú (ví dụ: "Check-in thủ công")
+    public string CheckInResult { get; set; } = "Success";
+    public string? FailureReason { get; set; }
+    public string? QRCodeData { get; set; }
 
     // Relationships
     public virtual Ticket? Ticket { get; set; }

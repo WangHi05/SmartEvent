@@ -3,12 +3,17 @@ using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Events; 
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities; 
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using OtpNet;
 using MediatR;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace TicketSystem.Application.Services
@@ -17,13 +22,30 @@ namespace TicketSystem.Application.Services
     {
         private readonly IApplicationDbContext _context;
         private readonly IMediator _mediator;
-        private readonly IMemoryCache _cache; 
-        
-        public TicketCheckInService(IApplicationDbContext context, IMediator mediator, IMemoryCache cache)
+        private readonly IMemoryCache _cache;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ILogger<TicketCheckInService> _logger;
+
+        private static readonly TimeSpan DuplicateRequestWindow = TimeSpan.FromSeconds(30);
+        private static readonly HashSet<string> AllowedGateNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "Cổng chính - Lối vào 1",
+            "Cổng phụ - Lối vào 2",
+            "Cổng VIP"
+        };
+
+        public TicketCheckInService(
+            IApplicationDbContext context,
+            IMediator mediator,
+            IMemoryCache cache,
+            IHttpContextAccessor httpContextAccessor,
+            ILogger<TicketCheckInService> logger)
         {
             _context = context;
             _mediator = mediator;
             _cache = cache;
+            _httpContextAccessor = httpContextAccessor;
+            _logger = logger;
         }
 
         public async Task<CheckInResponse> ManualCheckInAsync(Guid ticketId, int peopleCount, string staffId, string reason)
@@ -43,19 +65,30 @@ namespace TicketSystem.Application.Services
             ticket.RemainingSlots -= peopleCount;
 
             if (ticket.RemainingSlots == 0)
+            {
                 ticket.Status = TicketStatus.CHECKED_IN;
+                ticket.IsCheckedIn = true;
+            }
+
+            var eventId = ticket.TicketType?.EventId ?? Guid.Empty;
 
             var log = new CheckInLog
             {
                 Id = Guid.NewGuid(),
                 TicketId = ticket.Id,
+                EventId = eventId,
                 CheckedAt = now,
                 CheckinDate = DateOnly.FromDateTime(now),
                 Type = ScanType.Entry, 
                 PeopleCount = peopleCount,
                 GateName = "Quầy Hỗ Trợ (Help Desk)",
                 StaffId = staffId,
-                Note = reason 
+                Note = reason,
+                CheckInResult = "Success",
+                QRCodeData = null,
+                FailureReason = null,
+                CreatedAt = now,
+                CreatedBy = staffId
             };
 
             await _context.CheckInLogs.AddAsync(log);
@@ -75,126 +108,651 @@ namespace TicketSystem.Application.Services
 
         public async Task<CheckInResponse> ProcessScanAsync(CheckInRequest request, string staffId)
         {
-            var parts = request.QrPayload.Split('|');
-            if (parts.Length != 2 || !Guid.TryParse(parts[0], out Guid ticketId))
+            var qrPayload = request?.QrPayload?.Trim() ?? string.Empty;
+            var gateName = request?.GateName?.Trim() ?? string.Empty;
+            var peopleCount = request?.PeopleCount ?? 1;
+            var timestamp = GetVietnamTime();
+            Guid ticketId = Guid.Empty;
+            Guid eventId = Guid.Empty;
+            string eventName = string.Empty;
+
+            var requestSignature = BuildRequestSignature(staffId, qrPayload, peopleCount, gateName);
+            var processedKey = $"checkin_processed_{requestSignature}";
+            var lockKey = $"checkin_lock_{requestSignature}";
+
+            if (_cache.TryGetValue(processedKey, out CheckInResponse? cachedResponse) && cachedResponse != null)
             {
-                return new CheckInResponse { IsSuccess = false, Message = "Định dạng QR không hợp lệ." };
+                return cachedResponse;
             }
 
-            // IDEMPOTENCY (TÍNH LŨY ĐẲNG - CHỐNG DOUBLE SCAN)
-            string lockKey = $"checkin_lock_{ticketId}";
             if (_cache.TryGetValue(lockKey, out _))
             {
-                return new CheckInResponse { IsSuccess = false, Message = "Hệ thống đang xử lý vé này, vui lòng chờ 3 giây để tránh quét trùng." };
+                return CheckInResponse.Fail("Hệ thống đang xử lý yêu cầu quét này, vui lòng thử lại sau vài giây.");
             }
-            _cache.Set(lockKey, true, TimeSpan.FromSeconds(3)); // Khóa vé trong 3 giây
+
+            _cache.Set(lockKey, true, TimeSpan.FromSeconds(5));
 
             try
             {
+                if (string.IsNullOrWhiteSpace(qrPayload))
+                {
+                    var response = CheckInResponse.Fail("Dữ liệu QR không được để trống.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = Guid.Empty,
+                        EventId = Guid.Empty,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                var parts = qrPayload.Split('|');
+                if (parts.Length != 2 || !Guid.TryParse(parts[0], out Guid parsedTicketId))
+                {
+                    var response = CheckInResponse.Fail("Định dạng QR không hợp lệ.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = Guid.Empty,
+                        EventId = Guid.Empty,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                ticketId = parsedTicketId;
+
+                if (!IsRecognizedGate(gateName))
+                {
+                    var response = CheckInResponse.Fail("Sai cổng. Vui lòng kiểm tra lại vị trí quét.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = ticketId,
+                        EventId = Guid.Empty,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
                 string clientOtp = parts[1];
 
                 var ticket = await _context.Tickets
                     .Include(t => t.TicketType)
+                        .ThenInclude(tt => tt!.Event)
                     .Include(t => t.Order)
                         .ThenInclude(o => o.User)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
-                if (ticket == null || ticket.Status != TicketStatus.ACTIVE)
-                    return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã hết chỗ." };
+                if (ticket == null)
+                {
+                    var response = CheckInResponse.Fail("Vé không tồn tại.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = ticketId,
+                        EventId = Guid.Empty,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
 
-                // 1. Xác thực TOTP (Dynamic QR)
+                eventId = ticket.TicketType?.EventId ?? Guid.Empty;
+                eventName = ticket.TicketType?.Event?.Name ?? string.Empty;
+
+                if (ticket.Status == TicketStatus.CANCELLED)
+                {
+                    var response = CheckInResponse.Fail("Vé đã hủy.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                if (ticket.Status == TicketStatus.REVOKED)
+                {
+                    var response = CheckInResponse.Fail("Vé đã bị thu hồi.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                if (ticket.Status == TicketStatus.CHECKED_IN || ticket.IsCheckedIn)
+                {
+                    var response = CheckInResponse.Fail("Vé đã check-in.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                if (ticket.TicketType?.Event != null && ticket.TicketType.Event.EndTime < timestamp)
+                {
+                    var response = CheckInResponse.Fail("Event đã kết thúc.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
+                if (ticket.Status != TicketStatus.ACTIVE)
+                {
+                    var response = CheckInResponse.Fail("Vé không ở trạng thái hoạt động.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
+
                 var totp = new Totp(Base32Encoding.ToBytes(ticket.SecretKey));
                 var window = new VerificationWindow(previous: 1, future: 1);
-                if (!totp.VerifyTotp(clientOtp, out long timeStepMatched, window))
+                if (!totp.VerifyTotp(clientOtp, out _, window))
                 {
-                    return new CheckInResponse { IsSuccess = false, Message = "Mã QR đã hết hạn. Vui lòng làm mới mã trên ứng dụng." };
+                    var response = CheckInResponse.Fail("QR không hợp lệ hoặc đã hết hạn.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
                 }
 
-                // 2. KIỂM TRA THỜI GIAN HIỆU LỰC
-                var now = DateTime.Now; 
-                if (now < ticket.ValidFrom || now > ticket.ValidTo)
+                if (timestamp < ticket.ValidFrom || timestamp > ticket.ValidTo)
                 {
-                    return new CheckInResponse { IsSuccess = false, Message = $"Vé ngoài giờ hiệu lực (từ {ticket.ValidFrom:dd/MM HH:mm} đến {ticket.ValidTo:dd/MM HH:mm})." };
+                    var response = CheckInResponse.Fail("Vé hết hạn.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
                 }
 
-                // 3. Xử lý Cơ chế 3 (In thẻ B2B)
-                bool triggerPrint = false;
-                if (ticket.TicketType != null && ticket.TicketType.Name.Contains("B2B")) 
+                var triggerPrint = false;
+                if (ticket.TicketType != null && ticket.TicketType.Name.Contains("B2B"))
                 {
                     if (ticket.IsBadgePrinted)
-                        return new CheckInResponse { IsSuccess = false, Message = "Mã QR này đã được in thẻ tham quan." };
-                    
+                    {
+                        var response = CheckInResponse.Fail("Mã QR này đã được in thẻ tham quan.");
+                        await PersistCheckInOutcomeAsync(new CheckInOutcome
+                        {
+                            Ticket = ticket,
+                            TicketId = ticketId,
+                            EventId = eventId,
+                            EventName = eventName,
+                            StaffId = staffId,
+                            GateName = gateName,
+                            QrPayload = qrPayload,
+                            PeopleCount = peopleCount,
+                            Timestamp = timestamp,
+                            IsSuccess = false,
+                            FailureReason = response.Message,
+                            ScanType = ScanType.Entry,
+                            Note = "QR check-in"
+                        });
+                        _cache.Set(processedKey, response, DuplicateRequestWindow);
+                        return response;
+                    }
+
                     ticket.IsBadgePrinted = true;
-                    triggerPrint = true; 
+                    triggerPrint = true;
                 }
 
-                // 4. KIỂM TRA SỐ LƯỢNG (VÀO MỘT PHẦN)
-                if (request.PeopleCount <= 0)
-                    return new CheckInResponse { IsSuccess = false, Message = "Số lượng người vào cổng không hợp lệ." };
-
-                if (ticket.RemainingSlots < request.PeopleCount)
+                if (peopleCount <= 0)
                 {
-                    return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn của đoàn. Chỉ còn lại {ticket.RemainingSlots} chỗ trống." };
+                    var response = CheckInResponse.Fail("Số lượng người vào cổng không hợp lệ.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
                 }
 
-                // Trừ đi số vé sử dụng
-                ticket.RemainingSlots -= request.PeopleCount;
+                if (ticket.RemainingSlots < peopleCount)
+                {
+                    var response = CheckInResponse.Fail($"Vượt quá giới hạn của đoàn. Chỉ còn lại {ticket.RemainingSlots} chỗ trống.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
 
-                // Cập nhật trạng thái nếu dùng hết vé (Giả định AccessType dùng string hoặc config tùy em, tạm bỏ check AccessType rườm rà)
+                ticket.RemainingSlots -= peopleCount;
+
                 if (ticket.RemainingSlots == 0)
                 {
                     ticket.Status = TicketStatus.CHECKED_IN;
+                    ticket.IsCheckedIn = true;
                 }
 
-                // 5. Ghi log
-                var log = new CheckInLog
+                var logScanType = triggerPrint ? ScanType.Print : ScanType.Entry;
+                await PersistCheckInOutcomeAsync(new CheckInOutcome
                 {
-                    Id = Guid.NewGuid(),
-                    TicketId = ticket.Id,
-                    CheckedAt = now,
-                    CheckinDate = DateOnly.FromDateTime(now),
-                    Type = triggerPrint ? ScanType.Print : ScanType.Entry,
-                    PeopleCount = request.PeopleCount,
-                    GateName = request.GateName,
+                    Ticket = ticket,
+                    TicketId = ticketId,
+                    EventId = eventId,
+                    EventName = eventName,
                     StaffId = staffId,
-                    CreatedAt = now,
-                    CreatedBy = staffId
-                };
-
-                await _context.CheckInLogs.AddAsync(log);
-                
-                try
-                {
-                    // LƯU DB VÀ BẮT LỖI OCC
-                    await _context.SaveChangesAsync(default);
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    return new CheckInResponse { IsSuccess = false, Message = "Vé này vừa được quét tại một cổng khác cùng lúc. Vui lòng thử lại." };
-                }
+                    GateName = gateName,
+                    QrPayload = qrPayload,
+                    PeopleCount = peopleCount,
+                    Timestamp = timestamp,
+                    IsSuccess = true,
+                    ScanType = logScanType,
+                    Note = triggerPrint ? "In thẻ B2B" : "QR check-in"
+                });
 
                 if (ticket.TicketType != null)
                 {
                     await _mediator.Publish(new TicketCheckedInEvent(
-                        ticket.TicketType.EventId, 
-                        request.PeopleCount, 
-                        triggerPrint ? ScanType.Print : ScanType.Entry
+                        ticket.TicketType.EventId,
+                        peopleCount,
+                        logScanType
                     ));
                 }
 
-                return CheckInResponse.Success(
-                    ticket.Order?.User?.FullName ?? "Khách", 
-                    $"Đã check-in {request.PeopleCount} vé. (Đoàn còn lại {ticket.RemainingSlots} chỗ)"
+                var successResponse = CheckInResponse.Success(
+                    ticket.Order?.User?.FullName ?? "Khách",
+                    $"Đã check-in {peopleCount} vé. (Đoàn còn lại {ticket.RemainingSlots} chỗ)"
                 );
+                successResponse.TriggerPrintBadge = triggerPrint;
+                _cache.Set(processedKey, successResponse, DuplicateRequestWindow);
+                return successResponse;
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                _context.ChangeTracker.Clear();
+
+                var response = CheckInResponse.Fail("Vé này vừa được quét tại một cổng khác cùng lúc. Vui lòng thử lại.");
+                try
+                {
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    }, skipDomainChanges: true);
+                }
+                catch
+                {
+                }
+
+                _cache.Set(processedKey, response, DuplicateRequestWindow);
+                return response;
             }
             catch (Exception ex)
             {
-                return new CheckInResponse { IsSuccess = false, Message = "Lỗi hệ thống: " + ex.Message };
+                var response = CheckInResponse.Fail("Lỗi hệ thống: " + ex.Message);
+                try
+                {
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    }, skipDomainChanges: true);
+                }
+                catch
+                {
+                }
+
+                _cache.Set(processedKey, response, DuplicateRequestWindow);
+                return response;
             }
-            finally 
+            finally
             {
                 _cache.Remove(lockKey);
             }
+        }
+
+        private async Task PersistCheckInOutcomeAsync(CheckInOutcome outcome, bool skipDomainChanges = false)
+        {
+            if (!skipDomainChanges && outcome.Ticket != null)
+            {
+                _context.Tickets.Update(outcome.Ticket);
+            }
+
+            var ticketId = outcome.TicketId == Guid.Empty && outcome.Ticket != null ? outcome.Ticket.Id : outcome.TicketId;
+
+            // If ticketId is not known (Guid.Empty), skip adding CheckInLog
+            // to avoid unique-index conflicts on (TicketId, CheckinDate) for unknown tickets.
+            if (ticketId != Guid.Empty)
+            {
+                await _context.CheckInLogs.AddAsync(new CheckInLog
+                {
+                    Id = Guid.NewGuid(),
+                    TicketId = ticketId,
+                    EventId = outcome.EventId,
+                    GateId = outcome.GateId,
+                    CheckedAt = outcome.Timestamp,
+                    CheckinDate = DateOnly.FromDateTime(outcome.Timestamp),
+                    Type = outcome.ScanType,
+                    PeopleCount = outcome.PeopleCount,
+                    GateName = outcome.GateName,
+                    StaffId = outcome.StaffId,
+                    Note = outcome.Note,
+                    CheckInResult = outcome.IsSuccess ? "Success" : "Failed",
+                    FailureReason = outcome.FailureReason,
+                    QRCodeData = outcome.QrPayload,
+                    CreatedAt = outcome.Timestamp,
+                    CreatedBy = outcome.StaffId
+                });
+            }
+
+            await _context.AuditLogs.AddAsync(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                Action = outcome.IsSuccess ? "CheckIn" : "CheckInFailed",
+                EntityType = "Ticket",
+                EntityId = ticketId,
+                PerformedBy = outcome.StaffId,
+                Details = BuildAuditDetails(outcome),
+                IpAddress = GetClientIpAddress(),
+                Timestamp = outcome.Timestamp,
+                CreatedAt = outcome.Timestamp,
+                CreatedBy = outcome.StaffId
+            });
+
+            try
+            {
+                await _context.SaveChangesAsync(default);
+            }
+            catch (DbUpdateException dbEx)
+            {
+                try
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("DbUpdateException while saving CheckInOutcome:");
+                    sb.AppendLine(dbEx.Message);
+                    var inner = dbEx.InnerException;
+                    while (inner != null)
+                    {
+                        sb.AppendLine("Inner: " + inner.Message);
+                        inner = inner.InnerException;
+                    }
+
+                    if (dbEx.Entries != null)
+                    {
+                        foreach (var entry in dbEx.Entries)
+                        {
+                            try
+                            {
+                                var json = System.Text.Json.JsonSerializer.Serialize(entry.Entity);
+                                sb.AppendLine($"Entry {entry.Entity.GetType().FullName}: {json}");
+                            }
+                            catch
+                            {
+                                sb.AppendLine($"Entry {entry.Entity.GetType().FullName}: <serialization failed>");
+                            }
+                        }
+                    }
+
+                    _logger.LogError(dbEx, sb.ToString());
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(dbEx, "DbUpdateException occurred but failed to serialize entries: {Message}", logEx.Message);
+                }
+
+                throw;
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Exception while saving CheckInOutcome:");
+                    sb.AppendLine(ex.Message);
+                    var inner = ex.InnerException;
+                    while (inner != null)
+                    {
+                        sb.AppendLine("Inner: " + inner.Message);
+                        inner = inner.InnerException;
+                    }
+
+                    _logger.LogError(ex, sb.ToString());
+                }
+                catch
+                {
+                    _logger.LogError(ex, "Exception occurred while saving CheckInOutcome and logging failed: {Message}", ex.Message);
+                }
+
+                throw;
+            }
+        }
+
+        private string BuildAuditDetails(CheckInOutcome outcome)
+        {
+            var ticketValue = outcome.TicketId == Guid.Empty ? "không xác định" : outcome.TicketId.ToString();
+            var eventValue = outcome.EventId == Guid.Empty ? (string.IsNullOrWhiteSpace(outcome.EventName) ? "không xác định" : outcome.EventName) : outcome.EventId.ToString();
+            var gateValue = string.IsNullOrWhiteSpace(outcome.GateName) ? "không có" : outcome.GateName;
+            var resultValue = outcome.IsSuccess ? "thành công" : "thất bại";
+            var reasonValue = string.IsNullOrWhiteSpace(outcome.FailureReason) ? string.Empty : $"; Lý do thất bại: {outcome.FailureReason}";
+
+            return $"Nhân viên {outcome.StaffId} quét vé {ticketValue} cho sự kiện {eventValue} tại cổng {gateValue}. Kết quả: {resultValue}{reasonValue}. QR: {outcome.QrPayload}";
+        }
+
+        private bool IsRecognizedGate(string gateName)
+        {
+            return !string.IsNullOrWhiteSpace(gateName) && AllowedGateNames.Contains(gateName);
+        }
+
+        private string BuildRequestSignature(string staffId, string qrPayload, int peopleCount, string gateName)
+        {
+            var raw = $"{staffId}|{peopleCount}|{gateName}|{qrPayload}";
+            var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
+            return Convert.ToHexString(hash);
+        }
+
+        private DateTime GetVietnamTime()
+        {
+            var vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
+            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
+        }
+
+        private string? GetClientIpAddress()
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+
+            if (ipAddress.ToString() == "::1")
+                return "127.0.0.1";
+
+            if (ipAddress.IsIPv4MappedToIPv6)
+                return ipAddress.MapToIPv4().ToString();
+
+            return ipAddress.ToString();
+        }
+
+        private sealed class CheckInOutcome
+        {
+            public Ticket? Ticket { get; set; }
+            public Guid TicketId { get; set; }
+            public Guid EventId { get; set; }
+            public Guid? GateId { get; set; }
+            public string StaffId { get; set; } = string.Empty;
+            public string GateName { get; set; } = string.Empty;
+            public string QrPayload { get; set; } = string.Empty;
+            public int PeopleCount { get; set; }
+            public DateTime Timestamp { get; set; }
+            public bool IsSuccess { get; set; }
+            public string? FailureReason { get; set; }
+            public ScanType ScanType { get; set; } = ScanType.Entry;
+            public string? Note { get; set; }
+            public string? EventName { get; set; }
         }
     }
 }

@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
+using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace TicketSystem.API.Controllers
 {
@@ -67,10 +69,46 @@ namespace TicketSystem.API.Controllers
             }
             catch (Exception ex)
             {
-                // 5. Exception Handling: Bắt các ngoại lệ Runtime (ví dụ: mất kết nối Database)
-                _logger.LogError(ex, "Lỗi Server (500) khi xử lý Check-in. Payload: {Payload}", request.QrPayload);
-                
-                // Trả về một DTO lỗi chuẩn hóa, không để lộ StackTrace ra ngoài Frontend
+                // 5. Exception Handling: Log chi tiết inner exception, nhưng trả về message thân thiện cho UI
+                try
+                {
+                    var sb = new StringBuilder();
+                    sb.AppendLine("Unhandled exception in ScanTicket: " + ex.Message);
+                    var inner = ex.InnerException;
+                    while (inner != null)
+                    {
+                        sb.AppendLine("Inner: " + inner.Message);
+                        inner = inner.InnerException;
+                    }
+
+                    if (ex is DbUpdateException dbEx)
+                    {
+                        sb.AppendLine("DbUpdateException entries:");
+                        if (dbEx.Entries != null)
+                        {
+                            foreach (var entry in dbEx.Entries)
+                            {
+                                try
+                                {
+                                    var json = System.Text.Json.JsonSerializer.Serialize(entry.Entity);
+                                    sb.AppendLine($"Entry {entry.Entity.GetType().FullName}: {json}");
+                                }
+                                catch
+                                {
+                                    sb.AppendLine($"Entry {entry.Entity.GetType().FullName}: <serialization failed>");
+                                }
+                            }
+                        }
+                    }
+
+                    _logger.LogError(ex, sb.ToString());
+                }
+                catch (Exception logEx)
+                {
+                    _logger.LogError(ex, "Exception occurred while handling exception for payload {Payload}: {LogError}", request?.QrPayload, logEx.Message);
+                }
+
+                // Trả về một DTO lỗi chuẩn hóa cho Frontend (không leak stacktrace)
                 return StatusCode(500, CheckInResponse.Fail("Đã xảy ra lỗi hệ thống. Vui lòng liên hệ bộ phận kỹ thuật."));
             }
         }

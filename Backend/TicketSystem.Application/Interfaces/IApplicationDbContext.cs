@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Interfaces
@@ -17,6 +18,7 @@ namespace TicketSystem.Application.Interfaces
         DbSet<User> Users { get; }
         DbSet<Order> Orders { get; }
         DbSet<Payment> Payments { get; }
+        ChangeTracker ChangeTracker { get; }
         DbSet<CheckInLog> CheckInLogs { get; }
         DbSet<AuditLog> AuditLogs { get; }
         DbSet<SystemSettings> SystemSettings { get; }

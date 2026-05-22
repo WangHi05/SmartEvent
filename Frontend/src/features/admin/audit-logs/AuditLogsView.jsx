@@ -88,6 +88,7 @@ const AuditLogsView = () => {
       Cancel: 'orange',
       Refund: 'purple',
       CheckIn: 'cyan',
+      CheckInFailed: 'volcano',
     };
     return colorMap[action] || 'default';
   };
@@ -179,6 +180,7 @@ const AuditLogsView = () => {
               <Option value="Cancel">Cancel</Option>
               <Option value="Refund">Refund</Option>
               <Option value="CheckIn">CheckIn</Option>
+              <Option value="CheckInFailed">CheckInFailed</Option>
             </Select>
 
             <Select
