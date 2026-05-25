@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
@@ -156,14 +157,7 @@ namespace TicketSystem.Application.Services
                 CreatedBy = createdBy
             };
 
-            // Set initial status based on current time
-            var now = DateTime.UtcNow;
-            if (eventEntity.EndTime < now)
-                eventEntity.Status = Domain.Common.EventStatus.Completed;
-            else if (eventEntity.StartTime <= now && now <= eventEntity.EndTime)
-                eventEntity.Status = Domain.Common.EventStatus.Ongoing;
-            else
-                eventEntity.Status = Domain.Common.EventStatus.Active;
+            ApplyScheduleStatus(eventEntity, VietnamTime.Now);
 
             await _eventRepository.AddAsync(eventEntity);
 
@@ -211,24 +205,11 @@ namespace TicketSystem.Application.Services
             if (dto.CancellationDeadlineHours.HasValue)
                 eventEntity.CancellationDeadlineHours = dto.CancellationDeadlineHours.Value;
 
-            eventEntity.UpdatedAt = DateTime.UtcNow;
+            eventEntity.UpdatedAt = VietnamTime.Now;
             eventEntity.UpdatedBy = updatedBy;
 
-            // Determine status after update based on times
-            var now2 = DateTime.UtcNow;
             var oldStatus = eventEntity.Status;
-            Domain.Common.EventStatus newStatus;
-            if (eventEntity.EndTime < now2)
-                newStatus = Domain.Common.EventStatus.Completed;
-            else if (eventEntity.StartTime <= now2 && now2 <= eventEntity.EndTime)
-                newStatus = Domain.Common.EventStatus.Ongoing;
-            else
-                newStatus = Domain.Common.EventStatus.Active;
-
-            if (oldStatus != newStatus)
-            {
-                eventEntity.Status = newStatus;
-            }
+            ApplyScheduleStatus(eventEntity, VietnamTime.Now);
 
             await _eventRepository.UpdateAsync(eventEntity);
 
@@ -280,10 +261,11 @@ namespace TicketSystem.Application.Services
             var eventEntity = await _eventRepository.GetByIdAsync(eventId);
             if (eventEntity == null) return false;
 
-            // TODO (Người B): Mở comment dòng này khi bạn đã thêm thuộc tính 'Status' vào class Event.cs
-            eventEntity.Status = newStatus;
+            eventEntity.Status = newStatus == EventStatus.Cancelled
+                ? EventStatus.Cancelled
+                : DetermineScheduleStatus(eventEntity, VietnamTime.Now);
             
-            eventEntity.UpdatedAt = DateTime.UtcNow;
+            eventEntity.UpdatedAt = VietnamTime.Now;
 
             await _eventRepository.UpdateAsync(eventEntity);
 
@@ -297,6 +279,34 @@ namespace TicketSystem.Application.Services
             });
 
             return true;
+        }
+
+        private static void ApplyScheduleStatus(Event eventEntity, DateTime now)
+        {
+            eventEntity.Status = DetermineScheduleStatus(eventEntity, now);
+        }
+
+        private static EventStatus DetermineScheduleStatus(Event eventEntity, DateTime now)
+        {
+            if (eventEntity.Status == EventStatus.Cancelled)
+            {
+                return EventStatus.Cancelled;
+            }
+
+            var startTime = VietnamTime.ToVietnamTime(eventEntity.StartTime);
+            var endTime = VietnamTime.ToVietnamTime(eventEntity.EndTime);
+
+            if (endTime < now)
+            {
+                return EventStatus.Completed;
+            }
+
+            if (startTime <= now && now <= endTime)
+            {
+                return EventStatus.Ongoing;
+            }
+
+            return EventStatus.Active;
         }
 
         /// <summary>
@@ -330,14 +340,8 @@ namespace TicketSystem.Application.Services
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
-            log.Timestamp = GetVietnamTime();
+            log.Timestamp = VietnamTime.Now;
             await _auditLogRepository.AddAsync(log);
-        }
-
-        private DateTime GetVietnamTime()
-        {
-            TimeZoneInfo vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
         }
 
         

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
@@ -151,7 +152,7 @@ namespace TicketSystem.Application.Services
             var totalEvents = await _db.Events.CountAsync();
             var totalCustomers = await _db.Users.CountAsync(u => u.Role == UserRole.Customer);
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = DateOnly.FromDateTime(VietnamTime.Now);
             var totalCheckinsToday = await _db.CheckInLogs
                 .Where(c => c.CheckinDate == today)
                 .SumAsync(c => (int?)c.PeopleCount) ?? 0;
@@ -166,7 +167,7 @@ namespace TicketSystem.Application.Services
                 fillRate = (double)totalTicketsSold / totalCapacity * 100.0;
 
             // revenue growth: compare last 30 days vs previous 30 days
-            var now = DateTime.UtcNow;
+            var now = VietnamTime.Now;
             var curFrom = now.AddDays(-30);
             var prevFrom = now.AddDays(-60);
             var prevTo = curFrom;

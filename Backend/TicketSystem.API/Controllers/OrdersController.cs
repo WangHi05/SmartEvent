@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.API.Controllers
 {
@@ -244,7 +245,7 @@ namespace TicketSystem.API.Controllers
                     return BadRequest(new { message = "VNPay configuration is missing" });
                 }
 
-                var now = TimeZoneInfo.ConvertTime(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById(timeZoneId));
+                var now = VietnamTime.Now;
                 var txnRef = order.Id.ToString("N");
                 var amount = ((long)Math.Round(order.TotalPrice, 0, MidpointRounding.AwayFromZero) * 100L).ToString(CultureInfo.InvariantCulture);
                 var ipAddr = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";

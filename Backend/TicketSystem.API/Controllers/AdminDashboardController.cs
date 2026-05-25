@@ -6,6 +6,7 @@ using System.IO;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
 using ClosedXML.Excel;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.API.Controllers
 {
@@ -68,7 +69,7 @@ namespace TicketSystem.API.Controllers
                 var reportData = await _dashboardService.GetEventReportDataAsync(eventId);
                 var stream = GenerateExcelFile(reportData);
 
-                var fileName = $"BC_{reportData.EventName.Replace(" ", "_")}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                var fileName = $"BC_{reportData.EventName.Replace(" ", "_")}_{VietnamTime.Now:yyyyMMdd_HHmmss}.xlsx";
                 return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)
@@ -85,7 +86,7 @@ namespace TicketSystem.API.Controllers
                 var reportData = await _dashboardService.GetAdminSummaryReportDataAsync();
                 var stream = GenerateExcelFileSummary(reportData);
 
-                var fileName = $"BC_Tong_Hop_Doanh_Thu_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                var fileName = $"BC_Tong_Hop_Doanh_Thu_{VietnamTime.Now:yyyyMMdd_HHmmss}.xlsx";
                 return File(stream, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
             }
             catch (Exception ex)

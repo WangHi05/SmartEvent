@@ -4,6 +4,7 @@ import { EyeOutlined, CalendarOutlined, DollarOutlined, ShoppingCartOutlined } f
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import { CustomerMetricCard, CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
+import { formatVietnamDateTime } from '../../utils/vietnamTime';
 
 const paymentColorMap = {
   Pending: 'gold',
@@ -80,7 +81,7 @@ const MyOrders = () => {
       title: 'Ngày đặt',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value) => dayjs(value).format('DD/MM/YYYY HH:mm'),
+      render: (value) => formatVietnamDateTime(value),
     },
     {
       title: 'Sự kiện',
@@ -176,7 +177,7 @@ const MyOrders = () => {
             <Descriptions.Item label="Tổng tiền">{formatCurrency(selectedOrder.totalPrice)}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
-            <Descriptions.Item label="Ngày tạo">{dayjs(selectedOrder.createdAt).format('DD/MM/YYYY HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="Ngày tạo">{formatVietnamDateTime(selectedOrder.createdAt, { withSeconds: true })}</Descriptions.Item>
           </Descriptions>
         )}
       </Drawer>

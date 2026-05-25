@@ -4,6 +4,7 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutli
 import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 /**
  * Component danh sách Events
@@ -133,7 +134,7 @@ const EventList = () => {
       title: 'Thời gian bắt đầu',
       dataIndex: 'startTime',
       key: 'startTime',
-      render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
+      render: (date) => formatVietnamDateTime(date),
     },
     {
       title: 'Sức chứa',

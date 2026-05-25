@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
@@ -237,7 +238,7 @@ namespace TicketSystem.Application.Services
 
         public async Task<int> GetUserCancelCountThisMonthAsync(Guid userId)
         {
-            var firstDayOfMonth = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1);
+            var firstDayOfMonth = new DateTime(VietnamTime.Now.Year, VietnamTime.Now.Month, 1);
             var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
 
             var cancelCount = await _context.Orders
@@ -311,7 +312,7 @@ namespace TicketSystem.Application.Services
                 }
 
                 // 5. Kiểm tra thời gian hủy (phải trước event start time)
-                var timeBeforeEvent = order.Event.StartTime - DateTime.UtcNow;
+                var timeBeforeEvent = VietnamTime.ToVietnamTime(order.Event.StartTime) - VietnamTime.Now;
                 if (timeBeforeEvent.TotalHours < 0)
                 {
                     return new CancelValidationDto
@@ -342,7 +343,7 @@ namespace TicketSystem.Application.Services
                 return (0, "Event not found");
             }
 
-            var hoursBeforeEvent = (evt.StartTime - DateTime.UtcNow).TotalHours;
+            var hoursBeforeEvent = (VietnamTime.ToVietnamTime(evt.StartTime) - VietnamTime.Now).TotalHours;
 
             var threshold7Days = await _settingsService.GetSettingAsIntAsync(
                 SystemSettings.REFUND_THRESHOLD_7_DAYS, 168);

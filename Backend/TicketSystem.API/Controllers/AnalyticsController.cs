@@ -3,6 +3,7 @@ using TicketSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Threading.Tasks;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.API.Controllers
 {
@@ -29,7 +30,7 @@ namespace TicketSystem.API.Controllers
             var stats = new TicketStatisticsDto
             {
                 EventName = "Tổng quan hệ thống", // Vì dashboard đang xem tổng quan
-                CurrentTime = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+                CurrentTime = VietnamTime.Now.ToString("dd/MM/yyyy HH:mm"),
                 TicketsSold = request.Data.TotalTicketsSold ?? 0,
                 TicketsCheckedIn = request.Data.TotalCheckinsToday ?? 0,
                 TotalRevenue = request.Data.TotalRevenue ?? 0m,

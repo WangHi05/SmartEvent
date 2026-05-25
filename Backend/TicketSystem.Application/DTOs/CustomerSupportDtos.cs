@@ -9,16 +9,25 @@ namespace TicketSystem.Application.DTOs
         [Required(ErrorMessage = "Câu hỏi không được bỏ trống")]
         [StringLength(1000, MinimumLength = 1, ErrorMessage = "Câu hỏi phải từ 1 đến 1000 ký tự")]
         public string Message { get; set; } = string.Empty;
+
+        public List<CustomerSupportConversationTurnDto> History { get; set; } = new();
+    }
+
+    public class CustomerSupportConversationTurnDto
+    {
+        [Required]
+        public string Role { get; set; } = string.Empty;
+
+        [Required]
+        public string Content { get; set; } = string.Empty;
     }
 
     public class CustomerSupportResponseDto
     {
         public bool IsSuccess { get; set; }
+        public string ResponseType { get; set; } = "text";
         public string Answer { get; set; } = string.Empty;
-        public string? ResponseType { get; set; }
-        public List<OpenSaleEventDto>? Events { get; set; }
-        public string? ErrorMessage { get; set; }
-        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public object? Data { get; set; }
     }
 
     public class OpenSaleEventDto

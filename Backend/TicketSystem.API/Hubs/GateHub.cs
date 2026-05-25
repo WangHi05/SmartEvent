@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Threading.Tasks;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.API.Hubs
 {
@@ -27,7 +28,7 @@ namespace TicketSystem.API.Hubs
         // 4. Dành cho Nhân viên: Xác nhận đã đọc lệnh
         public async Task ConfirmAlert(string gateName, string staffName)
         {
-            var time = DateTime.Now.ToString("HH:mm:ss");
+            var time = VietnamTime.Now.ToString("HH:mm:ss");
             // Bắn thông báo ngược lại cho nhóm "Admins"
             await Clients.Group("Admins").SendAsync("ReceiveConfirmation", gateName, staffName, time);
         }

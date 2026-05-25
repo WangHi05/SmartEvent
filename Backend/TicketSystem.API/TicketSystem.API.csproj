@@ -4,6 +4,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>TicketSystem.API-9f5f5a2b-7c15-4a2d-9a1d-4d3d3a1c1a6b</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>

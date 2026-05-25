@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using System;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.Application.Services
 {
@@ -129,7 +130,7 @@ namespace TicketSystem.Application.Services
             {
                 // Serialize dữ liệu các cổng thành chuỗi JSON để AI đọc
                 string gateJson = JsonSerializer.Serialize(gateData);
-                string currentTime = DateTime.Now.ToString("HH:mm");
+                string currentTime = VietnamTime.Now.ToString("HH:mm");
 
                 string prompt = $@"
                     Bạn là Chuyên gia An ninh và Điều phối Đám đông (Crowd Control) cho một sự kiện lớn.

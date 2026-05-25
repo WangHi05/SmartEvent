@@ -3,6 +3,7 @@ import { Table, Button, Space, Modal, Form, Input, InputNumber, DatePicker, Swit
 import { PlusOutlined, EditOutlined, DeleteOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import axiosClient from '../api/axiosClient';
 import dayjs from 'dayjs';
+import { formatVietnamDateTime } from '../utils/vietnamTime';
 
 const TicketTypesAdmin = ({ eventId }) => {
   const [ticketTypes, setTicketTypes] = useState([]);
@@ -152,7 +153,7 @@ const TicketTypesAdmin = ({ eventId }) => {
       key: 'saleTime',
       render: (_, record) => (
         <small>
-          {dayjs(record.saleStartTime).format('DD/MM HH:mm')} - {dayjs(record.saleEndTime).format('DD/MM HH:mm')}
+          {formatVietnamDateTime(record.saleStartTime)} - {formatVietnamDateTime(record.saleEndTime)}
         </small>
       ),
     },

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
@@ -240,16 +241,10 @@ namespace TicketSystem.Application.Services
                 EntityId = entityId,
                 PerformedBy = performedBy,
                 Details = details,
-                Timestamp = GetVietnamTime(),
+                Timestamp = VietnamTime.Now,
                 IpAddress = GetClientIpAddress()
             };
             await _auditLogRepository.AddAsync(log);
-        }
-
-        private DateTime GetVietnamTime()
-        {
-            TimeZoneInfo vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
         }
 
         private string? GetClientIpAddress()

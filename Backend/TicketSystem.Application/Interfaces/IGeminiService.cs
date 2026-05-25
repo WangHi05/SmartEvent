@@ -5,6 +5,6 @@ namespace TicketSystem.Application.Interfaces
 {
     public interface IGeminiService
     {
-        Task<string> GenerateContentAsync(string prompt);
+        Task<string> GenerateContentAsync(string prompt, CancellationToken cancellationToken = default);
     }
 }

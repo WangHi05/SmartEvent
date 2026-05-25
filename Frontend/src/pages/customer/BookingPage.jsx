@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Card, Row, Col, Button, InputNumber, message, Spin, Empty, Tag } from 'antd';
+import { Card, Row, Col, Button, InputNumber, message, Spin, Empty, Tag, Alert } from 'antd';
 import { ArrowLeftOutlined, CalendarOutlined, EnvironmentOutlined, TeamOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import useAuthStore from '../../store/useAuthStore';
-import { CustomerSectionTitle, formatCapacityLabel, formatCurrency, formatDateRange, getCapacityPercent, getEventStatusMeta } from '../../components/customer/CustomerPrimitives';
+import { CustomerSectionTitle, formatCapacityLabel, formatCurrency, formatDateRange, getCapacityPercent, getEventPriceSummary, getEventStatusMeta } from '../../components/customer/CustomerPrimitives';
 
 const BookingPage = () => {
   const { eventId } = useParams();
@@ -17,6 +17,41 @@ const BookingPage = () => {
   const [loading, setLoading] = useState(true);
   const [quantities, setQuantities] = useState({});
   const [totalPrice, setTotalPrice] = useState(0);
+
+  const getTicketSaleState = (ticketType) => {
+    const saleStatusName = String(ticketType?.saleStatusName ?? ticketType?.SaleStatusName ?? '').toLowerCase();
+
+    if (saleStatusName.includes('đã kết thúc') || saleStatusName.includes('hết')) {
+      return 'ended';
+    }
+
+    if (saleStatusName.includes('chưa mở bán')) {
+      return 'upcoming';
+    }
+
+    if (saleStatusName.includes('đang mở bán')) {
+      return 'active';
+    }
+
+    const now = dayjs();
+    const saleStartTime = dayjs(ticketType?.saleStartTime ?? ticketType?.SaleStartTime);
+    const saleEndTime = dayjs(ticketType?.saleEndTime ?? ticketType?.SaleEndTime);
+    const isActive = ticketType?.isActive ?? ticketType?.IsActive ?? true;
+
+    if (!isActive) {
+      return 'ended';
+    }
+
+    if (saleStartTime.isValid() && now.isBefore(saleStartTime)) {
+      return 'upcoming';
+    }
+
+    if (saleEndTime.isValid() && now.isAfter(saleEndTime)) {
+      return 'ended';
+    }
+
+    return 'active';
+  };
 
   // Fetch event details
   useEffect(() => {
@@ -39,8 +74,11 @@ const BookingPage = () => {
         setQuantities((prev) => {
           const next = { ...prev };
           normalizedTickets.forEach((tt) => {
-            if (next[tt.id] && next[tt.id].quantity > tt.remainingQuantity) {
-              next[tt.id] = { ...next[tt.id], quantity: tt.remainingQuantity };
+            const ticketSaleState = getTicketSaleState(tt);
+            const maxSelectableQuantity = ticketSaleState === 'active' ? tt.remainingQuantity : 0;
+
+            if (next[tt.id] && next[tt.id].quantity > maxSelectableQuantity) {
+              next[tt.id] = { ...next[tt.id], quantity: maxSelectableQuantity };
             }
           });
           return next;
@@ -197,6 +235,9 @@ const BookingPage = () => {
   const endTime = dayjs(event.endTime);
   const isFull = event.currentOccupancy >= event.maxCapacity;
   const isEnded = now.isAfter(endTime);
+  const priceSummary = getEventPriceSummary(event, ticketTypes);
+  const selectableTicketTypes = ticketTypes.filter((ticketType) => getTicketSaleState(ticketType) === 'active' && ticketType.remainingQuantity > 0);
+  const closedTicketTypes = ticketTypes.filter((ticketType) => getTicketSaleState(ticketType) !== 'active');
 
   return (
     <div className="space-y-8 py-2">
@@ -237,7 +278,7 @@ const BookingPage = () => {
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Giá từ</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{formatCurrency(event.basePrice)}</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">{priceSummary.text}</p>
                 </div>
               </div>
 
@@ -254,7 +295,7 @@ const BookingPage = () => {
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><CalendarOutlined /> Thời gian diễn ra</div>
-                  <p className="mt-2 text-sm text-slate-600">{dayjs(event.startTime).format('DD/MM/YYYY HH:mm')} - {dayjs(event.endTime).format('DD/MM/YYYY HH:mm')}</p>
+                  <p className="mt-2 text-sm text-slate-600">{formatDateRange(event.startTime, event.endTime)}</p>
                 </div>
                 <div className="rounded-2xl bg-slate-50 p-4">
                   <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><EnvironmentOutlined /> Mô tả</div>
@@ -274,47 +315,79 @@ const BookingPage = () => {
               description="Vui lòng kiểm tra kỹ số lượng và số thành viên đoàn."
             />
 
+            {ticketTypes.length > 0 && closedTicketTypes.length > 0 && (
+              <Alert
+                showIcon
+                className="mt-4"
+                type={selectableTicketTypes.length > 0 ? 'warning' : 'error'}
+                message={selectableTicketTypes.length > 0
+                  ? 'Có loại vé đã kết thúc bán hoặc chưa mở bán'
+                  : 'Tất cả loại vé của sự kiện này đã kết thúc bán hoặc chưa mở bán'}
+                description={selectableTicketTypes.length > 0
+                  ? 'Những loại vé đã hết thời gian bán sẽ bị khóa số lượng mua.'
+                  : 'Hiện tại bạn chỉ có thể xem thông tin sự kiện, không thể chọn số lượng vé.'}
+              />
+            )}
+
             <div className="mt-6 space-y-4">
               {ticketTypes.length === 0 ? (
                 <Empty description="Không có loại vé nào" />
               ) : (
-                ticketTypes.map((ticketType) => (
-                  <div key={ticketType.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-orange-300 hover:bg-white">
-                    <div className="mb-3 flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-bold text-slate-950">{ticketType.name}</p>
-                        <p className="text-xs text-slate-500">Còn {ticketType.remainingQuantity} vé</p>
-                      </div>
-                      <div className="text-right text-sm font-black text-orange-600">{formatCurrency(ticketType.price)}</div>
-                    </div>
+                ticketTypes.map((ticketType) => {
+                  const ticketSaleState = getTicketSaleState(ticketType);
+                  const isTicketSelectable = ticketSaleState === 'active' && ticketType.remainingQuantity > 0;
+                  const saleStatusLabel = ticketSaleState === 'active'
+                    ? 'Đang mở bán'
+                    : ticketSaleState === 'upcoming'
+                      ? 'Chưa mở bán'
+                      : 'Đã kết thúc bán';
+                  const saleStatusColor = ticketSaleState === 'active' ? 'green' : ticketSaleState === 'upcoming' ? 'blue' : 'red';
 
-                    <div className="flex flex-col items-end gap-2">
-                      {ticketType.ticketMode === 2 && (
+                  return (
+                    <div key={ticketType.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-orange-300 hover:bg-white">
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-slate-950">{ticketType.name}</p>
+                          <div className="mt-1 flex flex-wrap items-center gap-2">
+                            <Tag color={saleStatusColor} className="!mr-0 !rounded-full !px-2 !py-0.5 !text-[11px]">
+                              {saleStatusLabel}
+                            </Tag>
+                            <p className="text-xs text-slate-500">
+                              {isTicketSelectable ? `Còn ${ticketType.remainingQuantity} vé` : 'Không thể chọn số lượng'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right text-sm font-black text-orange-600">{formatCurrency(ticketType.price)}</div>
+                      </div>
+
+                      <div className="flex flex-col items-end gap-2">
+                        {ticketType.ticketMode === 2 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">Số người/đoàn:</span>
+                            <InputNumber
+                              min={ticketType.minGroupSize || 2}
+                              max={ticketType.maxGroupSize || 15}
+                              value={quantities[ticketType.id]?.memberCount || 2}
+                              onChange={(value) => handleSelectionChange(ticketType.id, 'memberCount', value)}
+                              disabled={isEnded || isFull || !isTicketSelectable}
+                              size="small"
+                            />
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Số người/đoàn:</span>
+                          <span className="text-xs text-slate-500">Số lượng mua:</span>
                           <InputNumber
-                            min={ticketType.minGroupSize || 2}
-                            max={ticketType.maxGroupSize || 15}
-                            value={quantities[ticketType.id]?.memberCount || 2}
-                            onChange={(value) => handleSelectionChange(ticketType.id, 'memberCount', value)}
-                            disabled={isEnded || isFull || ticketType.remainingQuantity === 0}
-                            size="small"
+                            min={0}
+                            max={ticketType.remainingQuantity}
+                            value={quantities[ticketType.id]?.quantity || 0}
+                            onChange={(value) => handleSelectionChange(ticketType.id, 'quantity', value)}
+                            disabled={isEnded || isFull || !isTicketSelectable}
                           />
                         </div>
-                      )}
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-slate-500">Số lượng mua:</span>
-                        <InputNumber
-                          min={0}
-                          max={ticketType.remainingQuantity}
-                          value={quantities[ticketType.id]?.quantity || 0}
-                          onChange={(value) => handleSelectionChange(ticketType.id, 'quantity', value)}
-                          disabled={isEnded || isFull || ticketType.remainingQuantity === 0}
-                        />
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
