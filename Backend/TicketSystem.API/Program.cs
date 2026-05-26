@@ -48,6 +48,8 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<ITicketShareService, TicketShareService>();
+
+builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 

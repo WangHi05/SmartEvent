@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, Modal, Typography, Progress, Badge, message, List, Avatar, Spin } from 'antd';
-import { AlertOutlined, EnvironmentOutlined, CheckCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { AlertOutlined, EnvironmentOutlined, CheckCircleOutlined, ThunderboltOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Sparkles, BrainCircuit } from 'lucide-react'; 
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import axiosClient from '../../../api/axiosClient';
@@ -21,13 +21,31 @@ const GateControl = () => {
   const [aiPrediction, setAiPrediction] = useState('');
   const [aiCommand, setAiCommand] = useState('');
 
-  const [gates] = useState([
-    { id: 1, name: 'Cổng chính - Lối vào 1', currentTraffic: 150, capacity: 200, status: 'Quá tải' },
-    { id: 2, name: 'Cổng phụ - Lối vào 2', currentTraffic: 30, capacity: 200, status: 'Vắng' },
-    { id: 3, name: 'Cổng VIP', currentTraffic: 15, capacity: 50, status: 'Bình thường' }
-  ]);
+  // 1. Thay đổi state thành mảng rỗng và thêm state quản lý trạng thái tải dữ liệu
+  const [gates, setGates] = useState([]);
+  const [isLoadingGates, setIsLoadingGates] = useState(true);
+
+  // 2. Hàm gọi API lấy dữ liệu thực tế từ Database
+  const fetchGateData = async () => {
+    setIsLoadingGates(true);
+    try {
+      const response = await axiosClient.get('/gate/status');
+      const data = response.data || response; 
+      
+      setGates(data);
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu cổng:", error);
+      message.error("Không thể lấy dữ liệu thống kê cổng từ máy chủ.");
+    } finally {
+      setIsLoadingGates(false);
+    }
+  };
 
   useEffect(() => {
+    // Tải dữ liệu cổng ngay khi component được render
+    fetchGateData();
+
+    // Khởi tạo kết nối SignalR
     const connection = new HubConnectionBuilder()
       .withUrl(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/gateHub` : 'http://localhost:5013/gateHub')
       .configureLogging(LogLevel.Information)
@@ -36,11 +54,16 @@ const GateControl = () => {
 
     connection.start()
       .then(() => { connection.invoke("JoinAdminGroup"); })
-      .catch(err => console.error("Lỗi kết nối: ", err));
+      .catch(err => console.error("Lỗi kết nối SignalR: ", err));
 
     connection.on("ReceiveConfirmation", (gateName, staffName, time) => {
       setAcknowledgedLogs(prev => [{ gateName, staffName, time, id: Date.now() }, ...prev]);
       message.success(`Nhân viên ${staffName} tại ${gateName} đã tiếp nhận lệnh!`);
+    });
+
+    // Tuỳ chọn: Lắng nghe sự kiện cập nhật lưu lượng cổng từ SignalR để update Real-time
+    connection.on("GateTrafficUpdated", (updatedGate) => {
+      setGates(prevGates => prevGates.map(g => g.id === updatedGate.id ? updatedGate : g));
     });
 
     return () => { connection.stop(); };
@@ -71,13 +94,12 @@ const GateControl = () => {
       const response = await axiosClient.post('/gate/ai-predict', { gates: gates });
       const content = response.analysisContent || response.data?.analysisContent || '';
       
-      // Tách chuỗi kết quả (Dự báo và Lệnh)
       const parts = content.split('**Lệnh đề xuất:**');
       if (parts.length === 2) {
          setAiPrediction(parts[0].replace('**Dự báo xu hướng:**', '').trim());
          setAiCommand(parts[1].trim());
       } else {
-         setAiPrediction(content); // Fallback hiển thị cục bộ
+         setAiPrediction(content);
       }
     } catch (error) {
       message.error("Lỗi kết nối đến AI Server");
@@ -86,14 +108,19 @@ const GateControl = () => {
     }
   };
 
-  // NÚT BẤM DÙNG LỆNH CỦA AI ĐIỀN VÀO MODAL
   const handleUseAiCommand = () => {
-    setSelectedGate('Cổng chính - Lối vào 1');
-    setAlertMessage(aiCommand);
-    setIsModalVisible(true);
+    // Mặc định chọn cổng đang có tình trạng nghiêm trọng nhất (ví dụ cổng đầu tiên bị quá tải)
+    const overloadedGate = gates.find(g => g.status === 'Quá tải') || gates[0];
+    if (overloadedGate) {
+      setSelectedGate(overloadedGate.name);
+      setAlertMessage(aiCommand);
+      setIsModalVisible(true);
+    }
   };
 
   const getStatusColor = (traffic, capacity) => {
+    // Tránh lỗi chia cho 0 nếu capacity chưa được load
+    if (!capacity || capacity === 0) return 'normal';
     const percent = (traffic / capacity) * 100;
     if (percent > 80) return 'exception'; 
     if (percent > 50) return 'normal'; 
@@ -107,8 +134,13 @@ const GateControl = () => {
           <Title level={2} className="!mb-1">Trung tâm Điều hành Cổng</Title>
           <Text type="secondary">Quản lý luồng khách Real-time & Phân tích dự báo thông minh</Text>
         </div>
-        <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
-           <Text className="text-gray-500">Chỉ huy: </Text><strong className="text-blue-700">{adminName}</strong>
+        <div className="flex gap-4 items-center">
+          <Button icon={<ReloadOutlined />} onClick={fetchGateData} loading={isLoadingGates}>
+            Làm mới dữ liệu
+          </Button>
+          <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+            <Text className="text-gray-500">Chỉ huy: </Text><strong className="text-blue-700">{adminName}</strong>
+          </div>
         </div>
       </div>
 
@@ -126,7 +158,7 @@ const GateControl = () => {
               Trí tuệ nhân tạo sẽ quét lưu lượng tại các cổng, dự báo xu hướng đám đông trong 30 phút tới và tự động tạo lệnh phân luồng tối ưu nhất.
             </p>
             <Button 
-              type="primary" onClick={handleAskAI} loading={isAiLoading}
+              type="primary" onClick={handleAskAI} loading={isAiLoading || isLoadingGates} disabled={gates.length === 0}
               className="bg-indigo-500 hover:bg-indigo-400 border-none w-full h-10 font-semibold"
               icon={<ThunderboltOutlined />}
             >
@@ -169,27 +201,39 @@ const GateControl = () => {
       </div>
 
       <div className="flex flex-col xl:flex-row gap-6 mt-6">
-        <div className="w-full xl:w-2/3 grid grid-cols-1 md:grid-cols-2 gap-6 h-fit">
-          {gates.map(gate => (
-            <Card key={gate.id} className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center space-x-2">
-                  <EnvironmentOutlined className="text-blue-500 text-xl" />
-                  <h3 className="font-bold text-lg">{gate.name}</h3>
-                </div>
-                <Badge status={gate.status === 'Quá tải' ? 'error' : 'success'} text={gate.status} />
-              </div>
-              <div className="mb-6">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Lưu lượng hiện tại:</span><span className="font-bold">{gate.currentTraffic} / {gate.capacity}</span>
-                </div>
-                <Progress percent={Math.round((gate.currentTraffic / gate.capacity) * 100)} status={getStatusColor(gate.currentTraffic, gate.capacity)} strokeWidth={12} />
-              </div>
-              <Button type="primary" danger={gate.status === 'Quá tải'} icon={<AlertOutlined />} className="w-full" onClick={() => handleOpenAlert(gate.name)}>
-                Phát lệnh điều hướng
-              </Button>
-            </Card>
-          ))}
+        <div className="w-full xl:w-2/3">
+          {isLoadingGates ? (
+            <div className="flex justify-center items-center min-h-[300px] bg-white rounded-lg border border-gray-200">
+               <Spin size="large" tip="Đang lấy dữ liệu luồng khách từ máy chủ..." />
+            </div>
+          ) : gates.length === 0 ? (
+            <div className="flex justify-center items-center min-h-[300px] bg-white rounded-lg border border-gray-200 text-gray-500">
+               Chưa có dữ liệu thống kê cổng nào.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-fit">
+              {gates.map(gate => (
+                <Card key={gate.id} className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex items-center space-x-2">
+                      <EnvironmentOutlined className="text-blue-500 text-xl" />
+                      <h3 className="font-bold text-lg">{gate.name}</h3>
+                    </div>
+                    <Badge status={gate.status === 'Quá tải' ? 'error' : 'success'} text={gate.status} />
+                  </div>
+                  <div className="mb-6">
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Lưu lượng hiện tại:</span><span className="font-bold">{gate.currentTraffic} / {gate.capacity}</span>
+                    </div>
+                    <Progress percent={Math.round((gate.currentTraffic / gate.capacity) * 100) || 0} status={getStatusColor(gate.currentTraffic, gate.capacity)} strokeWidth={12} />
+                  </div>
+                  <Button type="primary" danger={gate.status === 'Quá tải'} icon={<AlertOutlined />} className="w-full" onClick={() => handleOpenAlert(gate.name)}>
+                    Phát lệnh điều hướng
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="w-full xl:w-1/3">

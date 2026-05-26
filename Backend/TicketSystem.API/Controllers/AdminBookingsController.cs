@@ -8,7 +8,7 @@ namespace TicketSystem.API.Controllers;
 [ApiController]
 [Route("api/admin/bookings")]
 [Route("api/admin/orders")]
-[Authorize(Roles = "Admin,Manager,Staff")]
+[Authorize(Roles = "Admin,Manager")]
 public class AdminBookingsController : ControllerBase
 {
     private readonly IOrderService _orderService;
