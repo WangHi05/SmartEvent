@@ -1,0 +1,13 @@
+{
+  "name": "ticketsystem-root",
+  "version": "1.0.0",
+  "description": "Root package to run both Backend and Frontend concurrently",
+  "scripts": {
+    "start:backend": "dotnet run --project Backend/TicketSystem.API/TicketSystem.API.csproj",
+    "start:frontend": "cd Frontend && npm run dev",
+    "dev": "concurrently -c \"cyan.bold,magenta.bold\" -n \"BACKEND,FRONTEND\" \"npm run start:backend\" \"npm run start:frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

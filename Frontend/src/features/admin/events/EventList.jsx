@@ -2,13 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Table, Button, Space, Tag, Popconfirm, message, Input } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
+import * as signalR from '@microsoft/signalr';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
 
-/**
- * Component danh sách Events
- * Đã nâng cấp: Server-side Pagination & Search với kỹ thuật Debounce
- */
 const EventList = () => {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,69 +16,76 @@ const EventList = () => {
   });
   
   const [searchText, setSearchText] = useState('');
-  // State để lưu từ khóa sau khi đã debounce (ngừng gõ)
   const [debouncedSearch, setDebouncedSearch] = useState('');
   
   const [formVisible, setFormVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // KỸ THUẬT DEBOUNCE: Đợi 500ms sau khi người dùng ngừng gõ mới cập nhật từ khóa tìm kiếm
+  // KỸ THUẬT DEBOUNCE
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchText);
     }, 500);
-
-    // Cleanup function: Xóa timeout cũ nếu người dùng tiếp tục gõ
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [searchText]);
 
-  // Fetch dữ liệu mỗi khi page, pageSize hoặc từ khóa tìm kiếm (đã debounce) thay đổi
-  const fetchEvents = useCallback(async (page = 1, pageSize = 10, keyword = '') => {
-    setLoading(true);
+  const fetchEvents = useCallback(async (page = 1, pageSize = 10, keyword = '', isSilent = false) => {
+    if (!isSilent) setLoading(true);
+    
     try {
-      // ĐỔI SANG GỌI API SEARCH CHÚNG TA VỪA TẠO Ở BACKEND
       const response = await axiosClient.get('/events/search', {
-        params: { 
-          pageNumber: page, 
-          pageSize: pageSize,
-          keyword: keyword // Truyền từ khóa xuống Database để tìm
-        },
+        params: { pageNumber: page, pageSize: pageSize, keyword: keyword },
       });
       
-      const data = response.data || response; // Lấy data an toàn
-      
+      const data = response.data || response; 
       setEvents(data.items || []);
-      setPagination({
+      setPagination(prev => ({
+        ...prev,
         current: data.pageNumber || page,
         pageSize: data.pageSize || pageSize,
         total: data.totalCount || 0,
-      });
+      }));
     } catch (error) {
       console.error('Error fetching events:', error);
-      message.error('Không thể tải danh sách sự kiện');
+      if (!isSilent) message.error('Không thể tải danh sách sự kiện. Vui lòng kiểm tra kết nối Backend.');
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
-  }, []); // useCallback giúp hàm không bị tạo lại liên tục
+  }, []); 
 
-  // Gọi API lần đầu và mỗi khi debouncedSearch thay đổi
+  // Gọi API lần đầu
   useEffect(() => {
-    // Reset về trang 1 mỗi khi đổi từ khóa tìm kiếm
     fetchEvents(1, pagination.pageSize, debouncedSearch);
   }, [debouncedSearch, fetchEvents]);
 
-  // Auto-refresh dữ liệu mỗi 1 giây để cập nhật sức chứa realtime
+  // CƠ CHẾ SIGNALR: Lắng nghe thay đổi Real-time 
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch);
-    }, 1000); // Refresh mỗi 1 giây
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl("http://localhost:5013/gateHub")
+      .withAutomaticReconnect()
+      .build();
 
-    return () => clearInterval(interval); // Cleanup interval
-  }, [pagination.current, pagination.pageSize, debouncedSearch, fetchEvents]);
+    connection.on("TicketCheckedIn", (data) => {
+      console.log("⚡ Nhận dữ liệu Real-time:", data);
+      
+      // Update UI ngay lập tức mà không cần gọi lại API GET
+      setEvents(prevEvents => prevEvents.map(evt => 
+        evt.id === data.eventId 
+          ? { ...evt, currentOccupancy: data.newOccupancy, isFull: data.isFull } 
+          : evt
+      ));
+    });
 
-  // Xử lý xóa event
+    connection.start()
+      .then(() => console.log('✅ Đã kết nối SignalR Real-time Dashboard'))
+      .catch(err => console.error('❌ Lỗi kết nối SignalR: ', err));
+
+    // Cleanup khi rời khỏi trang
+    return () => {
+      connection.stop();
+    };
+  }, []);
+
   const handleDelete = async (id) => {
     try {
       await axiosClient.delete(`/events/${id}`);
@@ -93,30 +97,20 @@ const EventList = () => {
     }
   };
 
-  // Xử lý edit
   const handleEdit = (record) => {
     setSelectedEvent(record);
     setFormVisible(true);
   };
 
-  // Xử lý create
   const handleCreate = () => {
     setSelectedEvent(null);
     setFormVisible(true);
   };
 
-  // Xử lý khi user bấm chuyển trang trên UI
   const handleTableChange = (newPagination) => {
     fetchEvents(newPagination.current, newPagination.pageSize, debouncedSearch);
   };
 
-  // Xử lý quản lý ticket types
-  const handleManageTicketTypes = (record) => {
-    setSelectedEventForTicketTypes(record);
-    setTicketTypesVisible(true);
-  };
-
-  // Columns cho table
   const columns = [
     {
       title: 'Tên sự kiện',
@@ -149,8 +143,6 @@ const EventList = () => {
       title: 'Trạng thái',
       key: 'status',
       render: (_, record) => {
-        // Tạm thời tính trạng thái theo thời gian. 
-        // Sau này có trường Status từ DB sẽ map thẳng enum ở đây
         const now = new Date();
         const start = new Date(record.startTime);
         const end = new Date(record.endTime);
@@ -220,7 +212,6 @@ const EventList = () => {
         onChange={handleTableChange}
         scroll={{ x: 1200 }}
       />
-
       <EventForm
         visible={formVisible}
         onClose={() => {

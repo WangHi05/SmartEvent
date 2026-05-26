@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using TicketSystem.API.Hubs;
 using TicketSystem.Application.Interfaces;
+using TicketSystem.Application.DTOs; 
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace TicketSystem.API.Controllers
@@ -12,11 +14,23 @@ namespace TicketSystem.API.Controllers
     {
         private readonly IHubContext<GateHub> _hubContext;
         private readonly IAiAnalysisService _aiService;
+        private readonly IGateService _gateService;
 
-        public GateController(IHubContext<GateHub> hubContext, IAiAnalysisService aiService)
+        public GateController(
+            IHubContext<GateHub> hubContext, 
+            IAiAnalysisService aiService,
+            IGateService gateService)
         {
             _hubContext = hubContext;
             _aiService = aiService;
+            _gateService = gateService;
+        }
+
+        [HttpGet("status")]
+        public async Task<IActionResult> GetGateStatus()
+        {
+            var gates = await _gateService.GetGateTrafficStatusAsync();
+            return Ok(gates);
         }
 
         [HttpPost("notify")]
@@ -34,10 +48,8 @@ namespace TicketSystem.API.Controllers
                 return BadRequest(new { message = "Dữ liệu cổng không hợp lệ hoặc trống." });
             }
 
-            // Truyền mảng danh sách các cổng vào cho Gemini AI xử lý
             var aiResponse = await _aiService.GetGateCrowdAnalysisAsync(request.Gates);
 
-            // Trả kết quả về cho Frontend (Có chứa AnalysisContent)
             if (aiResponse.IsSuccess)
             {
                 return Ok(aiResponse);
@@ -58,14 +70,5 @@ namespace TicketSystem.API.Controllers
     public class AiPredictRequest
     {
         public List<GateTrafficDto> Gates { get; set; } = new List<GateTrafficDto>();
-    }
-
-    public class GateTrafficDto
-    {
-        public int Id { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public int CurrentTraffic { get; set; }
-        public int Capacity { get; set; }
-        public string Status { get; set; } = string.Empty;
     }
 }
