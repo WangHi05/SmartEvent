@@ -8,7 +8,7 @@ namespace TicketSystem.Domain.Entities
     
     public class AuditLog : BaseEntity
     {
-        public DateTime Timestamp { get; set; } = DateTime.Now;
+        public DateTime Timestamp { get; set; } = DateTime.UtcNow;
         public string Action { get; set; } = string.Empty; // Create, Update, Delete, Cancel, CheckIn, Refund
         public string EntityType { get; set; } = string.Empty; // Event, Ticket, User
         public Guid EntityId { get; set; }

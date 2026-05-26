@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Table, Card, Tag, DatePicker, Select, Input, Button, Space, Tooltip } from 'antd';
 import { SearchOutlined, ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
-import dayjs from 'dayjs';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 const { RangePicker } = DatePicker;
 const { Option } = Select;
@@ -100,7 +100,7 @@ const AuditLogsView = () => {
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 180,
-      render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm:ss'),
+      render: (date) => formatVietnamDateTime(date, { withSeconds: true }),
       sorter: (a, b) => new Date(a.timestamp) - new Date(b.timestamp),
     },
     {

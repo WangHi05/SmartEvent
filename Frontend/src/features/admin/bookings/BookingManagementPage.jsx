@@ -17,6 +17,7 @@ import { EyeOutlined, SearchOutlined, CheckCircleOutlined, CloseCircleOutlined, 
 import dayjs from 'dayjs';
 import axiosClient from '../../../api/axiosClient';
 import useAuthStore from '../../../store/useAuthStore';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 const paymentColorMap = {
   Pending: 'gold',
@@ -201,7 +202,7 @@ const BookingManagementPage = () => {
           <p><b>Loại vé:</b> ${row.ticketTypeName || '-'}</p>
           <p><b>Số lượng:</b> ${row.quantity || 0}</p>
           <p><b>Tổng tiền:</b> ${Number(row.totalPrice || 0).toLocaleString('vi-VN')}đ</p>
-          <p><b>Ngày xác nhận:</b> ${row.confirmedAt ? dayjs(row.confirmedAt).format('DD/MM/YYYY HH:mm:ss') : '-'}</p>
+          <p><b>Ngày xác nhận:</b> ${row.confirmedAt ? formatVietnamDateTime(row.confirmedAt, { withSeconds: true }) : '-'}</p>
           <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
@@ -335,7 +336,7 @@ const BookingManagementPage = () => {
       title: 'Ngày tạo',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (v) => dayjs(v).format('DD/MM/YYYY HH:mm'),
+      render: (v) => formatVietnamDateTime(v),
     },
     {
       title: 'Action',
@@ -422,9 +423,9 @@ const BookingManagementPage = () => {
             <Descriptions.Item label="Tổng tiền">{Number(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}₫</Descriptions.Item>
             <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
-            <Descriptions.Item label="Xác nhận lúc">{selectedOrder.confirmedAt ? dayjs(selectedOrder.confirmedAt).format('DD/MM/YYYY HH:mm:ss') : '-'}</Descriptions.Item>
+            <Descriptions.Item label="Xác nhận lúc">{selectedOrder.confirmedAt ? formatVietnamDateTime(selectedOrder.confirmedAt, { withSeconds: true }) : '-'}</Descriptions.Item>
             <Descriptions.Item label="Xác nhận bởi">{selectedOrder.confirmedBy || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Ngày tạo">{dayjs(selectedOrder.createdAt).format('DD/MM/YYYY HH:mm:ss')}</Descriptions.Item>
+            <Descriptions.Item label="Ngày tạo">{formatVietnamDateTime(selectedOrder.createdAt, { withSeconds: true })}</Descriptions.Item>
           </Descriptions>
         )}
       </Drawer>

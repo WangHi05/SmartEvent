@@ -150,7 +150,7 @@ const UserList = () => {
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 160,
-      render: (date) => new Date(date).toLocaleDateString('vi-VN'),
+      render: (date) => new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }).format(new Date(date)),
     },
     {
       title: 'Thao tác',

@@ -19,7 +19,7 @@ const formatRevenueAxisLabel = (value, period) => {
     return `${date.getFullYear()}`;
   }
 
-  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', timeZone: 'Asia/Ho_Chi_Minh' });
 };
 
 const formatRevenueTooltipLabel = (value, period) => {
@@ -35,6 +35,7 @@ const formatRevenueTooltipLabel = (value, period) => {
   }
 
   return date.toLocaleDateString('vi-VN', {
+    timeZone: 'Asia/Ho_Chi_Minh',
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',

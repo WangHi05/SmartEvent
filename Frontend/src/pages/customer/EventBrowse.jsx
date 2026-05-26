@@ -216,8 +216,8 @@ const EventBrowse = () => {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="grid items-stretch gap-8 sm:grid-cols-2 xl:grid-cols-3">
             {filteredEvents.map((event) => (
               <CustomerEventCard
                 key={event.id}

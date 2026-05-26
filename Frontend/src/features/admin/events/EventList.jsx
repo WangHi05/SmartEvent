@@ -5,6 +5,7 @@ import axiosClient from '../../../api/axiosClient';
 import * as signalR from '@microsoft/signalr';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 const EventList = () => {
   const [events, setEvents] = useState([]);
@@ -127,7 +128,7 @@ const EventList = () => {
       title: 'Thời gian bắt đầu',
       dataIndex: 'startTime',
       key: 'startTime',
-      render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm'),
+      render: (date) => formatVietnamDateTime(date),
     },
     {
       title: 'Sức chứa',

@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace TicketSystem.Application.Services
 {
@@ -17,13 +18,24 @@ namespace TicketSystem.Application.Services
         public GeminiService(HttpClient httpClient, IConfiguration configuration)
         {
             _httpClient = httpClient;
-            var key = configuration["GeminiAI:ApiKey"];
-            _apiKey = key?.Trim() ?? throw new ArgumentNullException("Gemini API Key is missing");
-            var model = configuration["GeminiAI:Model"];
-            _model = model?.Trim();
+            _httpClient.Timeout = Timeout.InfiniteTimeSpan;
+            var key = configuration["GeminiAI:ApiKey"]?.Trim();
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                throw new InvalidOperationException("Missing Gemini configuration: GeminiAI:ApiKey. Configure it via User Secrets or environment variables.");
+            }
+
+            var model = configuration["GeminiAI:Model"]?.Trim();
+            if (string.IsNullOrWhiteSpace(model))
+            {
+                throw new InvalidOperationException("Missing Gemini configuration: GeminiAI:Model. Configure it via appsettings, User Secrets, or environment variables.");
+            }
+
+            _apiKey = key;
+            _model = model;
         }
 
-        public async Task<string> GenerateContentAsync(string prompt)
+        public async Task<string> GenerateContentAsync(string prompt, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -32,7 +44,17 @@ namespace TicketSystem.Application.Services
                 {
                     contents = new[]
                     {
-                        new { parts = new[] { new { text = prompt } } }
+                        new
+                        {
+                            role = "user",
+                            parts = new[] { new { text = prompt } }
+                        }
+                    },
+                    generationConfig = new
+                    {
+                        temperature = 0.2,
+                        topP = 0.95,
+                        maxOutputTokens = 1024
                     }
                 };
 
@@ -40,15 +62,10 @@ namespace TicketSystem.Application.Services
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 // Ensure model configured
-                if (string.IsNullOrWhiteSpace(_model))
-                {
-                    throw new InvalidOperationException("Gemini model is not configured. Set 'GeminiAI:Model' in appsettings.json or via environment variable to a supported model name (e.g. models/gemini-1.5). See ModelService.ListModels for available models.");
-                }
-
                 // Gọi Gemini API using model from configuration
                 var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
                 
-                var response = await _httpClient.PostAsync(requestUrl, content);
+                using var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -65,14 +82,27 @@ namespace TicketSystem.Application.Services
                 // Parse response từ Gemini
                 var responseString = await response.Content.ReadAsStringAsync();
                 using var jsonDoc = JsonDocument.Parse(responseString);
-                
-                var aiText = jsonDoc.RootElement
-                    .GetProperty("candidates")[0]
-                    .GetProperty("content")
-                    .GetProperty("parts")[0]
-                    .GetProperty("text").GetString();
+
+                if (!jsonDoc.RootElement.TryGetProperty("candidates", out var candidates) || candidates.GetArrayLength() == 0)
+                {
+                    throw new InvalidOperationException("Gemini returned no candidates.");
+                }
+
+                var firstCandidate = candidates[0];
+                if (!firstCandidate.TryGetProperty("content", out var contentElement) ||
+                    !contentElement.TryGetProperty("parts", out var parts) ||
+                    parts.GetArrayLength() == 0)
+                {
+                    throw new InvalidOperationException("Gemini returned an invalid response payload.");
+                }
+
+                var aiText = parts[0].GetProperty("text").GetString();
 
                 return aiText ?? "Không thể tạo nội dung.";
+            }
+            catch (OperationCanceledException ex)
+            {
+                throw new TimeoutException("Gemini request timed out.", ex);
             }
             catch (HttpRequestException ex)
             {

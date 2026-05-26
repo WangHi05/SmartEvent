@@ -15,6 +15,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.Application.Services
 {
@@ -56,7 +57,7 @@ namespace TicketSystem.Application.Services
             if (ticket == null || ticket.Status != TicketStatus.ACTIVE)
                 return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã sử dụng hết." };
 
-            var now = DateTime.Now;
+            var now = VietnamTime.Now;
             
             // DÙNG REMAINING SLOTS THAY VÌ SUM LOG
             if (ticket.RemainingSlots < peopleCount)
@@ -111,7 +112,7 @@ namespace TicketSystem.Application.Services
             var qrPayload = request?.QrPayload?.Trim() ?? string.Empty;
             var gateName = request?.GateName?.Trim() ?? string.Empty;
             var peopleCount = request?.PeopleCount ?? 1;
-            var timestamp = GetVietnamTime();
+            var timestamp = VietnamTime.Now;
             Guid ticketId = Guid.Empty;
             Guid eventId = Guid.Empty;
             string eventName = string.Empty;
@@ -206,7 +207,8 @@ namespace TicketSystem.Application.Services
                     .Include(t => t.TicketType)
                         .ThenInclude(tt => tt!.Event)
                     .Include(t => t.Order)
-                        .ThenInclude(o => o.User)
+                        .ThenInclude(o => o!)
+                            .ThenInclude(o => o.User)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null)
@@ -302,7 +304,7 @@ namespace TicketSystem.Application.Services
                     return response;
                 }
 
-                if (ticket.TicketType?.Event != null && ticket.TicketType.Event.EndTime < timestamp)
+                if (ticket.TicketType?.Event != null && VietnamTime.ToVietnamTime(ticket.TicketType.Event.EndTime) < timestamp)
                 {
                     var response = CheckInResponse.Fail("Event đã kết thúc.");
                     await PersistCheckInOutcomeAsync(new CheckInOutcome
@@ -373,7 +375,7 @@ namespace TicketSystem.Application.Services
                     return response;
                 }
 
-                if (timestamp < ticket.ValidFrom || timestamp > ticket.ValidTo)
+                if (timestamp < VietnamTime.ToVietnamTime(ticket.ValidFrom) || timestamp > VietnamTime.ToVietnamTime(ticket.ValidTo))
                 {
                     var response = CheckInResponse.Fail("Vé hết hạn.");
                     await PersistCheckInOutcomeAsync(new CheckInOutcome
@@ -715,12 +717,6 @@ namespace TicketSystem.Application.Services
             var raw = $"{staffId}|{peopleCount}|{gateName}|{qrPayload}";
             var hash = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
             return Convert.ToHexString(hash);
-        }
-
-        private DateTime GetVietnamTime()
-        {
-            var vietnamZone = TimeZoneInfo.FindSystemTimeZoneById("SE Asia Standard Time");
-            return TimeZoneInfo.ConvertTime(DateTime.UtcNow, vietnamZone);
         }
 
         private string? GetClientIpAddress()

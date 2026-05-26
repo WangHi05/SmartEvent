@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import { useState, useRef, useEffect } from 'react';
+import apiClient from '../services/apiClient';
 
 const ChatbotWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -11,17 +11,22 @@ const ChatbotWidget = () => {
       timestamp: new Date()
     }
   ]);
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
+  const createMessageId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
   const quickActions = [
     { label: 'Sự kiện đang mở bán', message: 'Cho tôi xem các sự kiện đang mở bán' },
     { label: 'Giá vé và loại vé', message: 'Cho tôi biết các loại vé và giá vé hiện có' },
-    { label: 'Cách đặt vé', message: 'Hướng dẫn tôi cách đặt vé' },
-    { label: 'Thanh toán như thế nào?', message: 'Hệ thống hỗ trợ những phương thức thanh toán nào?' },
-    { label: 'Vé của tôi ở đâu?', message: 'Tôi đã mua vé rồi thì xem vé ở đâu?' },
-    { label: 'Chính sách hủy/hoàn tiền', message: 'Chính sách hủy vé và hoàn tiền như thế nào?' },
-    { label: 'Cách check-in bằng QR', message: 'Tôi check-in bằng mã QR như thế nào?' },
-    { label: 'Liên hệ nhân viên hỗ trợ', message: 'Tôi muốn liên hệ nhân viên hỗ trợ' }
+    { label: 'Hướng dẫn đặt vé', message: 'Hướng dẫn tôi cách đặt vé từng bước' },
+    { label: 'Thanh toán', message: 'Thanh toán như thế nào?' },
+    { label: 'Xem vé đã mua', message: 'Tôi đã mua vé rồi thì xem vé ở đâu?' },
+    { label: 'Hủy / hoàn tiền', message: 'Chính sách hủy vé và hoàn tiền như thế nào?' },
+    { label: 'Check-in QR', message: 'Tôi check-in bằng mã QR như thế nào?' },
+    { label: 'Liên hệ hỗ trợ', message: 'Tôi muốn liên hệ nhân viên hỗ trợ' },
+    { label: 'Trạng thái đơn hàng', message: 'Đơn hàng của tôi đang ở trạng thái nào?' },
+    { label: 'Chưa nhận được vé', message: 'Tôi chưa nhận được vé' },
+    { label: 'Sửa thông tin mua vé', message: 'Tôi nhập sai thông tin người mua' },
+    { label: 'Thanh toán thất bại', message: 'Thanh toán thất bại phải làm sao?' }
   ];
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,38 +46,7 @@ const ChatbotWidget = () => {
     return new Intl.NumberFormat('vi-VN').format(value) + ' VND';
   };
 
-  const renderPriceListText = (text) => {
-    // Expect lines like: "Event Name - Ticket A 120.000 VNĐ (Còn 9); Ticket B 200.000 VNĐ (Còn 5)"
-    const lines = String(text).split('\n').map(l => l.trim()).filter(l => l.length > 0);
-    return (
-      <div className="space-y-2">
-        {lines.map((line, idx) => {
-          const parts = line.split(' - ');
-          const eventName = parts[0] || line;
-          const ticketsPart = parts.slice(1).join(' - ');
-          const tickets = ticketsPart ? ticketsPart.split(';').map(t => t.trim()).filter(Boolean) : [];
-          return (
-            <div key={idx} className="bg-white border border-gray-200 rounded-md p-3">
-              <div className="text-sm font-semibold text-gray-900 mb-1">{eventName}</div>
-              {tickets.length > 0 ? (
-                <div className="text-xs text-gray-700 space-y-1">
-                  {tickets.map((t, i) => (
-                    <div key={i} className="flex items-center justify-between">
-                      <div className="truncate">{t}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-gray-600">{line}</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderPriceListEvents = (events) => {
+  const renderStructuredEvents = (events) => {
     if (!Array.isArray(events) || events.length === 0) return null;
     return (
       <div className="space-y-2">
@@ -111,6 +85,11 @@ const ChatbotWidget = () => {
                   ))}
                 </div>
               )}
+              {ticketTypes.length === 0 && (
+                <div className="mt-2 text-xs text-gray-500 italic">
+                  Chưa có loại vé đang mở bán.
+                </div>
+              )}
             </div>
           );
         })}
@@ -119,71 +98,89 @@ const ChatbotWidget = () => {
   };
 
   const formatDateTimeRange = (startTime, endTime) => {
-    const start = new Date(startTime).toLocaleString('vi-VN', {
+    const start = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
-    });
-    const end = new Date(endTime).toLocaleString('vi-VN', {
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(startTime));
+    const end = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
       day: '2-digit',
       month: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
-    });
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date(endTime));
     return `${start} - ${end}`;
+  };
+
+  const buildConversationHistory = (items) => {
+    return items
+      .slice(-6)
+      .map((item) => ({
+        role: item.type === 'user' ? 'user' : 'assistant',
+        content: item.text
+      }))
+      .filter((item) => item.content && item.content.trim());
+  };
+
+  const sendChatRequest = async (messageText, historySource) => {
+    const response = await apiClient.post('/ai/customer-support', {
+      message: messageText,
+      history: buildConversationHistory(historySource)
+    });
+
+    if (response?.isSuccess) {
+      return {
+        id: createMessageId(),
+        type: 'bot',
+        text: response.answer,
+        responseType: response.responseType,
+        data: response.data,
+        timestamp: new Date()
+      };
+    }
+
+    return {
+      id: createMessageId(),
+      type: 'bot',
+      text: response?.answer || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
+      timestamp: new Date(),
+      isError: true
+    };
   };
 
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
-    // Thêm message từ user
+    const trimmedInput = inputValue.trim();
+    const historyBeforeSend = messages;
+
     const userMessage = {
-      id: messages.length + 1,
+      id: createMessageId(),
       type: 'user',
-      text: inputValue,
+      text: trimmedInput,
       timestamp: new Date()
     };
 
-    setMessages([...messages, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // Gọi API
-      const response = await axios.post(`${API_BASE}/api/ai/customer-support`, {
-        message: inputValue
-      });
-
-      if (response.data.isSuccess) {
-        const botMessage = {
-          id: messages.length + 2,
-          type: 'bot',
-          text: response.data.answer,
-          responseType: response.data.responseType,
-          events: response.data.events || [],
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, botMessage]);
-      } else {
-        const errorMessage = {
-          id: messages.length + 2,
-          type: 'bot',
-          text: response.data.errorMessage || 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
-          timestamp: new Date(),
-          isError: true
-        };
-        setMessages(prev => [...prev, errorMessage]);
-      }
+      const botMessage = await sendChatRequest(trimmedInput, historyBeforeSend);
+      setMessages(prev => [...prev, botMessage]);
     } catch (error) {
-      const userAskedQR = /check[- ]?in|mã QR|QR/i.test(inputValue || '');
-      const qrInstruction = 'Vui lòng truy cập mục "Vé của tôi" chọn nút "Mở vé" và đưa cho nhân viên quét hoặc có thể đến quầy nhân viên để trợ giúp';
+      const backendMessage = error?.response?.data?.answer;
       const errorMessage = {
-        id: messages.length + 2,
+        id: createMessageId(),
         type: 'bot',
-        text: userAskedQR ? qrInstruction : 'Xin lỗi, có lỗi khi kết nối tới máy chủ. Vui lòng thử lại sau.',
+        text: backendMessage || 'Hiện tại trợ lý AI đang gặp sự cố kết nối. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ.',
         timestamp: new Date(),
-        isError: !userAskedQR
+        isError: !backendMessage
       };
       setMessages(prev => [...prev, errorMessage]);
       console.error('Chatbot API Error:', error);
@@ -194,65 +191,29 @@ const ChatbotWidget = () => {
 
   const handleQuickAction = async (action) => {
     if (!action || !action.message) return;
+
+    const actionMessage = action.message.trim();
+    const historyBeforeSend = messages;
     const userMessage = {
-      id: messages.length + 1,
+      id: createMessageId(),
       type: 'user',
-      text: action.message,
+      text: actionMessage,
       timestamp: new Date()
     };
+
     setMessages(prev => [...prev, userMessage]);
     setIsLoading(true);
-    // Provide local canned responses for common quick actions so users
-    // still get helpful guidance even if the backend is unavailable.
-    const cannedResponses = {
-      'Hướng dẫn tôi cách đặt vé':
-        'Hướng dẫn đặt vé:\n1. Vào mục "Sự kiện" hoặc tìm sự kiện bạn muốn.\n2. Chọn sự kiện, nhấn "Mua vé".\n3. Chọn loại vé và số lượng, nhấn "Tiếp tục".\n4. Điền thông tin người mua và kiểm tra lại.\n5. Chọn phương thức thanh toán và hoàn tất.\n6. Sau khi thanh toán, vé sẽ hiển thị ở mục "Vé của tôi".',
-    };
-
-    if (cannedResponses[action.message]) {
-      const botMessage = {
-        id: messages.length + 2,
-        type: 'bot',
-        text: cannedResponses[action.message],
-        timestamp: new Date()
-      };
-      setMessages(prev => [...prev, botMessage]);
-      setIsLoading(false);
-      return;
-    }
     try {
-      const response = await axios.post(`${API_BASE}/api/ai/customer-support`, { message: action.message });
-      if (response.data.isSuccess) {
-        const botMessage = {
-          id: messages.length + 2,
-          type: 'bot',
-          text: response.data.answer,
-          responseType: response.data.responseType,
-          events: response.data.events || [],
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, botMessage]);
-      } else {
-        const isQR = /check[- ]?in|mã QR|QR/i.test(action.message || '');
-        const qrInstruction = 'Vui lòng truy cập mục "Vé của tôi" chọn nút "Mở vé" và đưa cho nhân viên quét hoặc có thể đến quầy nhân viên để trợ giúp';
-        const botMessage = {
-          id: messages.length + 2,
-          type: 'bot',
-          text: isQR ? qrInstruction : (response.data.errorMessage || 'Xin lỗi, có lỗi xảy ra.'),
-          timestamp: new Date(),
-          isError: !isQR
-        };
-        setMessages(prev => [...prev, botMessage]);
-      }
+      const botMessage = await sendChatRequest(actionMessage, historyBeforeSend);
+      setMessages(prev => [...prev, botMessage]);
     } catch (err) {
-      const isQR = /check[- ]?in|mã QR|QR/i.test(action.message || '');
-      const qrInstruction = 'Vui lòng truy cập mục "Vé của tôi" chọn nút "Mở vé" và đưa cho nhân viên quét hoặc có thể đến quầy nhân viên để trợ giúp';
+      const backendMessage = err?.response?.data?.answer;
       const botMessage = {
-        id: messages.length + 2,
+        id: createMessageId(),
         type: 'bot',
-        text: isQR ? qrInstruction : 'Không thể kết nối tới máy chủ.',
+        text: backendMessage || 'Hiện tại trợ lý AI đang gặp sự cố kết nối. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ.',
         timestamp: new Date(),
-        isError: !isQR
+        isError: !backendMessage
       };
       setMessages(prev => [...prev, botMessage]);
     } finally {
@@ -332,7 +293,8 @@ const ChatbotWidget = () => {
                   <button
                     key={q.label}
                     onClick={() => handleQuickAction(q)}
-                    className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm hover:bg-blue-50"
+                    disabled={isLoading}
+                    className="px-3 py-1 bg-white border border-gray-200 rounded-full text-sm hover:bg-blue-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {q.label}
                   </button>
@@ -354,45 +316,15 @@ const ChatbotWidget = () => {
                       : 'bg-gray-200 text-gray-800 rounded-bl-none'
                   }`}
                 >
-                  {msg.responseType === 'open_sales' && Array.isArray(msg.events) && msg.events.length > 0 ? (
+                  {Array.isArray(msg.data) && msg.data.length > 0 ? (
                     <div className="space-y-3">
-                      <p className="text-sm leading-relaxed break-words font-medium">{msg.text}</p>
+                      <p className="text-sm leading-relaxed break-words font-medium whitespace-pre-line">{msg.text}</p>
                       <div className="space-y-3">
-                        {msg.events.map((event) => (
-                          <div
-                            key={event.id}
-                            className="bg-white border border-gray-200 rounded-xl p-3 shadow-sm"
-                          >
-                            <div className="text-sm font-semibold text-gray-900">🎫 {event.name}</div>
-                            <div className="text-xs text-gray-600 mt-1">📅 {formatDateTimeRange(event.startTime, event.endTime)}</div>
-                            <div className="text-xs text-gray-600 mt-1">📍 {event.location || 'Đang cập nhật'}</div>
-                            {event.description && (
-                              <div className="text-xs text-gray-600 mt-1">🏷️ {event.description}</div>
-                            )}
-                            <div className="mt-3 border-t border-dashed border-gray-200 pt-2">
-                              <div className="text-xs font-semibold text-gray-700 mb-2">💰 Giá vé:</div>
-                              <div className="space-y-1">
-                                {event.ticketTypes?.map((ticket) => (
-                                  <div key={ticket.id} className="text-xs text-gray-700 flex justify-between gap-3">
-                                    <span>- {ticket.name}</span>
-                                    <span>{formatCurrency(ticket.price)} (Còn {ticket.remainingQuantity})</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                        {renderStructuredEvents(msg.data)}
                       </div>
                     </div>
                   ) : (
-                    // If the bot returned a plain price-list text, render it as structured lines
-                    // Prefer structured events when backend sets responseType
-                    msg.responseType === 'price_list' && Array.isArray(msg.events) ?
-                      renderPriceListEvents(msg.events) :
-                    // Fallback: parse plain text price list if present
-                    (typeof msg.text === 'string' && (msg.text.includes('VNĐ') || msg.text.includes('Còn') || msg.text.includes(';'))) ?
-                      renderPriceListText(msg.text) :
-                      <p className="text-sm leading-relaxed break-words">{msg.text}</p>
+                    <p className="text-sm leading-relaxed break-words whitespace-pre-line">{msg.text}</p>
                   )}
                   <p className={`text-xs mt-1 ${
                     msg.type === 'user' ? 'opacity-70' : 'opacity-60'

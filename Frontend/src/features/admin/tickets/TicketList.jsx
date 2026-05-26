@@ -4,6 +4,7 @@ import { Settings } from 'lucide-react';
 import axiosClient from '../../../api/axiosClient';
 import TicketTypesAdmin from '../../../pages/TicketTypesAdminV2';
 import dayjs from 'dayjs';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 export function TicketList() {
   const [events, setEvents] = useState([]);
@@ -73,8 +74,8 @@ export function TicketList() {
     >
       <div className="space-y-2 text-sm">
         <p><strong>Địa điểm:</strong> {event.location}</p>
-        <p><strong>Ngày bắt đầu:</strong> {event.startTime ? dayjs(event.startTime).format('DD/MM/YYYY HH:mm') : 'N/A'}</p>
-        <p><strong>Ngày kết thúc:</strong> {event.endTime ? dayjs(event.endTime).format('DD/MM/YYYY HH:mm') : 'N/A'}</p>
+        <p><strong>Ngày bắt đầu:</strong> {event.startTime ? formatVietnamDateTime(event.startTime) : 'N/A'}</p>
+        <p><strong>Ngày kết thúc:</strong> {event.endTime ? formatVietnamDateTime(event.endTime) : 'N/A'}</p>
         
         {/* Chỉ hiển thị tem số ngày cho sự kiện Dài ngày */}
         {event.eventDurationDays && (

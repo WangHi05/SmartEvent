@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
@@ -363,7 +364,7 @@ namespace TicketSystem.Application.Services
                 DisplayOrder = ticketType.DisplayOrder,
                 IsActive = ticketType.IsActive,
                 CreatedAt = ticketType.CreatedAt,
-                CreatedBy = ticketType.CreatedBy,
+                CreatedBy = ticketType.CreatedBy ?? string.Empty,
                 UpdatedAt = ticketType.UpdatedAt,
                 UpdatedBy = ticketType.UpdatedBy
             };
@@ -376,8 +377,10 @@ namespace TicketSystem.Application.Services
 
         private static bool IsCurrentlyOnSale(Domain.Entities.TicketType ticketType)
         {
-            var now = DateTime.UtcNow;
-            return ticketType.IsActive && ticketType.SaleStartTime <= now && now <= ticketType.SaleEndTime;
+            var now = VietnamTime.Now;
+            var saleStartTime = VietnamTime.ToVietnamTime(ticketType.SaleStartTime);
+            var saleEndTime = VietnamTime.ToVietnamTime(ticketType.SaleEndTime);
+            return ticketType.IsActive && saleStartTime <= now && now <= saleEndTime;
         }
 
         private static string GetSaleStatusName(Domain.Entities.TicketType ticketType)
@@ -385,11 +388,14 @@ namespace TicketSystem.Application.Services
             if (!ticketType.IsActive)
                 return "Tắt";
 
-            var now = DateTime.UtcNow;
-            if (now < ticketType.SaleStartTime)
+            var now = VietnamTime.Now;
+            var saleStartTime = VietnamTime.ToVietnamTime(ticketType.SaleStartTime);
+            var saleEndTime = VietnamTime.ToVietnamTime(ticketType.SaleEndTime);
+
+            if (now < saleStartTime)
                 return "Chưa mở bán";
 
-            if (now <= ticketType.SaleEndTime)
+            if (now <= saleEndTime)
                 return "Đang mở bán";
 
             return "Đã kết thúc";

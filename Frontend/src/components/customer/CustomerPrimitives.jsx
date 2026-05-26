@@ -2,6 +2,7 @@ import React from 'react';
 import dayjs from 'dayjs';
 import { Button, Progress, Tag } from 'antd';
 import { ArrowRight, CalendarDays, Clock3, MapPin, TrendingUp } from 'lucide-react';
+import { formatVietnamDateRange } from '../../utils/vietnamTime';
 
 export const EVENT_CATEGORIES = [
   { label: 'Tất cả', value: 'all' },
@@ -50,12 +51,11 @@ export const getEventStatusMeta = (event) => {
 
 export const formatCurrency = (value) => {
   if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Liên hệ';
-  return `${Number(value).toLocaleString('vi-VN')}₫`;
+  return `${Number(value).toLocaleString('vi-VN')}đ`;
 };
 
 export const formatDateRange = (startTime, endTime) => {
-  if (!startTime || !endTime) return 'Đang cập nhật lịch diễn ra';
-  return `${dayjs(startTime).format('DD/MM/YYYY HH:mm')} - ${dayjs(endTime).format('DD/MM/YYYY HH:mm')}`;
+  return formatVietnamDateRange(startTime, endTime);
 };
 
 export const getCapacityPercent = (event) => {
@@ -69,6 +69,100 @@ export const formatCapacityLabel = (event) => {
   const currentOccupancy = Number(event?.currentOccupancy || 0);
   const maxCapacity = Number(event?.maxCapacity || 0);
   return `${currentOccupancy.toLocaleString('vi-VN')} / ${maxCapacity.toLocaleString('vi-VN')} chỗ`;
+};
+
+const getEventTicketTypes = (event, ticketTypes) => {
+  if (Array.isArray(ticketTypes) && ticketTypes.length > 0) {
+    return ticketTypes;
+  }
+
+  if (Array.isArray(event?.ticketTypes) && event.ticketTypes.length > 0) {
+    return event.ticketTypes;
+  }
+
+  if (Array.isArray(event?.TicketTypes) && event.TicketTypes.length > 0) {
+    return event.TicketTypes;
+  }
+
+  return [];
+};
+
+const getTicketRemainingQuantity = (ticketType) => {
+  const remainingQuantity = Number(ticketType?.remainingQuantity ?? ticketType?.RemainingQuantity ?? 0);
+  const remainingCapacity = Number(ticketType?.remainingCapacity ?? ticketType?.RemainingCapacity ?? 0);
+  return Math.max(remainingQuantity, remainingCapacity);
+};
+
+export const formatVndCurrency = (value) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return 'Liên hệ';
+  return formatCurrency(value);
+};
+
+export const getEventPriceSummary = (event, ticketTypes) => {
+  const tickets = getEventTicketTypes(event, ticketTypes);
+
+  if (tickets.length === 0) {
+    const fallbackPrice = Number(event?.basePrice ?? event?.price ?? event?.ticketPrice);
+    if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
+      return { type: 'price', text: `Giá từ ${formatVndCurrency(fallbackPrice)}`, value: fallbackPrice };
+    }
+
+    return { type: 'updating', text: 'Đang cập nhật', value: null };
+  }
+
+  const now = dayjs();
+  let minPrice = Number.POSITIVE_INFINITY;
+  let hasUpcoming = false;
+  let hasEnded = false;
+  let hasSoldOut = false;
+
+  tickets.forEach((ticketType) => {
+    const isActive = ticketType?.isActive ?? ticketType?.IsActive ?? true;
+    const saleStartTime = dayjs(ticketType?.saleStartTime ?? ticketType?.SaleStartTime);
+    const saleEndTime = dayjs(ticketType?.saleEndTime ?? ticketType?.SaleEndTime);
+    const remainingQuantity = getTicketRemainingQuantity(ticketType);
+    const price = Number(ticketType?.price ?? ticketType?.Price ?? 0);
+
+    if (!isActive) {
+      hasEnded = true;
+      return;
+    }
+
+    if (saleStartTime.isValid() && now.isBefore(saleStartTime)) {
+      hasUpcoming = true;
+      return;
+    }
+
+    if (saleEndTime.isValid() && now.isAfter(saleEndTime)) {
+      hasEnded = true;
+      return;
+    }
+
+    if (!(remainingQuantity > 0)) {
+      hasSoldOut = true;
+      return;
+    }
+
+    minPrice = Math.min(minPrice, price);
+  });
+
+  if (Number.isFinite(minPrice)) {
+    return { type: 'price', text: `Giá từ ${formatVndCurrency(minPrice)}`, value: minPrice };
+  }
+
+  if (hasUpcoming) {
+    return { type: 'upcoming', text: 'Chưa mở bán', value: null };
+  }
+
+  if (hasSoldOut) {
+    return { type: 'soldout', text: 'Hết vé', value: null };
+  }
+
+  if (hasEnded) {
+    return { type: 'ended', text: 'Đã kết thúc bán', value: null };
+  }
+
+  return { type: 'updating', text: 'Đang cập nhật', value: null };
 };
 
 export const CustomerSectionTitle = ({ kicker, title, description, action, className = '' }) => (
@@ -108,12 +202,13 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
   const progress = getCapacityPercent(event);
   const isEnded = status.key === 'ended';
   const isSoldOut = progress >= 100;
+  const priceSummary = getEventPriceSummary(event);
   const imageStyle = event?.imageUrl
     ? { backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.06), rgba(15,23,42,0.75)), url(${event.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundImage: 'linear-gradient(135deg, #111827 0%, #1f2937 40%, #f97316 100%)' };
 
   return (
-    <article className={`group overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(15,23,42,0.14)] ${className}`}>
+    <article className={`group h-full overflow-hidden rounded-[30px] border border-slate-200 bg-white shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_25px_70px_rgba(15,23,42,0.14)] ${className}`}>
       <div className="relative h-72 overflow-hidden" style={imageStyle}>
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/25 to-transparent" />
         <div className="absolute left-4 top-4 flex flex-wrap gap-2">
@@ -132,7 +227,7 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
         </div>
       </div>
 
-      <div className="space-y-4 p-6">
+      <div className="flex flex-1 flex-col space-y-4 p-6">
         <div className="space-y-2 text-sm text-slate-600">
           <div className="flex items-start gap-2">
             <CalendarDays size={16} className="mt-0.5 text-orange-500" />
@@ -144,7 +239,7 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
           </div>
           <div className="flex items-start gap-2">
             <Clock3 size={16} className="mt-0.5 text-orange-500" />
-            <span>Giá từ {formatCurrency(event?.basePrice ?? event?.price ?? event?.ticketPrice)}</span>
+            <span>{priceSummary.text}</span>
           </div>
         </div>
 
@@ -156,7 +251,7 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
           <Progress percent={progress} showInfo={false} strokeColor={isSoldOut ? '#ef4444' : '#f97316'} trailColor="#e2e8f0" />
         </div>
 
-        <div className="flex gap-3 pt-1">
+        <div className="mt-auto flex gap-3 pt-1">
           <Button className="flex-1 !h-12 !rounded-2xl !border-slate-300 !font-semibold" onClick={onViewDetail}>
             Xem chi tiết
           </Button>
@@ -176,6 +271,7 @@ export const CustomerEventCard = ({ event, onViewDetail, onBookTicket, className
 
 export const CustomerRankingItem = ({ rank, event, onViewDetail, onBookTicket, className = '' }) => {
   const status = getEventStatusMeta(event);
+  const priceSummary = getEventPriceSummary(event);
   const imageStyle = event?.imageUrl
     ? { backgroundImage: `url(${event.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
     : { backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1e293b 45%, #ea580c 100%)' };
@@ -202,7 +298,7 @@ export const CustomerRankingItem = ({ rank, event, onViewDetail, onBookTicket, c
         <div className="flex flex-wrap gap-2 text-xs text-slate-500">
           <span className="rounded-full bg-slate-100 px-3 py-1">{deriveEventCategory(event)}</span>
           <span className="rounded-full bg-slate-100 px-3 py-1">{formatCapacityLabel(event)}</span>
-          <span className="rounded-full bg-slate-100 px-3 py-1">Giá từ {formatCurrency(event?.basePrice ?? event?.price)}</span>
+          <span className="rounded-full bg-slate-100 px-3 py-1">{priceSummary.text}</span>
         </div>
       </div>
 
