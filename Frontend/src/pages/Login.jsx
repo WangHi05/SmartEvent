@@ -31,7 +31,12 @@ export default function Login() {
             navigate('/admin/dashboard', { replace: true });
             return;
         }
-        // Fallback to legacy dashboard for manager/staff
+        if (role === 'staff') {
+            navigate('/bookings', { replace: true });
+            return;
+        }
+
+        // Fallback to legacy dashboard for manager
         navigate('/dashboard', { replace: true });
     };
 

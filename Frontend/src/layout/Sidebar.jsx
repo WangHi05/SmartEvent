@@ -62,7 +62,7 @@ const Sidebar = ({ sidebarOpen }) => {
 
   // 2. DANH SÁCH MENU ĐÃ ĐƯỢC CẤU HÌNH ĐƯỜNG DẪN (path) VÀ QUYỀN (roles)
   const menuItems = [
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager', 'staff'] },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager'] },
     { path: '/director/dashboard', label: 'Dashboard Giám đốc', icon: LayoutDashboard, roles: ['director'] },
     { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
     { path: '/tickets', label: 'Vé & Soát vé', icon: Ticket, roles: ['admin', 'manager', 'staff'] },

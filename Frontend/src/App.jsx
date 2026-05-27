@@ -70,8 +70,20 @@ const RoleBasedHome = () => {
 
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
   if (role === 'director') return <Navigate to="/director/dashboard" replace />;
-  // Fallback: staff/manager -> legacy dashboard
+  if (role === 'staff') return <Navigate to="/bookings" replace />;
+  // Fallback: manager -> legacy dashboard
   return <Navigate to="/dashboard" replace />;
+};
+
+const DashboardRoute = () => {
+  const user = useAuthStore((state) => state.user);
+  const role = normalizeRole(user?.role || user?.Role);
+
+  if (role === 'staff') {
+    return <Navigate to="/bookings" replace />;
+  }
+
+  return <DashboardView />;
 };
 
 const AdminShell = () => {
@@ -109,8 +121,8 @@ function App() {
               />
             }
           >
-            <Route path="/dashboard" element={<DashboardView />} />
-            <Route path="/admin/dashboard" element={<DashboardView />} />
+            <Route path="/dashboard" element={<DashboardRoute />} />
+            <Route path="/admin/dashboard" element={<DashboardRoute />} />
             <Route path="/director/dashboard" element={<EventManagerDashboardView />} />
             <Route
               path="/events"

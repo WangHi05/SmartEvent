@@ -207,8 +207,7 @@ namespace TicketSystem.Application.Services
                     .Include(t => t.TicketType)
                         .ThenInclude(tt => tt!.Event)
                     .Include(t => t.Order)
-                        .ThenInclude(o => o!)
-                            .ThenInclude(o => o.User)
+                        .ThenInclude(order => order!.User)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null)
