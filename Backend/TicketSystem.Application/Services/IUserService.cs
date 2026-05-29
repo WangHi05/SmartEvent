@@ -6,8 +6,11 @@ namespace TicketSystem.Application.Services
     {
         Task<UserListDto> GetUsersAsync(int pageNumber, int pageSize, string? searchTerm, string? role);
         Task<UserResponseDto?> GetUserByIdAsync(Guid id);
+        Task<UserResponseDto?> GetCurrentUserAsync();
         Task<UserResponseDto> CreateUserAsync(CreateUserDto dto, string createdBy);
         Task<UserResponseDto?> UpdateUserAsync(UpdateUserDto dto, string updatedBy);
+        Task<UserResponseDto?> UpdateCurrentUserAsync(CustomerProfileDto dto, string updatedBy);
+        Task<(bool Success, string? ErrorMessage)> ChangeCurrentUserPasswordAsync(ChangePasswordDto dto, string updatedBy);
         Task<bool> DeleteUserAsync(Guid id, string deletedBy);
         Task<AuthResponseDto?> AuthenticateAsync(string username, string password);
 

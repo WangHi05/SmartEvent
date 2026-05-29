@@ -1,16 +1,27 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Avatar, Button, Drawer, Dropdown, Input } from 'antd';
-import { Facebook, LogOut, Menu, MessageCircle, Search, Ticket, ClipboardList, User, X, Youtube } from 'lucide-react';
+import { Avatar, Button, Drawer, Input } from 'antd';
+import { Facebook, ChevronDown, KeyRound, LogOut, Menu, MessageCircle, Search, UserRound, X, Youtube } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
+
+const getDisplayName = (user) => user?.fullName || user?.FullName || user?.username || user?.Username || 'Khách hàng';
+
+const getAvatarLabel = (user) => {
+  const displayName = getDisplayName(user);
+  const firstLetter = displayName.trim().charAt(0);
+  return firstLetter ? firstLetter.toUpperCase() : 'U';
+};
 
 const CustomerLayout = () => {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
+  const desktopMenuRef = useRef(null);
+  const mobileMenuRef = useRef(null);
 
   const navItems = useMemo(
     () => [
@@ -23,40 +34,100 @@ const CustomerLayout = () => {
     []
   );
 
-  const userMenu = [
-    {
-      key: 'profile',
-      icon: <User size={16} />,
-      label: 'Hồ sơ',
-      onClick: () => navigate('/customer/profile'),
-    },
-    {
-      key: 'tickets',
-      icon: <Ticket size={16} />,
-      label: 'Vé của tôi',
-      onClick: () => navigate('/customer/my-tickets'),
-    },
-    {
-      key: 'orders',
-      icon: <ClipboardList size={16} />,
-      label: 'Lịch sử đặt vé',
-      onClick: () => navigate('/customer/my-orders'),
-    },
-    {
-      type: 'divider',
-    },
-    {
-      key: 'logout',
-      icon: <LogOut size={16} />,
-      label: 'Đăng xuất',
-      onClick: () => {
-        logout();
-        navigate('/login');
+  const accountMenuItems = useMemo(
+    () => [
+      {
+        key: 'profile',
+        icon: <UserRound size={15} />,
+        label: 'Hồ sơ cá nhân',
+        onClick: () => navigate('/customer/profile'),
       },
-    },
-  ];
+      {
+        key: 'password',
+        icon: <KeyRound size={15} />,
+        label: 'Đổi mật khẩu',
+        onClick: () => navigate('/customer/change-password'),
+      },
+      {
+        type: 'divider',
+      },
+      {
+        key: 'logout',
+        icon: <LogOut size={15} />,
+        label: 'Đăng xuất',
+        danger: true,
+        onClick: () => {
+          logout();
+          navigate('/login');
+        },
+      },
+    ],
+    [logout, navigate]
+  );
+
+  useEffect(() => {
+    const handlePointerDown = (event) => {
+      const desktopMenuEl = desktopMenuRef.current;
+      const mobileMenuEl = mobileMenuRef.current;
+      const clickedInsideDesktop = desktopMenuEl && desktopMenuEl.contains(event.target);
+      const clickedInsideMobile = mobileMenuEl && mobileMenuEl.contains(event.target);
+
+      if (!clickedInsideDesktop && !clickedInsideMobile) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+    };
+  }, []);
 
   const isActivePath = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
+
+  const handleAccountAction = (item) => {
+    if (item.type === 'divider') return;
+    setUserMenuOpen(false);
+    if (typeof item.onClick === 'function') item.onClick();
+  };
+
+  const accountDropdown = userMenuOpen && user ? (
+    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(18rem,calc(100vw-1rem))] rounded-3xl border border-slate-200 bg-white p-2 text-slate-700 shadow-[0_24px_70px_rgba(15,23,42,0.16)] ring-1 ring-black/5 backdrop-blur-xl sm:w-[18rem]">
+      <div className="rounded-2xl bg-slate-50 px-4 py-3">
+        <p className="truncate text-sm font-semibold text-slate-900">{getDisplayName(user)}</p>
+        <p className="truncate text-xs font-medium text-slate-500">Tài khoản khách hàng</p>
+      </div>
+
+      <div className="mt-2 space-y-1">
+        {accountMenuItems.map((item) => {
+          if (item.type === 'divider') {
+            return <div key="divider" className="my-2 border-t border-slate-200" />;
+          }
+
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => handleAccountAction(item)}
+              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-medium transition-colors ${
+                item.danger
+                  ? 'text-rose-600 hover:bg-rose-50'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${item.danger ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500'}`}>
+                {item.icon}
+              </span>
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
 
   const handleSearch = (value) => {
     const keyword = value?.trim();
@@ -79,8 +150,8 @@ const CustomerLayout = () => {
         }}
         className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
           isActivePath(item.path)
-            ? 'bg-orange-100 text-orange-700'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            ? 'bg-white text-slate-950 shadow-sm'
+            : 'text-slate-200 hover:text-white hover:bg-white/10'
         }`}
       >
         {item.label}
@@ -88,16 +159,16 @@ const CustomerLayout = () => {
     ));
 
   return (
-    <div className="min-h-screen text-slate-800">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-slate-950/90 text-white shadow-[0_20px_60px_rgba(15,23,42,0.24)] backdrop-blur-xl">
+    <div className="customer-shell min-h-screen bg-slate-50 text-slate-800">
+      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/95 text-white shadow-[0_20px_60px_rgba(15,23,42,0.24)] backdrop-blur-xl">
         <div className="mx-auto flex w-full max-w-[1600px] items-center gap-5 px-5 py-4 sm:px-8 lg:px-10 xl:px-12">
           <Link to="/customer/home" className="flex items-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 text-xl font-black text-white shadow-lg shadow-orange-500/30">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-400 text-xl font-black text-white shadow-lg shadow-blue-600/30">
               S
             </div>
             <div>
-              <p className="text-xl font-extrabold tracking-tight">SmartEvent</p>
-              <p className="-mt-1 text-xs text-white/65">Premium live ticketing</p>
+              <p className="text-lg font-bold tracking-tight">SmartEvent</p>
+              <p className="-mt-1 text-xs font-medium text-white/65">Premium live ticketing</p>
             </div>
           </Link>
 
@@ -116,38 +187,68 @@ const CustomerLayout = () => {
 
           <nav className="hidden items-center gap-2 xl:flex">{renderNavLinks()}</nav>
 
-          <div className="hidden items-center gap-3 xl:flex">
+          <div className="hidden items-center gap-3 xl:flex" ref={desktopMenuRef}>
             {user ? (
-              <Dropdown menu={{ items: userMenu }} trigger={['click']}>
-                <button className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-2.5 transition hover:border-orange-400/40 hover:bg-white/12">
-                  <Avatar size={36}>
-                    {(user?.fullName || user?.username || 'U').charAt(0).toUpperCase()}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((value) => !value)}
+                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-2.5 transition hover:border-blue-400/40 hover:bg-white/12"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                >
+                  <Avatar size={36} className="bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+                    {getAvatarLabel(user)}
                   </Avatar>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-white">{user?.fullName || user?.username}</p>
-                    <p className="text-xs text-white/65">Tài khoản khách hàng</p>
+                  <div className="min-w-0 text-left">
+                    <p className="max-w-[10rem] truncate text-sm font-medium text-white">{getDisplayName(user)}</p>
+                    <p className="text-xs font-medium text-white/65">Tài khoản khách hàng</p>
                   </div>
+                  <ChevronDown size={16} className={`text-white/75 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
-              </Dropdown>
+
+                {accountDropdown}
+              </div>
             ) : (
               <>
                 <Button onClick={() => navigate('/login')} className="!rounded-2xl !border-white/15 !bg-white/8 !text-white hover:!border-white/30 hover:!bg-white/12">
                   Đăng nhập
                 </Button>
-                <Button type="primary" onClick={() => navigate('/register')} className="!rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold shadow-lg shadow-orange-500/30">
+                <Button type="primary" onClick={() => navigate('/register')} className="!rounded-2xl !border-blue-600 !bg-blue-600 !font-semibold shadow-lg shadow-blue-600/30 hover:!border-blue-700 hover:!bg-blue-700">
                   Đăng ký
                 </Button>
               </>
             )}
           </div>
 
-          <button
-            className="rounded-xl p-2 text-white hover:bg-white/10 xl:hidden"
-            onClick={() => setMobileOpen(true)}
-            aria-label="Open navigation"
-          >
-            <Menu size={22} />
-          </button>
+          <div className="flex items-center gap-2 xl:hidden">
+            {user ? (
+              <div className="relative" ref={mobileMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((value) => !value)}
+                  className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-3 py-2 transition hover:border-blue-400/40 hover:bg-white/12"
+                  aria-haspopup="menu"
+                  aria-expanded={userMenuOpen}
+                >
+                  <Avatar size={30} className="bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+                    {getAvatarLabel(user)}
+                  </Avatar>
+                  <ChevronDown size={14} className={`text-white/75 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {accountDropdown}
+              </div>
+            ) : null}
+
+            <button
+              className="rounded-xl p-2 text-white hover:bg-white/10"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open navigation"
+            >
+              <Menu size={22} />
+            </button>
+          </div>
         </div>
 
         <Drawer
@@ -171,8 +272,11 @@ const CustomerLayout = () => {
           <div className="mt-6 border-t border-slate-200 pt-4">
             {user ? (
               <div className="space-y-2">
-                <Button block onClick={() => { setMobileOpen(false); navigate('/customer/profile'); }}>
-                  Hồ sơ
+                <Button block onClick={() => { setMobileOpen(false); navigate('/customer/profile'); }} icon={<UserRound size={16} />}>
+                  Hồ sơ cá nhân
+                </Button>
+                <Button block onClick={() => { setMobileOpen(false); navigate('/customer/change-password'); }} icon={<KeyRound size={16} />}>
+                  Đổi mật khẩu
                 </Button>
                 <Button block danger onClick={() => { logout(); navigate('/login'); }}>
                   Đăng xuất
@@ -196,11 +300,11 @@ const CustomerLayout = () => {
         </div>
       </main>
 
-      <footer className="mt-10 border-t border-white/10 bg-slate-950 px-4 py-10 text-slate-300">
+      <footer className="mt-10 border-t border-slate-800/80 bg-slate-950 px-4 py-10 text-slate-300">
         <div className="mx-auto grid max-w-[1600px] gap-8 px-5 sm:px-8 lg:grid-cols-4 lg:px-10 xl:px-12">
           <div className="space-y-4 lg:col-span-1">
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 font-black text-white shadow-lg shadow-orange-500/30">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-400 font-black text-white shadow-lg shadow-blue-600/30">
                 S
               </div>
               <div>

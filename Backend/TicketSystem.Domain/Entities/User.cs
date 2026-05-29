@@ -39,10 +39,11 @@ namespace TicketSystem.Domain.Entities
             };
         }
 
-        public void UpdateProfile(string fullName, string email, UserRole role, string updatedBy)
+        public void UpdateProfile(string fullName, string email, string? phoneNumber, UserRole role, string updatedBy)
         {
             FullName = fullName;
             Email = email;
+            PhoneNumber = phoneNumber;
             Role = role;
             UpdatedBy = updatedBy;
             UpdatedAt = DateTime.UtcNow;

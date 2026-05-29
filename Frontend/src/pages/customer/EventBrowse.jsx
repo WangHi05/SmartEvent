@@ -90,39 +90,39 @@ const EventBrowse = () => {
   return (
     <div className="space-y-8">
       <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-slate-950 text-white shadow-[0_25px_70px_rgba(15,23,42,0.18)]">
-        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 px-6 py-10 sm:px-8 lg:px-12 xl:px-14">
-          <div className="absolute -right-10 top-10 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -left-14 bottom-0 h-56 w-56 rounded-full bg-orange-400/10 blur-3xl" />
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-indigo-950 to-blue-700 px-6 py-10 sm:px-8 lg:px-12 xl:px-14">
+          <div className="absolute -right-10 top-10 h-44 w-44 rounded-full bg-purple-400/15 blur-3xl" />
+          <div className="absolute -left-14 bottom-0 h-56 w-56 rounded-full bg-sky-400/15 blur-3xl" />
           <div className="relative grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
             <div className="space-y-5">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white/80 backdrop-blur-sm">
                 <SearchOutlined />
                 Khám phá sự kiện
               </div>
-              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl xl:text-6xl">Khám phá sự kiện theo phong cách rộng, thoáng và premium hơn.</h1>
+              <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl xl:text-6xl">Premium Event Platform cho trải nghiệm khám phá sự kiện chuyên nghiệp hơn.</h1>
               <p className="max-w-3xl text-base leading-8 text-white/75 sm:text-lg xl:text-xl">
                 Giữ nguyên API, route và toàn bộ nút đặt vé hiện có. Chỉ nâng cấp layout để người dùng duyệt sự kiện rõ hơn trên desktop, tablet và mobile.
               </p>
               <div className="flex flex-wrap gap-3">
-                <Button type="primary" size="large" className="!h-12 !rounded-2xl !border-white !bg-white !px-6 !font-semibold !text-slate-950" onClick={() => navigate('/customer/home')}>
+                <Button type="primary" size="large" className="!h-12 !rounded-2xl !border-white !bg-white !px-6 !font-semibold !text-slate-950 hover:!border-slate-100 hover:!bg-slate-50" onClick={() => navigate('/customer/home')}>
                   Về trang chủ
                 </Button>
-                <Button size="large" className="!h-12 !rounded-2xl !border-white/15 !bg-white/10 !px-6 !font-semibold !text-white hover:!border-white/30 hover:!bg-white/15" onClick={() => navigate('/customer/my-orders')}>
+                <Button size="large" className="!h-12 !rounded-2xl !border-white/15 !bg-slate-950/20 !px-6 !font-semibold !text-white hover:!border-white/25 hover:!bg-white/15" onClick={() => navigate('/customer/my-orders')}>
                   Lịch sử đặt vé
                 </Button>
               </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Sự kiện hiện có</p>
                 <p className="mt-2 text-3xl font-black text-white">{events.length.toLocaleString('vi-VN')}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Đang diễn ra</p>
                 <p className="mt-2 text-3xl font-black text-white">{events.filter((event) => getEventStatusMeta(event).key === 'live').length.toLocaleString('vi-VN')}</p>
               </div>
-              <div className="rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+              <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Top bán chạy</p>
                 <p className="mt-2 text-3xl font-black text-white">#{events.length ? 1 : '-'}</p>
               </div>
@@ -186,8 +186,8 @@ const EventBrowse = () => {
               }}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 category === item.label
-                  ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/25'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-700'
               }`}
             >
               {item.label}
@@ -233,9 +233,9 @@ const EventBrowse = () => {
               <CustomerSectionTitle kicker="Trending" title="Top 3 bán chạy" description="Xếp hạng theo mức độ lấp đầy chỗ ngồi." />
               <div className="mt-4 space-y-4">
                 {trendingEvents.map((event, index) => (
-                  <div key={event.id} className="rounded-2xl border border-slate-200 p-4">
+                  <div key={event.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="mb-2 flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 font-black text-white">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-400 font-black text-white">
                         #{index + 1}
                       </div>
                       <div className="min-w-0">
@@ -244,7 +244,7 @@ const EventBrowse = () => {
                       </div>
                     </div>
                     <p className="text-xs text-slate-500">{formatCapacityLabel(event)}</p>
-                    <Button className="mt-3 w-full !rounded-2xl" onClick={() => navigate(`/tickets/booking/${event.id}`)}>
+                    <Button className="mt-3 w-full !rounded-2xl !border-slate-300 !text-slate-700 hover:!border-blue-300 hover:!text-blue-700 hover:!bg-blue-50" onClick={() => navigate(`/tickets/booking/${event.id}`)}>
                       Xem chi tiết
                     </Button>
                   </div>
@@ -252,7 +252,7 @@ const EventBrowse = () => {
               </div>
             </div>
 
-            <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-slate-950 to-orange-600 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
+            <div className="rounded-[30px] border border-slate-200 bg-gradient-to-br from-slate-950 to-blue-950 p-5 text-white shadow-[0_18px_50px_rgba(15,23,42,0.12)]">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Sắp diễn ra</p>
               <div className="mt-4 space-y-3">
                 {upcomingEvents.length === 0 ? (
@@ -262,7 +262,7 @@ const EventBrowse = () => {
                     <button
                       key={event.id}
                       onClick={() => navigate(`/tickets/booking/${event.id}`)}
-                      className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm font-semibold text-white transition hover:bg-white/15"
+                      className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-left text-sm font-semibold text-white transition hover:border-white/20 hover:bg-white/15"
                     >
                       <span className="line-clamp-1">{event.name}</span>
                       <ArrowRight />

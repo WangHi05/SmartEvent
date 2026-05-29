@@ -24,6 +24,8 @@ import PaymentResultPage from './pages/customer/PaymentResultPage';
 import HomePage from './pages/customer/HomePage';
 import ContactPage from './pages/customer/ContactPage';
 import GuestTicketPage from './pages/customer/GuestTicketPage';
+import CustomerProfile from './pages/customer/CustomerProfile';
+import CustomerChangePassword from './pages/customer/CustomerChangePassword';
 
 // Import Pages - Admin/Staff
 import DashboardView from './features/dashboard/DashboardView';
@@ -170,10 +172,8 @@ function App() {
               path="payment-result"
               element={<ProtectedRoute element={<PaymentResultPage />} requiredRole="Customer" />}
             />
-            <Route
-              path="profile"
-              element={<ProtectedRoute element={<div style={{ padding: '20px' }}>Profile page - Coming soon</div>} requiredRole="Customer" />}
-            />
+            <Route path="profile" element={<ProtectedRoute element={<CustomerProfile />} requiredRole="Customer" />} />
+            <Route path="change-password" element={<ProtectedRoute element={<CustomerChangePassword />} requiredRole="Customer" />} />
           </Route>
 
           {/* Booking route theo yêu cầu */}

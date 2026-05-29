@@ -46,6 +46,16 @@ namespace TicketSystem.API.Controllers
             return Ok(user);
         }
 
+        [HttpGet("me")]
+        [Authorize(Roles = "Customer")]
+        public async Task<ActionResult<UserResponseDto>> GetMe()
+        {
+            var user = await _userService.GetCurrentUserAsync();
+            if (user == null) return NotFound(new { message = "Không tìm thấy thông tin tài khoản" });
+
+            return Ok(user);
+        }
+
         // Admin tạo tài khoản mới cho nhân viên
         [HttpPost]
         [Authorize(Roles = "Admin")]
@@ -128,6 +138,37 @@ namespace TicketSystem.API.Controllers
             
             if (result == null) return NotFound(new { message = "Không tìm thấy người dùng" });
             return Ok(result);
+        }
+
+        [HttpPut("me")]
+        [Authorize(Roles = "Customer")]
+        public async Task<ActionResult<UserResponseDto>> UpdateMe([FromBody] CustomerProfileDto dto)
+        {
+            try
+            {
+                var currentUser = User.Identity?.Name ?? "Customer";
+                var result = await _userService.UpdateCurrentUserAsync(dto, currentUser);
+
+                if (result == null) return NotFound(new { message = "Không tìm thấy thông tin tài khoản" });
+                return Ok(result);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        [HttpPut("me/change-password")]
+        [Authorize(Roles = "Customer")]
+        public async Task<IActionResult> ChangeMyPassword([FromBody] ChangePasswordDto dto)
+        {
+            var currentUser = User.Identity?.Name ?? "Customer";
+            var result = await _userService.ChangeCurrentUserPasswordAsync(dto, currentUser);
+
+            if (!result.Success)
+                return BadRequest(new { message = result.ErrorMessage ?? "Không thể đổi mật khẩu." });
+
+            return Ok(new { message = "Đổi mật khẩu thành công." });
         }
 
         // Xóa người dùng (Chỉ Admin)

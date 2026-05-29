@@ -12,9 +12,32 @@ namespace TicketSystem.Application.DTOs
         public string Username { get; set; } = string.Empty;
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
         public string Role { get; set; } = string.Empty; // String để dễ serialization
         public bool IsActive { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class CustomerProfileDto
+    {
+        [StringLength(100, ErrorMessage = "FullName tối đa 100 ký tự")]
+        public string? FullName { get; set; }
+
+        [EmailAddress(ErrorMessage = "Email không hợp lệ")]
+        public string? Email { get; set; }
+
+        [StringLength(30, ErrorMessage = "Số điện thoại tối đa 30 ký tự")]
+        public string? PhoneNumber { get; set; }
+    }
+
+    public class ChangePasswordDto
+    {
+        [Required(ErrorMessage = "Mật khẩu hiện tại là bắt buộc")]
+        public string CurrentPassword { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Mật khẩu mới là bắt buộc")]
+        [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu mới phải ít nhất 6 ký tự")]
+        public string NewPassword { get; set; } = string.Empty;
     }
 
     
@@ -56,6 +79,9 @@ namespace TicketSystem.Application.DTOs
 
         [EmailAddress(ErrorMessage = "Email không hợp lệ")]
         public string? Email { get; set; }
+
+        [StringLength(30, ErrorMessage = "Số điện thoại tối đa 30 ký tự")]
+        public string? PhoneNumber { get; set; }
 
         [RegularExpression("Admin|Manager|Staff|Customer|Director", ErrorMessage = "Role phải là Admin, Manager, Staff, Director hoặc Customer")]
         public string? Role { get; set; }

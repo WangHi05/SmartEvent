@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using TicketSystem.Application.Common;
@@ -57,6 +58,15 @@ namespace TicketSystem.Application.Services
             return MapToResponseDto(user);
         }
 
+        public async Task<UserResponseDto?> GetCurrentUserAsync()
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return null;
+
+            return await GetUserByIdAsync(currentUserId.Value);
+        }
+
         public async Task<UserResponseDto> CreateUserAsync(CreateUserDto dto, string createdBy)
         {
             if (!await _userRepository.IsUsernameUniqueAsync(dto.Username))
@@ -86,7 +96,8 @@ namespace TicketSystem.Application.Services
                 throw new ArgumentException($"Email '{dto.Email}' đã được sử dụng");
 
             var roleEnum = string.IsNullOrEmpty(dto.Role) ? user.Role : Enum.Parse<UserRole>(dto.Role, true);
-            user.UpdateProfile(dto.FullName ?? user.FullName, dto.Email ?? user.Email, roleEnum, updatedBy);
+            var phoneNumber = NormalizeOptionalString(dto.PhoneNumber) ?? user.PhoneNumber;
+            user.UpdateProfile(dto.FullName ?? user.FullName, dto.Email ?? user.Email, phoneNumber, roleEnum, updatedBy);
 
             if (dto.IsActive.HasValue)
                 user.SetStatus(dto.IsActive.Value, updatedBy);
@@ -101,6 +112,56 @@ namespace TicketSystem.Application.Services
             await LogAuditAsync("Update", "User", user.Id, updatedBy, $"Updated user: {user.Username}");
 
             return MapToResponseDto(user);
+        }
+
+        public async Task<UserResponseDto?> UpdateCurrentUserAsync(CustomerProfileDto dto, string updatedBy)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return null;
+
+            var user = await _userRepository.GetByIdAsync(currentUserId.Value);
+            if (user == null)
+                return null;
+
+            var fullName = NormalizeOptionalString(dto.FullName) ?? user.FullName;
+            var email = NormalizeOptionalString(dto.Email) ?? user.Email;
+            var phoneNumber = NormalizeOptionalString(dto.PhoneNumber) ?? user.PhoneNumber;
+
+            if (!string.Equals(email, user.Email, StringComparison.OrdinalIgnoreCase) &&
+                !await _userRepository.IsEmailUniqueAsync(email, user.Id))
+            {
+                throw new ArgumentException($"Email '{email}' đã được sử dụng");
+            }
+
+            user.UpdateProfile(fullName, email, phoneNumber, user.Role, updatedBy);
+
+            await _userRepository.UpdateAsync(user);
+            await LogAuditAsync("Update", "User", user.Id, updatedBy, $"User updated own profile: {user.Username}");
+
+            return MapToResponseDto(user);
+        }
+
+        public async Task<(bool Success, string? ErrorMessage)> ChangeCurrentUserPasswordAsync(ChangePasswordDto dto, string updatedBy)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (!currentUserId.HasValue)
+                return (false, "Không thể xác định người dùng hiện tại.");
+
+            var user = await _userRepository.GetByIdAsync(currentUserId.Value);
+            if (user == null)
+                return (false, "Không tìm thấy tài khoản của bạn.");
+
+            if (!_passwordHasher.VerifyPassword(dto.CurrentPassword, user.PasswordHash))
+                return (false, "Mật khẩu hiện tại không đúng.");
+
+            var newHash = _passwordHasher.HashPassword(dto.NewPassword);
+            user.ChangePassword(newHash, updatedBy);
+
+            await _userRepository.UpdateAsync(user);
+            await LogAuditAsync("ChangePassword", "User", user.Id, updatedBy, $"User changed own password: {user.Username}");
+
+            return (true, null);
         }
 
         public async Task<bool> DeleteUserAsync(Guid id, string deletedBy)
@@ -226,10 +287,29 @@ namespace TicketSystem.Application.Services
                 Username = user.Username,
                 FullName = user.FullName,
                 Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
                 Role = user.Role.ToString(),
                 IsActive = user.IsActive,
                 CreatedAt = user.CreatedAt
             };
+        }
+
+        private Guid? GetCurrentUserId()
+        {
+            var principal = _httpContextAccessor.HttpContext?.User;
+            if (principal == null)
+                return null;
+
+            var userIdValue = principal.FindFirst("sub")?.Value
+                ?? principal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            return Guid.TryParse(userIdValue, out var userId) ? userId : null;
+        }
+
+        private static string? NormalizeOptionalString(string? value)
+        {
+            var trimmed = value?.Trim();
+            return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
         }
 
         private async Task LogAuditAsync(string action, string entityType, Guid entityId, string performedBy, string details)
