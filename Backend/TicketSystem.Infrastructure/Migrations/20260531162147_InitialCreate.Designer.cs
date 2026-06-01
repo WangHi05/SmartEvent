@@ -12,8 +12,8 @@ using TicketSystem.Infrastructure.Data;
 namespace TicketSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260508152348_AddRemainingSlotsToTicket")]
-    partial class AddRemainingSlotsToTicket
+    [Migration("20260531162147_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -78,6 +78,11 @@ namespace TicketSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CheckInResult")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<DateTime>("CheckedAt")
                         .HasColumnType("datetime2");
 
@@ -90,6 +95,16 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("EventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid?>("GateId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("GateName")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
@@ -99,6 +114,10 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.Property<int>("PeopleCount")
                         .HasColumnType("int");
+
+                    b.Property<string>("QRCodeData")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
 
                     b.Property<string>("StaffId")
                         .HasColumnType("nvarchar(max)");
@@ -117,8 +136,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TicketId", "CheckinDate")
-                        .IsUnique();
+                    b.HasIndex("TicketId", "CheckinDate");
 
                     b.ToTable("CheckInLogs");
                 });
@@ -188,6 +206,15 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("BuyerCccd")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BuyerPhone")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("CancelRequestAt")
                         .HasColumnType("datetime2");
@@ -378,6 +405,10 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.Property<bool>("IsCheckedIn")
                         .HasColumnType("bit");
 
+                    b.Property<bool>("IsClaimed")
+                        .IsConcurrencyToken()
+                        .HasColumnType("bit");
+
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("uniqueidentifier");
 
@@ -393,6 +424,9 @@ namespace TicketSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("ShareToken")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -546,6 +580,9 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Provider")

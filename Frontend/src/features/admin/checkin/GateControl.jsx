@@ -60,7 +60,11 @@ const GateControl = () => {
       setAcknowledgedLogs(prev => [{ gateName, staffName, time, id: Date.now() }, ...prev]);
       message.success(`Nhân viên ${staffName} tại ${gateName} đã tiếp nhận lệnh!`);
     });
-
+    // Lắng nghe khi có khách check-in thành công ở bất kỳ cổng nào
+    connection.on("RefreshGateData", () => {
+      console.log("🔔 Có khách vừa check-in, cập nhật lại lưu lượng cổng!");
+      fetchGateData(); // Gọi lại hàm load API để lấy số liệu mới nhất
+    });
     // Tuỳ chọn: Lắng nghe sự kiện cập nhật lưu lượng cổng từ SignalR để update Real-time
     connection.on("GateTrafficUpdated", (updatedGate) => {
       setGates(prevGates => prevGates.map(g => g.id === updatedGate.id ? updatedGate : g));

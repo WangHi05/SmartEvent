@@ -83,6 +83,7 @@ namespace TicketSystem.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Username = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -160,6 +161,9 @@ namespace TicketSystem.Infrastructure.Migrations
                     RefundAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     ConfirmedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     ConfirmedBy = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    BuyerName = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    BuyerPhone = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    BuyerCccd = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -228,10 +232,13 @@ namespace TicketSystem.Infrastructure.Migrations
                     ValidTo = table.Column<DateTime>(type: "datetime2", nullable: false),
                     IsBadgePrinted = table.Column<bool>(type: "bit", nullable: false),
                     GroupSize = table.Column<int>(type: "int", nullable: false),
+                    RemainingSlots = table.Column<int>(type: "int", nullable: false),
                     CancelledAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     RefundAmount = table.Column<decimal>(type: "decimal(18,2)", precision: 18, scale: 2, nullable: true),
                     CancelReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
                     IsCheckedIn = table.Column<bool>(type: "bit", nullable: false),
+                    IsClaimed = table.Column<bool>(type: "bit", nullable: false),
+                    ShareToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     EventId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -265,6 +272,8 @@ namespace TicketSystem.Infrastructure.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TicketId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    EventId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    GateId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     CheckedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CheckinDate = table.Column<DateOnly>(type: "date", nullable: false),
                     Type = table.Column<int>(type: "int", nullable: false),
@@ -272,6 +281,9 @@ namespace TicketSystem.Infrastructure.Migrations
                     GateName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     StaffId = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Note = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CheckInResult = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
+                    FailureReason = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
+                    QRCodeData = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
                     CreatedBy = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -291,8 +303,7 @@ namespace TicketSystem.Infrastructure.Migrations
             migrationBuilder.CreateIndex(
                 name: "IX_CheckInLogs_TicketId_CheckinDate",
                 table: "CheckInLogs",
-                columns: new[] { "TicketId", "CheckinDate" },
-                unique: true);
+                columns: new[] { "TicketId", "CheckinDate" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Events_CreatedAt",
