@@ -19,6 +19,16 @@ using TicketSystem.Application.Common;
 
 namespace TicketSystem.Application.Services
 {
+
+    public class TicketLookupResponse
+    {
+        public bool IsSuccess { get; set; }
+        public string Message { get; set; } = string.Empty;
+        public string CustomerName { get; set; } = string.Empty;
+        public string TicketTypeName { get; set; } = string.Empty;
+        public int RemainingSlots { get; set; }
+    }
+
     public class TicketCheckInService : ITicketCheckInService
     {
         private readonly IApplicationDbContext _context;
@@ -47,6 +57,42 @@ namespace TicketSystem.Application.Services
             _cache = cache;
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
+        }
+
+        public async Task<TicketLookupResponse> LookupTicketAsync(string qrPayload)
+        {
+            var parts = qrPayload.Split('|');
+            if (parts.Length != 2 || !Guid.TryParse(parts[0], out Guid ticketId))
+                return new TicketLookupResponse { IsSuccess = false, Message = "Định dạng QR không hợp lệ." };
+
+            var ticket = await _context.Tickets
+                .Include(t => t.TicketType).ThenInclude(tt => tt!.Event)
+                .Include(t => t.Order).ThenInclude(order => order!.User)
+                .FirstOrDefaultAsync(t => t.Id == ticketId);
+
+            if (ticket == null)
+                return new TicketLookupResponse { IsSuccess = false, Message = "Vé không tồn tại." };
+
+            if (ticket.Status == TicketStatus.CANCELLED)
+                return new TicketLookupResponse { IsSuccess = false, Message = "Vé đã bị hủy." };
+
+            if (ticket.RemainingSlots == 0 || ticket.Status == TicketStatus.CHECKED_IN)
+                return new TicketLookupResponse { IsSuccess = false, Message = "Vé đã được sử dụng hết." };
+
+            // Xác thực mã OTP (chống làm giả QR)
+            string clientOtp = parts[1];
+            var totp = new Totp(Base32Encoding.ToBytes(ticket.SecretKey));
+            var window = new VerificationWindow(previous: 1, future: 1);
+            if (!totp.VerifyTotp(clientOtp, out _, window))
+                return new TicketLookupResponse { IsSuccess = false, Message = "Mã QR đã hết hạn. Yêu cầu khách làm mới mã." };
+
+            return new TicketLookupResponse
+            {
+                IsSuccess = true,
+                CustomerName = ticket.Order?.User?.FullName ?? "Khách vãng lai",
+                TicketTypeName = ticket.TicketType?.Name ?? "Vé sự kiện",
+                RemainingSlots = ticket.RemainingSlots
+            };
         }
 
         public async Task<CheckInResponse> ManualCheckInAsync(Guid ticketId, int peopleCount, string staffId, string reason)
@@ -579,6 +625,20 @@ namespace TicketSystem.Application.Services
             }
         }
 
+        private async Task<CheckInResponse> FailAndLogAsync(string message, Guid ticketId, Guid eventId, string gateName, string staffId, string qrPayload, int peopleCount, DateTime timestamp, string processedKey, Ticket? ticket = null, string eventName = "")
+        {
+            var response = CheckInResponse.Fail(message);
+            try {
+                await PersistCheckInOutcomeAsync(new CheckInOutcome {
+                    Ticket = ticket, TicketId = ticketId, EventId = eventId, EventName = eventName,
+                    StaffId = staffId, GateName = gateName, QrPayload = qrPayload, PeopleCount = peopleCount,
+                    Timestamp = timestamp, IsSuccess = false, FailureReason = response.Message, ScanType = ScanType.Entry
+                }, skipDomainChanges: true);
+            } catch {}
+            _cache.Set(processedKey, response, DuplicateRequestWindow);
+            return response;
+        }
+
         private async Task PersistCheckInOutcomeAsync(CheckInOutcome outcome, bool skipDomainChanges = false)
         {
             if (!skipDomainChanges && outcome.Ticket != null)
@@ -590,7 +650,7 @@ namespace TicketSystem.Application.Services
 
             // If ticketId is not known (Guid.Empty), skip adding CheckInLog
             // to avoid unique-index conflicts on (TicketId, CheckinDate) for unknown tickets.
-            if (ticketId != Guid.Empty)
+            if (ticketId != Guid.Empty && outcome.Ticket != null)
             {
                 await _context.CheckInLogs.AddAsync(new CheckInLog
                 {
