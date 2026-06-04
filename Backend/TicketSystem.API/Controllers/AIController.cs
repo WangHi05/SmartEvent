@@ -27,6 +27,75 @@ namespace TicketSystem.API.Controllers
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
         };
 
+        private static readonly IReadOnlyDictionary<string, string[]> ProvinceAliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ha noi"] = new[] { "ha noi", "hanoi", "hn", "thu do ha noi", "thanh pho ha noi", "tp ha noi" },
+            ["ho chi minh"] = new[] { "ho chi minh", "tp hcm", "tphcm", "hcm", "sai gon", "saigon", "thanh pho ho chi minh" },
+            ["hai phong"] = new[] { "hai phong", "haiphong", "hp", "thanh pho hai phong" },
+            ["da nang"] = new[] { "da nang", "danang", "tp da nang", "thanh pho da nang" },
+            ["can tho"] = new[] { "can tho", "cantho", "tp can tho", "thanh pho can tho" },
+            ["hue"] = new[] { "hue", "thua thien hue", "thua thien-hue", "thanh pho hue" },
+            ["vung tau"] = new[] { "vung tau", "ba ria vung tau", "baria vung tau", "baria-vung tau" },
+            ["an giang"] = new[] { "an giang" },
+            ["ba ria vung tau"] = new[] { "ba ria vung tau", "vung tau", "baria vung tau" },
+            ["bac giang"] = new[] { "bac giang" },
+            ["bac kan"] = new[] { "bac kan", "backan" },
+            ["bac lieu"] = new[] { "bac lieu" },
+            ["bac ninh"] = new[] { "bac ninh" },
+            ["ben tre"] = new[] { "ben tre" },
+            ["binh dinh"] = new[] { "binh dinh", "quy nhon" },
+            ["binh duong"] = new[] { "binh duong", "bd" },
+            ["binh phuoc"] = new[] { "binh phuoc" },
+            ["binh thuan"] = new[] { "binh thuan", "phan thiet" },
+            ["ca mau"] = new[] { "ca mau" },
+            ["cao bang"] = new[] { "cao bang" },
+            ["dak lak"] = new[] { "dak lak", "daklak", "buon ma thuot" },
+            ["dak nong"] = new[] { "dak nong", "daknong" },
+            ["dien bien"] = new[] { "dien bien", "dienbien" },
+            ["dong nai"] = new[] { "dong nai", "dn" },
+            ["dong thap"] = new[] { "dong thap" },
+            ["gia lai"] = new[] { "gia lai" },
+            ["ha giang"] = new[] { "ha giang" },
+            ["ha nam"] = new[] { "ha nam" },
+            ["ha tinh"] = new[] { "ha tinh" },
+            ["hai duong"] = new[] { "hai duong" },
+            ["hau giang"] = new[] { "hau giang" },
+            ["hoa binh"] = new[] { "hoa binh" },
+            ["hung yen"] = new[] { "hung yen" },
+            ["khanh hoa"] = new[] { "khanh hoa", "nha trang" },
+            ["kien giang"] = new[] { "kien giang", "rach gia", "phu quoc" },
+            ["kon tum"] = new[] { "kon tum", "kontum" },
+            ["lai chau"] = new[] { "lai chau" },
+            ["lam dong"] = new[] { "lam dong", "da lat" },
+            ["lang son"] = new[] { "lang son" },
+            ["lao cai"] = new[] { "lao cai", "sapa" },
+            ["long an"] = new[] { "long an" },
+            ["nam dinh"] = new[] { "nam dinh" },
+            ["nghe an"] = new[] { "nghe an", "vinh" },
+            ["ninh binh"] = new[] { "ninh binh" },
+            ["ninh thuan"] = new[] { "ninh thuan", "phan rang" },
+            ["phu tho"] = new[] { "phu tho", "viet tri" },
+            ["phu yen"] = new[] { "phu yen", "tuy hoa" },
+            ["quang binh"] = new[] { "quang binh", "dong hoi" },
+            ["quang nam"] = new[] { "quang nam", "hoi an", "tam ky" },
+            ["quang ngai"] = new[] { "quang ngai" },
+            ["quang ninh"] = new[] { "quang ninh", "ha long", "cam pha" },
+            ["quang tri"] = new[] { "quang tri", "dong ha" },
+            ["soc trang"] = new[] { "soc trang" },
+            ["son la"] = new[] { "son la" },
+            ["tay ninh"] = new[] { "tay ninh" },
+            ["thai binh"] = new[] { "thai binh" },
+            ["thai nguyen"] = new[] { "thai nguyen" },
+            ["thanh hoa"] = new[] { "thanh hoa" },
+            ["thua thien hue"] = new[] { "thua thien hue", "hue" },
+            ["tien giang"] = new[] { "tien giang", "my tho" },
+            ["tra vinh"] = new[] { "tra vinh" },
+            ["tuyen quang"] = new[] { "tuyen quang" },
+            ["vinh long"] = new[] { "vinh long" },
+            ["vinh phuc"] = new[] { "vinh phuc", "vinh yen" },
+            ["yen bai"] = new[] { "yen bai" }
+        };
+
         private readonly IGeminiService _geminiService;
         private readonly IApplicationDbContext _dbContext;
         private readonly ISettingsService _settingsService;
@@ -113,6 +182,19 @@ namespace TicketSystem.API.Controllers
                         Data = structuredData
                     });
                 }
+
+                var contextEvents = BuildContextEvents(profile, eventCatalog, normalized);
+                if (profile.Mode == CustomerSupportMode.LocationFilter && contextEvents.Count == 0)
+                {
+                    return Ok(new CustomerSupportResponseDto
+                    {
+                        IsSuccess = true,
+                        ResponseType = "text",
+                        Answer = BuildNoLocationEventsAnswer(profile.LocationKeyword),
+                        Data = structuredData
+                    });
+                }
+
                 // Optional detailed inspection for debugging. Guarded by header + local caller.
                 var debugInspectHeader = Request?.Headers["X-Debug-Inspect"].FirstOrDefault();
                 var wantsDebug = string.Equals(debugInspectHeader, "true", StringComparison.OrdinalIgnoreCase);
@@ -123,7 +205,6 @@ namespace TicketSystem.API.Controllers
                 {
                     diagnostics = InspectDebugPipeline(eventCatalog, profile, normalized);
                 }
-                var contextEvents = BuildContextEvents(profile, eventCatalog, normalized);
                 var contextPayload = await BuildContextPayloadAsync(profile, userId, contextEvents, cancellationToken, conversationHistory);
                 var prompt = BuildPrompt(userMessage, profile, contextPayload, conversationHistory);
 
@@ -191,9 +272,11 @@ namespace TicketSystem.API.Controllers
         {
             if (profile.ResponseType == "open_sales"
                 || profile.ResponseType == "price_list"
+                || profile.ResponseType == "upcoming_events"
                 || profile.Mode == CustomerSupportMode.LocationFilter
                 || profile.Mode == CustomerSupportMode.MusicTopic
                 || profile.Mode == CustomerSupportMode.NearestUpcoming
+                || profile.Mode == CustomerSupportMode.UpcomingEvents
                 || profile.Mode == CustomerSupportMode.SpecificEventOrTicket
                 || profile.IsRecommendationQuery
                 || profile.PriceMin.HasValue
@@ -202,6 +285,11 @@ namespace TicketSystem.API.Controllers
                 || profile.TimeRange != CustomerSupportTimeRange.None
                 || !string.IsNullOrWhiteSpace(profile.CategoryKeyword))
             {
+                if (profile.ResponseType == "upcoming_events" || profile.Mode == CustomerSupportMode.UpcomingEvents)
+                {
+                    return Task.FromResult<object?>(BuildUpcomingEventStructuredData(eventCatalog, profile));
+                }
+
                 return Task.FromResult<object?>(BuildStructuredEventList(eventCatalog, profile));
             }
 
@@ -301,10 +389,13 @@ namespace TicketSystem.API.Controllers
         {
             var systemPrompt = "Bạn là trợ lý CSKH AI của SmartEvent.\n" +
                                "Bạn trả lời bằng tiếng Việt, tự nhiên, ngắn gọn, lịch sự, dễ hiểu.\n" +
+                               "Chỉ trả lời trong phạm vi SmartEvent: sự kiện, vé, thanh toán, tài khoản, hóa đơn, voucher, check-in và hỗ trợ liên quan.\n" +
+                               "Chỉ dùng dữ liệu trong CONTEXT; nếu thiếu dữ liệu thì nói chưa có thông tin thay vì đoán hoặc bịa.\n" +
                                "Nếu ngữ cảnh hội thoại gần nhất có đủ thông tin, hãy trả lời dựa trên ngữ cảnh đó và tránh hỏi lại không cần thiết.\n" +
                                "Khi khách hỏi tiếp theo một câu như 'thế còn cái đó', 'còn vé đó', 'bên trên', hãy nối tiếp nội dung gần nhất một cách hợp lý.\n" +
                                "Bạn PHẢI dựa trên dữ liệu hệ thống trong CONTEXT.\n" +
                                "Không được bịa tên sự kiện, giá vé, số lượng vé, trạng thái đơn hàng hoặc chính sách.\n" +
+                               "Nếu người dùng hỏi danh sách sự kiện sắp diễn ra, chỉ liệt kê event public, chưa kết thúc, StartTime >= VietnamTime.Now trong CONTEXT; nếu vé đang mở bán thì nêu giá/trạng thái còn vé, nếu vé chưa mở hoặc đã đóng thì nói rõ, không nhầm với open sales.\n" +
                                "Nếu CONTEXT không có dữ liệu liên quan, hãy nói chưa có thông tin và hướng dẫn khách liên hệ nhân viên hỗ trợ.\n" +
                                "Nếu câu hỏi quá ngắn hoặc mơ hồ như 'vé', 'giá', 'sự kiện', hãy hỏi lại để làm rõ và đưa ví dụ cụ thể.\n" +
                                "Nếu câu hỏi không liên quan đến SmartEvent, sự kiện, vé, thanh toán, hủy vé hoặc check-in, hãy lịch sự từ chối.\n" +
@@ -414,6 +505,14 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
         private List<EventSupportContext> BuildContextEvents(CustomerSupportQueryProfile profile, List<EventSupportContext> eventCatalog, string normalizedMessage)
         {
             var now = VietnamTime.Now;
+            if (profile.ResponseType == "upcoming_events"
+                || profile.Mode == CustomerSupportMode.UpcomingEvents
+                || profile.Mode == CustomerSupportMode.NearestUpcoming)
+            {
+                var upcomingTakeCount = profile.Mode == CustomerSupportMode.NearestUpcoming ? 1 : 5;
+                return BuildUpcomingContextEvents(eventCatalog, profile, now, upcomingTakeCount);
+            }
+
             var filteredEvents = FilterEventsForProfile(eventCatalog, profile, now, normalizedMessage, _logger);
             var takeCount = profile.IsCheapestQuery || profile.IsRecommendationQuery ? 5 : 3;
 
@@ -538,9 +637,28 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
             var asksNearest = ContainsAnyNormalized(normalized,
                 "sap dien ra gan nhat",
                 "gan nhat",
-                "sap dien ra",
                 "gan day nhat",
-                "event gan nhat");
+                "gan day",
+                "event gan nhat",
+                "nearest",
+                "nearest upcoming");
+
+            var asksUpcomingEvents = !asksNearest && ContainsAnyNormalized(normalized,
+                "con su kien nao sap dien ra khong",
+                "con su kien nao sap dien ra nua khong",
+                "co su kien nao sap dien ra khong",
+                "co su kien nao sap dien ra",
+                "nhung su kien nao sap dien ra",
+                "cac su kien nao sap dien ra",
+                "sap toi co su kien nao",
+                "sap toi co su kien nao khong",
+                "co event nao upcoming khong",
+                "co event upcoming khong",
+                "su kien sap dien ra",
+                "su kien sap toi",
+                "su kien sap toi khong",
+                "con su kien nao sap toi khong",
+                "upcoming");
 
             var asksBookingGuide = ContainsAnyNormalized(normalized,
                 "huong dan dat ve",
@@ -617,6 +735,136 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 "payment failed",
                 "failed payment");
 
+            var asksAccountProfile = ContainsAnyNormalized(normalized,
+                "cap nhat ho so",
+                "doi email",
+                "doi so dien thoai",
+                "cap nhat email",
+                "cap nhat so dien thoai",
+                "chinh sua ho so",
+                "profile",
+                "account profile");
+
+            var asksChangePassword = ContainsAnyNormalized(normalized,
+                "doi mat khau",
+                "thay doi mat khau",
+                "change password");
+
+            var asksForgotPassword = ContainsAnyNormalized(normalized,
+                "quen mat khau",
+                "quen password",
+                "forgot password",
+                "reset password");
+
+            var asksLoginIssue = ContainsAnyNormalized(normalized,
+                "loi dang nhap",
+                "khong dang nhap duoc",
+                "dang nhap that bai",
+                "login issue",
+                "sign in",
+                "cannot log in");
+
+            var asksGroupTicket = ContainsAnyNormalized(normalized,
+                "ve doan",
+                "ve nhom",
+                "group ticket",
+                "group tickets");
+
+            var asksSubTicket = ContainsAnyNormalized(normalized,
+                "thanh vien trong ve doan",
+                "ve con",
+                "sub ticket",
+                "member ticket");
+
+            var asksQrLost = ContainsAnyNormalized(normalized,
+                "mat ma qr",
+                "mat qr",
+                "quen qr",
+                "lost qr");
+
+            var asksQrReuse = ContainsAnyNormalized(normalized,
+                "qr da dung roi",
+                "dung lai duoc khong",
+                "qr reuse",
+                "use qr again");
+
+            var asksTicketTransfer = ContainsAnyNormalized(normalized,
+                "chuyen ve",
+                "transfer ticket",
+                "nhuong ve",
+                "gui ve cho nguoi khac");
+
+            var asksSaleWindow = ContainsAnyNormalized(normalized,
+                "thoi gian mo ban",
+                "thoi gian ket thuc ban",
+                "ban den khi nao",
+                "mua ve den khi nao",
+                "sale window");
+
+            var asksEventRunningButTicketClosed = ContainsAnyNormalized(normalized,
+                "con dien ra nhung khong dat ve duoc",
+                "su kien con dien ra nhung khong dat ve duoc",
+                "ve het han ban",
+                "ticket closed",
+                "dang dien ra nhung ve da dong");
+
+            var asksPaymentPending = ContainsAnyNormalized(normalized,
+                "don pending",
+                "thanh toan pending",
+                "dang xu ly",
+                "cho xac nhan",
+                "payment pending");
+
+            var asksPaidButNoTicket = ContainsAnyNormalized(normalized,
+                "bi tru tien",
+                "da tru tien nhung chua co ve",
+                "da thanh toan nhung chua co ve",
+                "paid but no ticket",
+                "chua co ve sau khi thanh toan");
+
+            var asksVoucher = ContainsAnyNormalized(normalized,
+                "ma giam gia",
+                "voucher",
+                "coupon",
+                "discount code");
+
+            var asksInvoice = ContainsAnyNormalized(normalized,
+                "hoa don",
+                "invoice",
+                "xuat hoa don");
+
+            var asksPartialCancel = ContainsAnyNormalized(normalized,
+                "huy mot phan",
+                "huy mot phan ve doan",
+                "partial cancel",
+                "huy mot so ve");
+
+            var asksCheckedInRefund = ContainsAnyNormalized(normalized,
+                "da check in co hoan tien khong",
+                "da checkin co hoan tien khong",
+                "checked in refund",
+                "ve da check in co hoan tien khong");
+
+            var asksUiBookingIssue = ContainsAnyNormalized(normalized,
+                "loi thao tac dat ve",
+                "khong dat duoc ve",
+                "loi giao dien dat ve",
+                "ui booking issue",
+                "khong bam duoc dat ve");
+
+            var asksTicketNotVisible = ContainsAnyNormalized(normalized,
+                "khong thay ve trong ve cua toi",
+                "khong thay ve",
+                "ve khong hien",
+                "ticket not visible",
+                "khong co trong ve cua toi");
+
+            var asksQrScanIssue = ContainsAnyNormalized(normalized,
+                "khong quet duoc qr",
+                "qr khong quet duoc",
+                "qr scan issue",
+                "khong scan duoc qr");
+
             var asksMusicTopic = ContainsAnyNormalized(normalized,
                 "am nhac",
                 "nhac",
@@ -670,6 +918,216 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                     ResponseType = "price_list",
                     Mode = CustomerSupportMode.GenericList,
                     FocusDescription = "Bảng giá và loại vé tổng quát"
+                };
+            }
+
+            if (asksUpcomingEvents && !hasSpecificFilters && !asksMusicTopic)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "upcoming_events",
+                    Mode = CustomerSupportMode.UpcomingEvents,
+                    FocusDescription = "Danh sách sự kiện sắp diễn ra"
+                };
+            }
+
+            if (asksAccountProfile)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.AccountProfileGuide,
+                    FocusDescription = "Cập nhật hồ sơ tài khoản"
+                };
+            }
+
+            if (asksChangePassword)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.ChangePasswordGuide,
+                    FocusDescription = "Đổi mật khẩu"
+                };
+            }
+
+            if (asksForgotPassword)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.ForgotPasswordGuide,
+                    FocusDescription = "Quên mật khẩu"
+                };
+            }
+
+            if (asksLoginIssue)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.LoginIssueGuide,
+                    FocusDescription = "Lỗi đăng nhập"
+                };
+            }
+
+            if (asksGroupTicket)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.GroupTicketGuide,
+                    FocusDescription = "Vé đoàn / vé nhóm"
+                };
+            }
+
+            if (asksSubTicket)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.SubTicketGuide,
+                    FocusDescription = "Thành viên trong vé đoàn"
+                };
+            }
+
+            if (asksQrLost)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.QrLostGuide,
+                    FocusDescription = "Mất mã QR"
+                };
+            }
+
+            if (asksQrReuse)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.QrReuseGuide,
+                    FocusDescription = "Dùng lại mã QR"
+                };
+            }
+
+            if (asksTicketTransfer)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.TicketTransferGuide,
+                    FocusDescription = "Chuyển vé cho người khác"
+                };
+            }
+
+            if (asksSaleWindow)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.SaleWindowGuide,
+                    FocusDescription = "Thời gian mở bán / kết thúc bán"
+                };
+            }
+
+            if (asksEventRunningButTicketClosed)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.EventRunningButTicketClosedGuide,
+                    FocusDescription = "Sự kiện còn diễn ra nhưng vé đã đóng"
+                };
+            }
+
+            if (asksPaymentPending)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.PaymentPendingGuide,
+                    FocusDescription = "Đơn pending sau thanh toán"
+                };
+            }
+
+            if (asksPaidButNoTicket)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.PaidButNoTicketGuide,
+                    FocusDescription = "Đã thanh toán nhưng chưa có vé"
+                };
+            }
+
+            if (asksVoucher)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.VoucherGuide,
+                    FocusDescription = "Mã giảm giá / voucher"
+                };
+            }
+
+            if (asksInvoice)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.InvoiceGuide,
+                    FocusDescription = "Hóa đơn"
+                };
+            }
+
+            if (asksPartialCancel)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.PartialCancelGuide,
+                    FocusDescription = "Hủy một phần vé đoàn"
+                };
+            }
+
+            if (asksCheckedInRefund)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.CheckedInRefundGuide,
+                    FocusDescription = "Hoàn tiền vé đã check-in"
+                };
+            }
+
+            if (asksUiBookingIssue)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.UiBookingIssueGuide,
+                    FocusDescription = "Lỗi thao tác đặt vé"
+                };
+            }
+
+            if (asksTicketNotVisible)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.TicketNotVisibleGuide,
+                    FocusDescription = "Không thấy vé trong Vé của tôi"
+                };
+            }
+
+            if (asksQrScanIssue)
+            {
+                return new CustomerSupportQueryProfile
+                {
+                    ResponseType = "text",
+                    Mode = CustomerSupportMode.QrScanIssueGuide,
+                    FocusDescription = "Không quét được QR"
                 };
             }
 
@@ -915,20 +1373,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
         private static CustomerSupportResponseDto? BuildDirectSupportResponse(CustomerSupportQueryProfile profile)
         {
-            var answer = profile.Mode switch
-            {
-                CustomerSupportMode.BookingGuide => "Bạn vào mục Sự kiện, chọn sự kiện muốn mua, chọn loại vé còn mở bán, điền thông tin người mua và hoàn tất thanh toán. Nếu muốn, mình có thể hướng dẫn chi tiết từng bước.",
-                CustomerSupportMode.MyTicketsGuide => "Vé đã mua thường nằm trong mục Vé của tôi sau khi bạn đăng nhập. Bạn mở chi tiết vé để xem thông tin và mã QR.",
-                CustomerSupportMode.CheckInGuide => "Khi đến sự kiện, bạn mở vé trong mục Vé của tôi và đưa mã QR cho nhân viên quét tại cổng check-in.",
-                CustomerSupportMode.SupportContact => "Bạn có thể liên hệ nhân viên hỗ trợ qua mục Hỗ trợ trên hệ thống hoặc nhắn trực tiếp tại kênh chăm sóc khách hàng của SmartEvent.",
-                CustomerSupportMode.PaymentGuide => "Khi thanh toán, bạn chọn đơn hàng hoặc vé muốn mua rồi chọn phương thức thanh toán đang được hệ thống hỗ trợ. Nếu giao dịch chưa hoàn tất, bạn có thể thử lại hoặc đổi phương thức thanh toán khác.",
-                CustomerSupportMode.RefundGuide => "Chính sách hủy/hoàn tiền phụ thuộc vào quy định sự kiện và thời điểm hủy vé. Bạn nên kiểm tra phần chính sách hoàn tiền của sự kiện hoặc liên hệ nhân viên hỗ trợ để được xem trường hợp cụ thể.",
-                CustomerSupportMode.OrderStatusGuide => "Bạn có thể vào mục Đơn hàng hoặc giao dịch gần đây để xem trạng thái thanh toán, xác nhận và xử lý đơn. Nếu muốn, hãy gửi mã đơn để mình hỗ trợ đọc trạng thái rõ hơn.",
-                CustomerSupportMode.MissingTicketGuide => "Nếu chưa nhận được vé, hãy kiểm tra email, mục Vé của tôi và trạng thái đơn hàng. Nếu đơn đã thanh toán nhưng vé chưa hiển thị, bạn nên liên hệ nhân viên hỗ trợ để đối soát.",
-                CustomerSupportMode.UpdateBuyerInfoGuide => "Nếu bạn nhập sai thông tin người mua, hãy kiểm tra xem đơn đã được xác nhận hay chưa. Khi đơn đã thanh toán, nhiều trường hợp cần nhân viên hỗ trợ can thiệp để cập nhật thông tin.",
-                CustomerSupportMode.PaymentFailedGuide => "Nếu thanh toán thất bại, bạn hãy kiểm tra lại phương thức thanh toán, số dư hoặc thử thực hiện lại sau ít phút. Nếu lỗi lặp lại, hãy đổi phương thức thanh toán hoặc liên hệ hỗ trợ.",
-                _ => null
-            };
+            var answer = GetStaticSupportAnswer(profile.Mode);
 
             return answer == null
                 ? null
@@ -943,6 +1388,12 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
         private static string BuildFallbackAnswer(CustomerSupportQueryProfile profile, List<EventSupportContext> contextEvents, object? structuredData)
         {
+            var staticSupportAnswer = GetStaticSupportAnswer(profile.Mode);
+            if (staticSupportAnswer != null)
+            {
+                return staticSupportAnswer;
+            }
+
             if (profile.IsCheapestQuery)
             {
                 var cheapestTicket = contextEvents
@@ -970,6 +1421,16 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 return BuildPriceNoResultAnswer(profile);
             }
 
+            if (profile.ResponseType == "upcoming_events" || profile.Mode == CustomerSupportMode.UpcomingEvents)
+            {
+                return BuildUpcomingEventsFallbackAnswer(contextEvents);
+            }
+
+            if (profile.Mode == CustomerSupportMode.LocationFilter && contextEvents.Count == 0)
+            {
+                return BuildNoLocationEventsAnswer(profile.LocationKeyword);
+            }
+
             if (profile.ResponseType == "open_sales" || profile.ResponseType == "price_list")
             {
                 var events = structuredData as List<OpenSaleEventDto> ?? new List<OpenSaleEventDto>();
@@ -990,10 +1451,10 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 var nearestEvent = contextEvents.OrderBy(eventItem => eventItem.StartTime).FirstOrDefault();
                 if (nearestEvent == null)
                 {
-                    return "Hiện tại mình chưa tìm thấy sự kiện sắp diễn ra phù hợp.";
+                    return "Hiện tại SmartEvent chưa có sự kiện sắp diễn ra phù hợp.";
                 }
 
-                return $"Sự kiện sắp diễn ra gần nhất là {nearestEvent.Name} vào {nearestEvent.StartTime:dd/MM/yyyy HH:mm}.";
+                return BuildNearestUpcomingEventAnswer(nearestEvent);
             }
 
             if (profile.Mode == CustomerSupportMode.MusicTopic)
@@ -1121,6 +1582,241 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
             }
 
             return "Mình chưa có đủ ngữ cảnh để trả lời chính xác. Bạn có thể nói rõ hơn về sự kiện, loại vé hoặc nội dung bạn muốn hỏi không?";
+        }
+
+        private static string BuildNoLocationEventsAnswer(string? locationKeyword)
+        {
+            var label = FormatLocationDisplayName(locationKeyword);
+            return $"Hiện tại SmartEvent chưa có sự kiện ở {label}.";
+        }
+
+        private static string FormatLocationDisplayName(string? locationKeyword)
+        {
+            var normalized = NormalizeSearchText(locationKeyword ?? string.Empty);
+            return normalized switch
+            {
+                "ha noi" => "Hà Nội",
+                "ho chi minh" => "TP.HCM",
+                "da nang" => "Đà Nẵng",
+                "can tho" => "Cần Thơ",
+                "hue" => "Huế",
+                "vung tau" => "Vũng Tàu",
+                "thua thien hue" => "Huế",
+                "ba ria vung tau" => "Bà Rịa - Vũng Tàu",
+                _ => string.IsNullOrWhiteSpace(normalized)
+                    ? string.Empty
+                    : string.Join(" ", normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(part => char.ToUpperInvariant(part[0]) + part[1..]))
+            };
+        }
+
+        private static string? GetStaticSupportAnswer(CustomerSupportMode mode)
+        {
+            return mode switch
+            {
+                CustomerSupportMode.AccountProfileGuide => "Bạn có thể vào phần Hồ sơ tài khoản để cập nhật tên, email hoặc số điện thoại. Nếu hệ thống yêu cầu xác minh, hãy hoàn tất xác minh rồi lưu lại thay đổi.",
+                CustomerSupportMode.ChangePasswordGuide => "Bạn vào Cài đặt tài khoản hoặc Bảo mật để đổi mật khẩu. Nếu quên mật khẩu hiện tại, hãy dùng luồng Quên mật khẩu thay vì nhập thử nhiều lần.",
+                CustomerSupportMode.ForgotPasswordGuide => "Bạn hãy dùng chức năng Quên mật khẩu trên màn hình đăng nhập để nhận hướng dẫn đặt lại mật khẩu qua email hoặc số điện thoại đã đăng ký.",
+                CustomerSupportMode.LoginIssueGuide => "Nếu đăng nhập lỗi, bạn nên kiểm tra lại email hoặc số điện thoại, mật khẩu, trạng thái tài khoản và thử lại sau vài phút. Nếu vẫn không vào được, hãy liên hệ hỗ trợ để kiểm tra tài khoản.",
+                CustomerSupportMode.GroupTicketGuide => "Vé đoàn hoặc vé nhóm là loại vé dành cho nhiều người trong cùng một đơn. Số lượng người áp dụng và cách sử dụng cụ thể phụ thuộc vào cấu hình của từng sự kiện.",
+                CustomerSupportMode.SubTicketGuide => "Thành viên trong vé đoàn thường là các vé con hoặc suất chỗ đi kèm của đơn nhóm. Cách tạo và quản lý sẽ phụ thuộc vào sự kiện và cấu hình loại vé.",
+                CustomerSupportMode.QrLostGuide => "Nếu bạn làm mất mã QR, hãy kiểm tra lại trong Vé của tôi hoặc email xác nhận. Nếu vẫn không thấy, hãy liên hệ hỗ trợ để được kiểm tra trạng thái vé.",
+                CustomerSupportMode.QrReuseGuide => "Mã QR đã dùng rồi thường không thể dùng lại cho lần check-in tiếp theo. Nếu bạn cần hỗ trợ trường hợp đặc biệt, hãy liên hệ nhân viên tại sự kiện hoặc bộ phận hỗ trợ.",
+                CustomerSupportMode.TicketTransferGuide => "Việc chuyển vé cho người khác phụ thuộc chính sách của từng sự kiện. Nếu hệ thống có hỗ trợ chuyển nhượng, bạn sẽ thao tác trong chi tiết vé; nếu không, hãy liên hệ hỗ trợ để kiểm tra khả năng xử lý.",
+                CustomerSupportMode.SaleWindowGuide => "Mỗi loại vé có thể có thời gian mở bán và kết thúc bán riêng. Bạn nên xem chi tiết sự kiện hoặc chi tiết loại vé để biết thời điểm bán cụ thể.",
+                CustomerSupportMode.EventRunningButTicketClosedGuide => "Sự kiện vẫn có thể đang diễn ra dù cổng bán vé đã đóng. Trường hợp này thường là do thời gian bán vé đã kết thúc hoặc vé đã hết số lượng, nên hệ thống sẽ không cho mua thêm.",
+                CustomerSupportMode.PaymentPendingGuide => "Nếu bạn đã thanh toán nhưng đơn vẫn pending, hãy kiểm tra lại trạng thái thanh toán và chờ hệ thống đồng bộ. Nếu pending quá lâu, hãy liên hệ hỗ trợ để đối soát giao dịch.",
+                CustomerSupportMode.PaidButNoTicketGuide => "Nếu bị trừ tiền nhưng chưa thấy vé, hãy kiểm tra trạng thái đơn hàng, lịch sử thanh toán và mục Vé của tôi. Nếu vẫn không có vé, bạn nên liên hệ hỗ trợ để đối soát.",
+                CustomerSupportMode.VoucherGuide => "Mã giảm giá hoặc voucher thường được nhập ở bước thanh toán nếu đơn của bạn đủ điều kiện. Nếu mã không hợp lệ, hãy kiểm tra hạn dùng và điều kiện áp dụng của mã.",
+                CustomerSupportMode.InvoiceGuide => "Hóa đơn thường nằm trong chi tiết đơn hàng hoặc mục thanh toán. Nếu bạn cần xuất hóa đơn, hãy kiểm tra các trường thông tin hóa đơn trong đơn mua vé.",
+                CustomerSupportMode.PartialCancelGuide => "Việc hủy một phần vé đoàn phụ thuộc vào chính sách sự kiện và trạng thái thanh toán. Nếu hệ thống hỗ trợ, bạn sẽ thao tác trên chi tiết đơn; nếu không, cần nhân viên hỗ trợ xử lý.",
+                CustomerSupportMode.CheckedInRefundGuide => "Vé đã check-in thường không đủ điều kiện hoàn tiền, trừ khi chính sách riêng của sự kiện cho phép trường hợp đặc biệt.",
+                CustomerSupportMode.UiBookingIssueGuide => "Nếu gặp lỗi thao tác đặt vé, bạn hãy thử tải lại trang, kiểm tra kết nối mạng, đổi trình duyệt hoặc đăng nhập lại. Nếu lỗi vẫn lặp lại, hãy gửi mô tả lỗi cho bộ phận hỗ trợ.",
+                CustomerSupportMode.TicketNotVisibleGuide => "Nếu không thấy vé trong Vé của tôi, hãy kiểm tra lại đúng tài khoản, trạng thái đơn hàng và các bộ lọc hiển thị. Nếu đơn đã thanh toán mà vé vẫn không xuất hiện, hãy liên hệ hỗ trợ.",
+                CustomerSupportMode.QrScanIssueGuide => "Nếu không quét được QR, hãy thử tăng độ sáng màn hình, phóng to mã QR và kiểm tra lại thiết bị quét. Nếu mã đã bị dùng trước đó hoặc QR lỗi, cần nhân viên hỗ trợ kiểm tra lại.",
+                CustomerSupportMode.BookingGuide => "Bạn vào mục Sự kiện, chọn sự kiện muốn mua, chọn loại vé còn mở bán, điền thông tin người mua và hoàn tất thanh toán. Nếu muốn, mình có thể hướng dẫn chi tiết từng bước.",
+                CustomerSupportMode.MyTicketsGuide => "Vé đã mua thường nằm trong mục Vé của tôi sau khi bạn đăng nhập. Bạn mở chi tiết vé để xem thông tin và mã QR.",
+                CustomerSupportMode.CheckInGuide => "Khi đến sự kiện, bạn mở vé trong mục Vé của tôi và đưa mã QR cho nhân viên quét tại cổng check-in.",
+                CustomerSupportMode.SupportContact => "Bạn có thể liên hệ nhân viên hỗ trợ qua mục Hỗ trợ trên hệ thống hoặc nhắn trực tiếp tại kênh chăm sóc khách hàng của SmartEvent.",
+                CustomerSupportMode.PaymentGuide => "Khi thanh toán, bạn chọn đơn hàng hoặc vé muốn mua rồi chọn phương thức thanh toán đang được hệ thống hỗ trợ. Nếu giao dịch chưa hoàn tất, bạn có thể thử lại hoặc đổi phương thức thanh toán khác.",
+                CustomerSupportMode.RefundGuide => "Chính sách hủy/hoàn tiền phụ thuộc vào quy định sự kiện và thời điểm hủy vé. Bạn nên kiểm tra phần chính sách hoàn tiền của sự kiện hoặc liên hệ nhân viên hỗ trợ để được xem trường hợp cụ thể.",
+                CustomerSupportMode.OrderStatusGuide => "Bạn có thể vào mục Đơn hàng hoặc giao dịch gần đây để xem trạng thái thanh toán, xác nhận và xử lý đơn. Nếu muốn, hãy gửi mã đơn để mình hỗ trợ đọc trạng thái rõ hơn.",
+                CustomerSupportMode.MissingTicketGuide => "Nếu chưa nhận được vé, hãy kiểm tra email, mục Vé của tôi và trạng thái đơn hàng. Nếu đơn đã thanh toán nhưng vé chưa hiển thị, bạn nên liên hệ nhân viên hỗ trợ để đối soát.",
+                CustomerSupportMode.UpdateBuyerInfoGuide => "Nếu bạn nhập sai thông tin người mua, hãy kiểm tra xem đơn đã được xác nhận hay chưa. Khi đơn đã thanh toán, nhiều trường hợp cần nhân viên hỗ trợ can thiệp để cập nhật thông tin.",
+                CustomerSupportMode.PaymentFailedGuide => "Nếu thanh toán thất bại, bạn hãy kiểm tra lại phương thức thanh toán, số dư hoặc thử thực hiện lại sau ít phút. Nếu lỗi lặp lại, hãy đổi phương thức thanh toán hoặc liên hệ hỗ trợ.",
+                _ => null
+            };
+        }
+
+        private static string BuildUpcomingEventsFallbackAnswer(List<EventSupportContext> contextEvents)
+        {
+            var futureEvents = contextEvents
+                .Where(eventItem => eventItem.IsPublic && eventItem.StartTime >= VietnamTime.Now)
+                .OrderBy(eventItem => eventItem.StartTime)
+                .Take(5)
+                .ToList();
+
+            if (futureEvents.Count == 0)
+            {
+                return "Hiện tại SmartEvent chưa có sự kiện sắp diễn ra phù hợp.";
+            }
+
+            var summaries = futureEvents.Select(BuildUpcomingEventSummary);
+            return $"Mình tìm được các sự kiện sắp diễn ra: {string.Join("; ", summaries)}.";
+        }
+
+        private static string BuildNearestUpcomingEventAnswer(EventSupportContext nearestEvent)
+        {
+            var ticketSummary = BuildUpcomingTicketSummary(nearestEvent, preferSingleTicket: true);
+            return string.IsNullOrWhiteSpace(ticketSummary)
+                ? $"Sự kiện sắp diễn ra gần nhất là {nearestEvent.Name} vào {nearestEvent.StartTime:dd/MM/yyyy HH:mm}."
+                : $"Sự kiện sắp diễn ra gần nhất là {nearestEvent.Name} vào {nearestEvent.StartTime:dd/MM/yyyy HH:mm}. {ticketSummary}";
+        }
+
+        private static string BuildUpcomingEventSummary(EventSupportContext eventItem)
+        {
+            var baseSummary = $"{eventItem.Name} vào {eventItem.StartTime:dd/MM/yyyy HH:mm}";
+            var ticketSummary = BuildUpcomingTicketSummary(eventItem, preferSingleTicket: false);
+            return string.IsNullOrWhiteSpace(ticketSummary) ? baseSummary : $"{baseSummary} - {ticketSummary}";
+        }
+
+        private static string BuildUpcomingTicketSummary(EventSupportContext eventItem, bool preferSingleTicket)
+        {
+            var availableTickets = eventItem.TicketTypes
+                .OrderBy(ticket => ticket.Price)
+                .ThenBy(ticket => ticket.Name)
+                .ToList();
+
+            if (availableTickets.Count == 0)
+            {
+                return "chưa có dữ liệu loại vé";
+            }
+
+            var now = VietnamTime.Now;
+            var onSaleTickets = availableTickets.Where(ticket => IsTicketCurrentlyOnSale(ticket, now)).ToList();
+            if (onSaleTickets.Count > 0)
+            {
+                var selectedTickets = preferSingleTicket ? onSaleTickets.Take(1).ToList() : onSaleTickets.Take(2).ToList();
+                var openTicketSummaries = selectedTickets.Select(ticket =>
+                {
+                    var remaining = ticket.RemainingQuantity > 0 ? ticket.RemainingQuantity : ticket.RemainingCapacity;
+                    return remaining > 0
+                        ? $"{ticket.Name} {ticket.Price:N0} VND, còn khoảng {remaining} vé"
+                        : $"{ticket.Name} {ticket.Price:N0} VND";
+                });
+
+                return $"vé đang mở bán: {string.Join(", ", openTicketSummaries)}";
+            }
+
+            var upcomingTicket = availableTickets
+                .Where(ticket => ticket.IsActive && ticket.SaleStartTime > now)
+                .OrderBy(ticket => ticket.SaleStartTime)
+                .FirstOrDefault();
+
+            if (upcomingTicket != null)
+            {
+                return $"vé chưa mở bán, mở từ {upcomingTicket.SaleStartTime:dd/MM/yyyy HH:mm}";
+            }
+
+            var closedTicket = availableTickets
+                .Where(ticket => ticket.IsActive && ticket.SaleEndTime < now)
+                .OrderByDescending(ticket => ticket.SaleEndTime)
+                .FirstOrDefault();
+
+            if (closedTicket != null)
+            {
+                return $"vé đã kết thúc bán từ {closedTicket.SaleEndTime:dd/MM/yyyy HH:mm}";
+            }
+
+            return "trạng thái vé chưa có thông tin mở bán rõ ràng";
+        }
+
+        private static bool IsTicketCurrentlyOnSale(TicketTypeSupportContext ticket, DateTime now)
+        {
+            return ticket.IsActive
+                   && ticket.SaleStartTime <= now
+                   && ticket.SaleEndTime >= now
+                   && (ticket.RemainingQuantity > 0 || ticket.RemainingCapacity > 0);
+        }
+
+        private static List<EventSupportContext> BuildUpcomingContextEvents(
+            IEnumerable<EventSupportContext> eventCatalog,
+            CustomerSupportQueryProfile profile,
+            DateTime now,
+            int takeCount)
+        {
+            var upcomingEvents = eventCatalog
+                .Where(eventItem => eventItem.IsPublic && eventItem.StartTime >= now)
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.SpecificEventName) || MatchesSpecificEvent(eventItem, profile))
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.LocationKeyword) || MatchesLocation(eventItem, profile.LocationKeyword!, profile.LocationKeyword!, null))
+                .Where(eventItem => profile.TimeRange == CustomerSupportTimeRange.None || OverlapsTimeRange(eventItem.StartTime, eventItem.EndTime, GetTimeRangeBounds(profile.TimeRange, now).Start, GetTimeRangeBounds(profile.TimeRange, now).End))
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.CategoryKeyword) || MatchesCategory(eventItem, profile.CategoryKeyword!))
+                .Where(eventItem => !profile.IsRecommendationQuery || string.IsNullOrWhiteSpace(profile.RecommendationInterest) || MatchesCategory(eventItem, profile.RecommendationInterest!))
+                .Select(eventItem => ProjectUpcomingContextEvent(eventItem))
+                .OrderBy(eventItem => eventItem.StartTime)
+                .Take(takeCount)
+                .ToList();
+
+            return upcomingEvents;
+        }
+
+        private static EventSupportContext ProjectUpcomingContextEvent(EventSupportContext eventItem)
+        {
+            return new EventSupportContext
+            {
+                Id = eventItem.Id,
+                Name = eventItem.Name,
+                Description = eventItem.Description,
+                DbStatus = eventItem.DbStatus,
+                NameSearchText = eventItem.NameSearchText,
+                DescriptionSearchText = eventItem.DescriptionSearchText,
+                Location = eventItem.Location,
+                LocationSearchText = eventItem.LocationSearchText,
+                StartTime = eventItem.StartTime,
+                EndTime = eventItem.EndTime,
+                Status = eventItem.Status,
+                IsPublic = eventItem.IsPublic,
+                TicketTypes = eventItem.TicketTypes
+                    .OrderBy(ticket => ticket.Price)
+                    .ThenBy(ticket => ticket.Name)
+                    .ToList()
+            };
+        }
+
+        private static List<UpcomingEventSummaryDto> BuildUpcomingEventStructuredData(
+            IEnumerable<EventSupportContext> eventCatalog,
+            CustomerSupportQueryProfile profile)
+        {
+            var now = VietnamTime.Now;
+            var upcomingEvents = BuildUpcomingContextEvents(eventCatalog, profile, now, 5);
+
+            return upcomingEvents.Select(eventItem => new UpcomingEventSummaryDto
+            {
+                Id = eventItem.Id,
+                Name = eventItem.Name,
+                StartTime = eventItem.StartTime,
+                EndTime = eventItem.EndTime,
+                Location = eventItem.Location,
+                Description = eventItem.Description,
+                TicketTypes = eventItem.TicketTypes.Select(ticket => new UpcomingEventTicketSummaryDto
+                {
+                    Id = ticket.Id,
+                    Name = ticket.Name,
+                    Price = ticket.Price,
+                    RemainingQuantity = ticket.RemainingQuantity,
+                    RemainingCapacity = ticket.RemainingCapacity,
+                    SaleStartTime = ticket.SaleStartTime,
+                    SaleEndTime = ticket.SaleEndTime,
+                    IsActive = ticket.IsActive,
+                    SaleStatus = IsTicketCurrentlyOnSale(ticket, now)
+                        ? "on_sale"
+                        : ticket.IsActive && ticket.SaleStartTime > now
+                            ? "upcoming"
+                            : ticket.IsActive && ticket.SaleEndTime < now
+                                ? "closed"
+                                : "inactive"
+                }).ToList()
+            }).ToList();
         }
 
         private static bool MatchesSpecificEvent(EventSupportContext eventItem, CustomerSupportQueryProfile profile)
@@ -1258,11 +1954,21 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 visibleEvents = visibleEvents.Where(eventItem => eventItem.TicketTypes.Any(ticket => IsValidTicketType(ticket, now, profile)));
             }
 
+            var locationOnlyQuery = profile.Mode == CustomerSupportMode.LocationFilter
+                                    && !requiresMatchingTickets
+                                    && profile.TimeRange == CustomerSupportTimeRange.None
+                                    && string.IsNullOrWhiteSpace(profile.CategoryKeyword)
+                                    && !profile.IsRecommendationQuery;
+
             var allProjected = visibleEvents
-                .Select(eventItem => ProjectContextEvent(eventItem, now, profile))
+                .Select(eventItem => locationOnlyQuery
+                    ? ProjectLocationContextEvent(eventItem)
+                    : ProjectContextEvent(eventItem, now, profile))
                 .ToList();
 
-            var projectedEvents = allProjected.Where(eventItem => eventItem.TicketTypes.Any());
+            var projectedEvents = locationOnlyQuery
+                ? allProjected
+                : allProjected.Where(eventItem => eventItem.TicketTypes.Any());
 
             // Log events that were dropped because they have no valid ticket types
             try
@@ -1369,32 +2075,56 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
             };
         }
 
+        private static EventSupportContext ProjectLocationContextEvent(EventSupportContext eventItem)
+        {
+            return new EventSupportContext
+            {
+                Id = eventItem.Id,
+                Name = eventItem.Name,
+                Description = eventItem.Description,
+                DbStatus = eventItem.DbStatus,
+                NameSearchText = eventItem.NameSearchText,
+                DescriptionSearchText = eventItem.DescriptionSearchText,
+                Location = eventItem.Location,
+                LocationSearchText = eventItem.LocationSearchText,
+                StartTime = eventItem.StartTime,
+                EndTime = eventItem.EndTime,
+                Status = eventItem.Status,
+                IsPublic = eventItem.IsPublic,
+                TicketTypes = eventItem.TicketTypes
+                    .OrderBy(ticket => ticket.Price)
+                    .ThenBy(ticket => ticket.Name)
+                    .ToList()
+            };
+        }
+
         private static bool MatchesLocation(EventSupportContext eventItem, string locationKeyword, string normalizedMessage, ILogger<AIController>? logger)
         {
             var normalizedQuery = NormalizeVietnameseText(locationKeyword);
-            var aliases = GetLocationAliases(normalizedQuery).Select(NormalizeVietnameseText).ToList();
-            var haystack = NormalizeVietnameseText($"{eventItem.LocationSearchText} {eventItem.NameSearchText} {eventItem.DescriptionSearchText}");
+            var aliases = GetLocationAliases(normalizedQuery).Select(NormalizeVietnameseText).Where(alias => !string.IsNullOrWhiteSpace(alias)).ToList();
+            var normalizedEventLocation = NormalizeVietnameseText(eventItem.Location);
             
             logger?.LogInformation(
-                "Location match attempt: rawMessage={RawMessage}, normalizedMessage={NormalizedMessage}, locationKeyword={LocationKeyword}, aliases=[{Aliases}], eventName={EventName}, eventLocation={EventLocation}, normalizedEventLocation={NormalizedEventLocation}, normalizedEventName={NormalizedEventName}, normalizedEventDescription={NormalizedEventDescription}, haystack={Haystack}",
+                "Location match attempt: rawMessage={RawMessage}, normalizedMessage={NormalizedMessage}, locationKeyword={LocationKeyword}, aliases=[{Aliases}], eventName={EventName}, eventLocation={EventLocation}, normalizedEventLocation={NormalizedEventLocation}",
                 normalizedMessage.Substring(0, Math.Min(50, normalizedMessage.Length)),
                 normalizedMessage,
                 locationKeyword,
                 string.Join(", ", aliases),
                 eventItem.Name,
                 eventItem.Location,
-                eventItem.LocationSearchText,
-                eventItem.NameSearchText,
-                eventItem.DescriptionSearchText,
-                haystack);
+                normalizedEventLocation);
 
-            if (haystack.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(normalizedEventLocation)
+                && (normalizedEventLocation.Contains(normalizedQuery, StringComparison.OrdinalIgnoreCase)
+                    || normalizedQuery.Contains(normalizedEventLocation, StringComparison.OrdinalIgnoreCase)))
             {
                 logger?.LogInformation("Location MATCH (direct query): eventId={EventId}, eventName={EventName}", eventItem.Id, eventItem.Name);
                 return true;
             }
 
-            var matched = aliases.Any(alias => haystack.Contains(alias, StringComparison.OrdinalIgnoreCase));
+            var matched = aliases.Any(alias => !string.IsNullOrWhiteSpace(normalizedEventLocation)
+                                               && (normalizedEventLocation.Contains(alias, StringComparison.OrdinalIgnoreCase)
+                                                   || alias.Contains(normalizedEventLocation, StringComparison.OrdinalIgnoreCase)));
             if (matched)
             {
                 logger?.LogInformation("Location MATCH (via alias): eventId={EventId}, eventName={EventName}", eventItem.Id, eventItem.Name);
@@ -1924,6 +2654,32 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
         private static (decimal? PriceMin, decimal? PriceMax, bool IsCheapestQuery) DetectPriceFilter(string normalizedMessage)
         {
+            var hasMinDirection = ContainsAnyNormalized(normalizedMessage,
+                "tren",
+                "tro len",
+                "lon hon",
+                "cao hon",
+                "tu ",
+                "tu muc",
+                "tinh tu",
+                "toi thieu",
+                "it nhat",
+                "minimum",
+                "at least",
+                ">=");
+
+            var hasMaxDirection = ContainsAnyNormalized(normalizedMessage,
+                "duoi",
+                "tro xuong",
+                "khong qua",
+                "toi da",
+                "nho hon",
+                "lower than",
+                "under",
+                "below",
+                "at most",
+                "<=");
+
             var isCheapestQuery = ContainsAnyNormalized(normalizedMessage,
                 "re nhat",
                 "ve re nhat",
@@ -1936,35 +2692,24 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
             var priceValue = ExtractPriceAmount(normalizedMessage);
             
-            var maxPriceWords = ContainsAnyNormalized(normalizedMessage,
-                "duoi",
-                "khong qua",
-                "toi da",
-                "under",
-                "below",
-                "at most",
-                "<=",
-                "nho hon hoac bang");
-            
-            var minPriceWords = ContainsAnyNormalized(normalizedMessage,
-                "tren",
-                "lon hon",
-                "cao hon",
-                "tu",
-                "tu tren len",
-                "over",
-                "above",
-                "more than",
-                ">=");
+            if (priceValue.HasValue && hasMinDirection && !hasMaxDirection)
+            {
+                return (priceValue.Value, null, isCheapestQuery);
+            }
 
-            if (priceValue.HasValue && maxPriceWords)
+            if (priceValue.HasValue && hasMaxDirection && !hasMinDirection)
             {
                 return (null, priceValue.Value, isCheapestQuery);
             }
-            
-            if (priceValue.HasValue && minPriceWords)
+
+            if (priceValue.HasValue && hasMinDirection)
             {
                 return (priceValue.Value, null, isCheapestQuery);
+            }
+
+            if (priceValue.HasValue && hasMaxDirection)
+            {
+                return (null, priceValue.Value, isCheapestQuery);
             }
 
             if (priceValue.HasValue && ContainsAnyNormalized(normalizedMessage, "ve nao", "gia", "ve", "ticket", "co ve nao", "co ve"))
@@ -2006,27 +2751,62 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
         private static string? DetectLocationKeyword(string normalizedMessage)
         {
-            if (ContainsAnyNormalized(normalizedMessage, "ha noi", "hanoi", "hn", "thanh pho ha noi", "thu do ha noi"))
+            var normalizedQuery = NormalizeSearchText(normalizedMessage);
+            if (string.IsNullOrWhiteSpace(normalizedQuery))
             {
-                return "ha noi";
+                return null;
             }
 
-            if (ContainsAnyNormalized(normalizedMessage, "ho chi minh", "hcm", "tp hcm", "tphcm", "tp. hcm", "sai gon", "saigon", "thanh pho ho chi minh"))
+            var province = TryResolveProvinceKeyword(normalizedQuery);
+            if (!string.IsNullOrWhiteSpace(province))
             {
-                return "ho chi minh";
+                return province;
             }
 
-            if (ContainsAnyNormalized(normalizedMessage, "da nang", "thanh pho da nang", "danang"))
+            var extracted = ExtractLocationSearchText(normalizedQuery, null);
+            if (string.IsNullOrWhiteSpace(extracted))
             {
-                return "da nang";
+                return null;
             }
 
-            if (ContainsAnyNormalized(normalizedMessage, "can tho", "cantho"))
+            var extractedNormalized = NormalizeSearchText(extracted);
+            province = TryResolveProvinceKeyword(extractedNormalized);
+            return !string.IsNullOrWhiteSpace(province) ? province : extractedNormalized;
+        }
+
+        private static string? TryResolveProvinceKeyword(string normalizedMessage)
+        {
+            foreach (var entry in ProvinceAliases)
             {
-                return "can tho";
+                if (MatchesProvinceAlias(normalizedMessage, entry.Key, entry.Value))
+                {
+                    return entry.Key;
+                }
             }
 
             return null;
+        }
+
+        private static bool MatchesProvinceAlias(string normalizedSource, string canonicalProvince, IEnumerable<string> aliases)
+        {
+            var normalizedProvince = NormalizeSearchText(canonicalProvince);
+            if (normalizedSource.Contains(normalizedProvince, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            foreach (var alias in aliases)
+            {
+                var normalizedAlias = NormalizeSearchText(alias);
+                if (!string.IsNullOrWhiteSpace(normalizedAlias)
+                    && (normalizedSource.Contains(normalizedAlias, StringComparison.OrdinalIgnoreCase)
+                        || normalizedAlias.Contains(normalizedSource, StringComparison.OrdinalIgnoreCase)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static string? DetectCategoryKeyword(string normalizedMessage)
@@ -2193,35 +2973,24 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
         private static IEnumerable<string> GetLocationAliases(string locationKeyword)
         {
-            return NormalizeVietnameseText(locationKeyword) switch
+            var normalizedKeyword = NormalizeVietnameseText(locationKeyword);
+            if (string.IsNullOrWhiteSpace(normalizedKeyword))
             {
-                "ha noi" => new[]
-                {
-                    "ha noi",
-                    "hanoi",
-                    "hn",
-                    "my dinh",
-                    "giang vo",
-                    "trung tam hoi nghi quoc gia",
-                    "hanoi convention center",
-                    "trung tam trien lam giang vo"
-                },
-                "ho chi minh" => new[]
-                {
-                    "ho chi minh",
-                    "tp hcm",
-                    "tphcm",
-                    "hcm",
-                    "sai gon",
-                    "saigon",
-                    "tp. hcm"
-                },
-                "da nang" => new[] { "da nang", "danang" },
-                "can tho" => new[] { "can tho", "cantho" },
-                "hn" => new[] { "ha noi", "hanoi", "hn", "my dinh", "giang vo", "hanoi convention center", "trung tam hoi nghi quoc gia" },
-                "hcm" => new[] { "ho chi minh", "tp hcm", "tphcm", "hcm", "sai gon", "saigon" },
-                _ => new[] { NormalizeVietnameseText(locationKeyword) }
-            };
+                return Array.Empty<string>();
+            }
+
+            if (ProvinceAliases.TryGetValue(normalizedKeyword, out var directAliases))
+            {
+                return directAliases;
+            }
+
+            var match = ProvinceAliases.FirstOrDefault(entry => MatchesProvinceAlias(normalizedKeyword, entry.Key, entry.Value));
+            if (!string.IsNullOrWhiteSpace(match.Key))
+            {
+                return match.Value;
+            }
+
+            return new[] { normalizedKeyword };
         }
 
         private static IEnumerable<string> GetCategoryAliases(string normalizedCategory)
@@ -2470,7 +3239,15 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                                || setting.SettingKey.Contains("Instruction", StringComparison.OrdinalIgnoreCase)
                                || setting.SettingKey.Contains("QR", StringComparison.OrdinalIgnoreCase)
                                || setting.SettingKey.Contains("Ticket", StringComparison.OrdinalIgnoreCase)
-                               || setting.SettingKey.Contains("Booking", StringComparison.OrdinalIgnoreCase))
+                               || setting.SettingKey.Contains("Booking", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Account", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Profile", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Password", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Login", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Voucher", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Invoice", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Group", StringComparison.OrdinalIgnoreCase)
+                               || setting.SettingKey.Contains("Transfer", StringComparison.OrdinalIgnoreCase))
                 .Select(setting => new SupportGuideContext
                 {
                     Key = setting.SettingKey,
@@ -2499,6 +3276,26 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 {
                     Key = "checkin_qr_guide",
                     Value = "Hướng dẫn check-in QR: mở vé trong mục Vé của tôi, đưa mã QR cho nhân viên quét tại cổng check-in."
+                },
+                new()
+                {
+                    Key = "account_profile_guide",
+                    Value = "Hướng dẫn cập nhật hồ sơ: vào phần hồ sơ tài khoản để sửa tên, email hoặc số điện thoại và lưu lại sau khi xác minh nếu cần."
+                },
+                new()
+                {
+                    Key = "password_login_guide",
+                    Value = "Hướng dẫn mật khẩu và đăng nhập: dùng Quên mật khẩu để đặt lại mật khẩu, hoặc kiểm tra lại email, số điện thoại và mật khẩu nếu đăng nhập thất bại."
+                },
+                new()
+                {
+                    Key = "group_ticket_guide",
+                    Value = "Hướng dẫn vé đoàn: vé nhóm dùng cho nhiều người trong cùng một đơn; số lượng người và cách quản lý phụ thuộc cấu hình từng sự kiện."
+                },
+                new()
+                {
+                    Key = "voucher_invoice_guide",
+                    Value = "Hướng dẫn voucher và hóa đơn: nhập mã giảm giá ở bước thanh toán nếu mã còn hiệu lực, và kiểm tra chi tiết đơn hàng để xem thông tin hóa đơn."
                 }
             };
         }
@@ -2565,6 +3362,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
         private enum CustomerSupportMode
         {
             GenericList,
+            UpcomingEvents,
             MusicTopic,
             NearestUpcoming,
             BookingGuide,
@@ -2579,7 +3377,51 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
             PaymentFailedGuide,
             LocationFilter,
             SpecificEventOrTicket,
-            General
+            General,
+            AccountProfileGuide,
+            ChangePasswordGuide,
+            ForgotPasswordGuide,
+            LoginIssueGuide,
+            GroupTicketGuide,
+            SubTicketGuide,
+            QrLostGuide,
+            QrReuseGuide,
+            TicketTransferGuide,
+            SaleWindowGuide,
+            EventRunningButTicketClosedGuide,
+            PaymentPendingGuide,
+            PaidButNoTicketGuide,
+            VoucherGuide,
+            InvoiceGuide,
+            PartialCancelGuide,
+            CheckedInRefundGuide,
+            UiBookingIssueGuide,
+            TicketNotVisibleGuide,
+            QrScanIssueGuide
+        }
+
+        private sealed class UpcomingEventSummaryDto
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public DateTime StartTime { get; set; }
+            public DateTime EndTime { get; set; }
+            public string? Location { get; set; }
+            public string? Description { get; set; }
+            public List<UpcomingEventTicketSummaryDto> TicketTypes { get; set; } = new();
+        }
+
+        private sealed class UpcomingEventTicketSummaryDto
+        {
+            public Guid Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public decimal Price { get; set; }
+            public int RemainingQuantity { get; set; }
+            public int RemainingCapacity { get; set; }
+            public DateTime SaleStartTime { get; set; }
+            public DateTime SaleEndTime { get; set; }
+            public bool IsActive { get; set; }
+            public string SaleStatus { get; set; } = string.Empty;
         }
 
         private enum CustomerSupportTimeRange
