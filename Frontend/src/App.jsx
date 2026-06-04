@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
+import { HelmetProvider } from 'react-helmet-async';
+import EventDetail from './pages/EventDetail';
 import viVN from 'antd/locale/vi_VN';
 
 // Import Layout
@@ -113,6 +115,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/guest-ticket/:ticketId" element={<GuestTicketPage />} />
+          <Route path="/event/:slug/:id" element={<EventDetail />} />
 
           {/* ADMIN / MANAGER / STAFF / DIRECTOR ROUTES */}
           <Route
@@ -177,7 +180,7 @@ function App() {
           </Route>
 
           {/* Booking route theo yêu cầu */}
-          <Route path="/tickets/booking/:eventId" element={<BookingPage />} />
+          <Route path="/tickets/booking/:slug/:eventId" element={<BookingPage />} />
           {/* Backward compatibility route */}
           <Route path="/customer/booking/:eventId" element={<LegacyBookingRedirect />} />
 

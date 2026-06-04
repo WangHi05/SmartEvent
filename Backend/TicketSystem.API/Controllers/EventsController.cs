@@ -1,8 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Services;
 using TicketSystem.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
+using TicketSystem.Domain.Entities;
+using System.Text.RegularExpressions;
+using System.Text;
 
 namespace TicketSystem.API.Controllers
 {
@@ -13,11 +17,13 @@ namespace TicketSystem.API.Controllers
     {
         private readonly IEventService _eventService;
         private readonly ILogger<EventsController> _logger;
-
-        public EventsController(IEventService eventService, ILogger<EventsController> logger)
+        private readonly IApplicationDbContext _context;
+        
+        public EventsController(IEventService eventService, ILogger<EventsController> logger, IApplicationDbContext context)
         {
             _eventService = eventService;
             _logger = logger;
+            _context=context;
         }
 
         /// Lấy danh sách Events với phân trang
@@ -151,6 +157,48 @@ namespace TicketSystem.API.Controllers
             var result = await _eventService.SearchEventsAsync(request);
             
             return Ok(result);
+        }
+
+        /// <summary>
+        /// API dùng một lần (One-time Script): Cập nhật Slug cho các sự kiện cũ
+        /// </summary>
+        [HttpPost("sync-legacy-slugs")]
+        public async Task<IActionResult> SyncLegacySlugs()
+        {
+            // Lấy tất cả sự kiện có Slug bị null hoặc rỗng
+            var eventsWithoutSlugs = await _context.Events
+                .Where(e => string.IsNullOrEmpty(e.Slug))
+                .ToListAsync();
+
+            if (!eventsWithoutSlugs.Any())
+            {
+                return Ok(new { Message = "Tất cả sự kiện đều đã có Slug. Không cần đồng bộ." });
+            }
+
+            int count = 0;
+            foreach (var ev in eventsWithoutSlugs)
+            {
+                ev.Slug = GenerateSlug(ev.Name);
+                count++;
+            }
+
+            // Lưu toàn bộ thay đổi xuống DB
+            await _context.SaveChangesAsync();
+
+            return Ok(new { Message = $"Đã đồng bộ thành công Slug cho {count} sự kiện cũ!" });
+        }
+
+        // Hàm helper giống hệt trong EventService
+        private string GenerateSlug(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+            Regex regex = new Regex("\\p{IsCombiningDiacriticalMarks}+");
+            string temp = title.Normalize(NormalizationForm.FormD);
+            string slug = regex.Replace(temp, String.Empty).Replace('\u0111', 'd').Replace('\u0110', 'D');
+            slug = slug.ToLowerInvariant();
+            slug = Regex.Replace(slug, "[^a-z0-9\\s-]", ""); 
+            slug = Regex.Replace(slug, "\\s+", "-").Trim('-'); 
+            return slug;
         }
     }
 }

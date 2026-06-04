@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
@@ -82,6 +84,7 @@ namespace TicketSystem.Application.Services
                 {
                     Id = e.Id,
                     Name = e.Name,
+                    Slug = e.Slug,
                     Description = e.Description,
                     Location = e.Location,
                     StartTime = e.StartTime,
@@ -135,7 +138,23 @@ namespace TicketSystem.Application.Services
             return eventEntity == null ? null : MapToResponseDto(eventEntity);
         }
 
-        
+        private string GenerateSlug(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return string.Empty;
+            
+            // Xóa dấu tiếng Việt
+            Regex regex = new Regex("\\p{IsCombiningDiacriticalMarks}+");
+            string temp = title.Normalize(NormalizationForm.FormD);
+            string slug = regex.Replace(temp, String.Empty).Replace('\u0111', 'd').Replace('\u0110', 'D');
+            
+            // Chuyển thành chữ thường và thay khoảng trắng bằng gạch ngang
+            slug = slug.ToLowerInvariant();
+            slug = Regex.Replace(slug, "[^a-z0-9\\s-]", ""); // Xóa ký tự đặc biệt
+            slug = Regex.Replace(slug, "\\s+", "-").Trim('-'); // Đổi khoảng trắng thành gạch ngang
+            
+            return slug;
+        }
+
         /// Tạo mới Event
         
         public async Task<EventResponseDto> CreateEventAsync(CreateEventDto dto, string createdBy)
@@ -147,6 +166,7 @@ namespace TicketSystem.Application.Services
             var eventEntity = new Event
             {
                 Name = dto.Name,
+                Slug = GenerateSlug(dto.Name),
                 Description = dto.Description,
                 Location = dto.Location,
                 StartTime = dto.StartTime,
@@ -186,6 +206,7 @@ namespace TicketSystem.Application.Services
             // Cập nhật các trường nếu có giá trị mới
             if (!string.IsNullOrEmpty(dto.Name))
                 eventEntity.Name = dto.Name;
+                eventEntity.Slug = GenerateSlug(dto.Name);
 
             if (dto.Description != null)
                 eventEntity.Description = dto.Description;
@@ -318,6 +339,7 @@ namespace TicketSystem.Application.Services
             {
                 Id = eventEntity.Id,
                 Name = eventEntity.Name,
+                Slug = eventEntity.Slug,
                 Description = eventEntity.Description,
                 Location = eventEntity.Location,
                 StartTime = eventEntity.StartTime,
