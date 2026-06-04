@@ -20,6 +20,9 @@ namespace TicketSystem.Application.DTOs
         [Required(ErrorMessage = "Địa điểm là bắt buộc")]
         public string Location { get; set; } = string.Empty;
 
+        [StringLength(500, ErrorMessage = "Đường dẫn ảnh không được vượt quá 500 ký tự")]
+        public string? ImageUrl { get; set; }
+
         [Required(ErrorMessage = "Thời gian bắt đầu là bắt buộc")]
         public DateTime StartTime { get; set; }
 
@@ -51,6 +54,9 @@ namespace TicketSystem.Application.DTOs
         public string? Description { get; set; }
 
         public string? Location { get; set; }
+
+        [StringLength(500)]
+        public string? ImageUrl { get; set; }
         public DateTime? StartTime { get; set; }
         public DateTime? EndTime { get; set; }
 
@@ -74,6 +80,8 @@ namespace TicketSystem.Application.DTOs
         public string Slug { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
+
+        public string? ImageUrl { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public int MaxCapacity { get; set; }

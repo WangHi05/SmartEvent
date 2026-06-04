@@ -18,6 +18,8 @@ namespace TicketSystem.Domain.Entities
         public string Slug { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Location { get; set; } = string.Empty;
+        [StringLength(500)]
+        public string? ImageUrl { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         

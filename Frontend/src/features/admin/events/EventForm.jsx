@@ -23,6 +23,7 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
           name: eventData.name,
           description: eventData.description,
           location: eventData.location,
+          imageUrl: eventData.imageUrl || eventData.ImageUrl || '',
           timeRange: [dayjs(eventData.startTime), dayjs(eventData.endTime)],
           maxCapacity: eventData.maxCapacity,
           basePrice: eventData.basePrice,
@@ -41,6 +42,7 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
         name: values.name,
         description: values.description || '',
         location: values.location,
+        imageUrl: values.imageUrl || '',
         startTime: values.timeRange[0].toISOString(),
         endTime: values.timeRange[1].toISOString(),
         maxCapacity: values.maxCapacity,
@@ -111,6 +113,47 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
           rules={[{ required: true, message: 'Vui lòng nhập địa điểm' }]}
         >
           <Input placeholder="Nhập địa điểm tổ chức" />
+        </Form.Item>
+
+        <Form.Item
+          label="Ảnh sự kiện / Banner URL"
+          name="imageUrl"
+          rules={[
+            { max: 500, message: 'Đường dẫn ảnh không được vượt quá 500 ký tự' },
+          ]}
+          tooltip="Nhập URL ảnh. Ảnh này sẽ hiển thị ở card sự kiện và trang chi tiết."
+        >
+          <Input placeholder="Ví dụ: https://domain.com/images/event-banner.jpg" />
+        </Form.Item>
+
+        <Form.Item shouldUpdate={(prev, cur) => prev.imageUrl !== cur.imageUrl} noStyle>
+          {({ getFieldValue }) => {
+            const imageUrl = getFieldValue('imageUrl');
+
+            if (!imageUrl) return null;
+
+            return (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+                  Xem trước ảnh:
+                </div>
+                <img
+                  src={imageUrl}
+                  alt="Event preview"
+                  style={{
+                    width: '100%',
+                    maxHeight: 180,
+                    objectFit: 'cover',
+                    borderRadius: 12,
+                    border: '1px solid #eee',
+                  }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                  }}
+                />
+              </div>
+            );
+          }}
         </Form.Item>
 
         <Form.Item

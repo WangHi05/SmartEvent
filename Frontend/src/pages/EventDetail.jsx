@@ -3,92 +3,161 @@ import { Helmet } from 'react-helmet-async';
 import { useParams, useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { message } from 'antd';
+import { getEventPriceSummary } from '../components/customer/CustomerPrimitives';
 
-const SkeletonBlock = ({ className }) => (
-    <div className={`bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse rounded-xl ${className}`} />
+const formatDateTime = (iso) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+};
+
+/* ─────────────── Skeleton ─────────────── */
+const Pulse = ({ className }) => (
+    <div className={`animate-pulse rounded-lg bg-gray-100 ${className}`} />
 );
- 
+
 const LoadingSkeleton = () => (
-    <div className="min-h-screen bg-gray-50">
-        {/* Hero skeleton */}
-        <div className="w-full h-72 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 animate-pulse" />
-        <div className="max-w-5xl mx-auto px-4 -mt-16 relative z-10 pb-16">
-            <div className="bg-white rounded-2xl shadow-xl p-8 space-y-4">
-                <SkeletonBlock className="h-9 w-2/3" />
-                <SkeletonBlock className="h-5 w-1/3" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                    <SkeletonBlock className="h-28" />
-                    <SkeletonBlock className="h-28" />
-                    <SkeletonBlock className="h-28" />
+    <div className="min-h-screen bg-[#F7F6F3]">
+        <div className="h-[380px] animate-pulse bg-gray-200 md:h-[500px] lg:h-[560px]" />
+        <div className="relative z-10 mx-auto -mt-20 max-w-[1400px] px-4 pb-16 md:px-8 lg:px-10">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_380px]">
+                <div className="space-y-5">
+                    <div className="rounded-[24px] bg-white p-7 shadow-sm">
+                        <Pulse className="h-7 w-1/2" />
+                        <Pulse className="mt-5 h-4 w-full" />
+                        <Pulse className="mt-3 h-4 w-5/6" />
+                        <Pulse className="mt-3 h-4 w-4/6" />
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <Pulse className="h-24" />
+                        <Pulse className="h-24" />
+                    </div>
                 </div>
-                <SkeletonBlock className="h-4 w-full mt-4" />
-                <SkeletonBlock className="h-4 w-5/6" />
-                <SkeletonBlock className="h-4 w-4/6" />
+                <Pulse className="h-72 rounded-[24px]" />
             </div>
         </div>
     </div>
 );
- 
 
+/* ─────────────── Not Found ─────────────── */
 const NotFound = ({ onBack }) => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <div className="text-center max-w-md">
-            <div className="w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg className="w-12 h-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                        d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Sự kiện không tồn tại</h2>
-            <p className="text-gray-500 mb-8">Sự kiện này đã bị xóa hoặc không còn hoạt động.</p>
+    <div className="flex min-h-screen items-center justify-center bg-[#F7F6F3]">
+        <div className="max-w-sm px-6 text-center">
+            <div className="mb-6 text-6xl">🎭</div>
+            <h2 className="mb-2 text-2xl font-semibold text-gray-800">Sự kiện không tồn tại</h2>
+            <p className="mb-8 text-sm text-gray-500">Sự kiện đã bị xóa hoặc không còn hoạt động.</p>
             <button
                 onClick={onBack}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-purple-600 text-white rounded-xl font-semibold hover:opacity-90 transition"
+                className="rounded-full bg-gray-900 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-gray-700"
             >
-                ← Quay lại trang chủ
+                ← Về trang chủ
             </button>
         </div>
     </div>
 );
- 
 
-const InfoCard = ({ icon, label, value, accent }) => {
-    const accents = {
-        orange: 'bg-orange-100 text-orange-600',
-        purple: 'bg-purple-100 text-purple-600',
-        green:  'bg-green-100  text-green-600',
+/* ─────────────── Status Badge ─────────────── */
+const StatusBadge = ({ label, type }) => {
+    const styles = {
+        active: 'border border-emerald-200 bg-emerald-50 text-emerald-700',
+        soldout: 'border border-red-200 bg-red-50 text-red-600',
+        upcoming: 'border border-blue-200 bg-blue-50 text-blue-700',
+        closed: 'border border-gray-200 bg-gray-100 text-gray-500',
+        ended: 'border border-gray-200 bg-gray-100 text-gray-500',
     };
+
+    const dots = {
+        active: 'bg-emerald-500 animate-pulse',
+        soldout: 'bg-red-500',
+        upcoming: 'bg-blue-500',
+        closed: 'bg-gray-400',
+        ended: 'bg-gray-400',
+    };
+
     return (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-xl ${accents[accent]}`}>
-                {icon}
-            </div>
-            <div className="min-w-0">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-                <p className="text-sm font-semibold text-gray-800 leading-snug break-words">{value}</p>
-            </div>
-        </div>
+        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ${styles[type] || styles.closed}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${dots[type] || dots.closed}`} />
+            {label}
+        </span>
     );
 };
- 
 
+/* ─────────────── Info Card ─────────────── */
+const InfoCard = ({ emoji, label, value, sub }) => (
+    <div className="flex gap-3 rounded-[20px] border border-gray-100 bg-white p-4 shadow-[0_8px_28px_rgba(15,23,42,0.05)] transition-colors hover:bg-gray-50">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#F7F6F3] text-lg leading-none">
+            {emoji}
+        </div>
+        <div className="min-w-0">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">{label}</p>
+            <p className="break-words text-sm font-semibold leading-snug text-gray-800">{value}</p>
+            {sub && <p className="mt-1 text-xs text-gray-400">{sub}</p>}
+        </div>
+    </div>
+);
+
+/* ─────────────── Main Component ─────────────── */
 const EventDetail = () => {
     const { slug, id } = useParams();
     const navigate = useNavigate();
     const [eventData, setEventData] = useState(null);
-    const [loading, setLoading]     = useState(true);
- 
+    const [ticketTypes, setTicketTypes] = useState([]);
+    const [relatedEvents, setRelatedEvents] = useState([]);
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         const fetchEventDetail = async () => {
             try {
-                const response = await axiosClient.get(`/events/${id}`);
-                const data = response.data || response;
- 
+                const [eventRes, ticketRes, relatedRes] = await Promise.all([
+                    axiosClient.get(`/events/${id}`),
+                    axiosClient.get(`/events/${id}/ticket-types`),
+                    axiosClient.get('/events/search', {
+                        params: {
+                            pageNumber: 1,
+                            pageSize: 24,
+                            keyword: '',
+                        },
+                    }),
+                ]);
+
+                const data = eventRes.data || eventRes;
                 if (data.slug && data.slug !== slug) {
                     navigate(`/event/${data.slug}/${id}`, { replace: true });
                     return;
                 }
                 setEventData(data);
+
+                const ticketData = ticketRes.data || ticketRes;
+                const tickets = ticketData?.data || ticketData?.items || ticketData || [];
+                const normalized = Array.isArray(tickets) ? tickets : tickets.items || [];
+                setTicketTypes(normalized);
+
+                const relatedPayload = relatedRes.data || relatedRes;
+                const relatedList =
+                    relatedPayload?.items ||
+                    relatedPayload?.data?.items ||
+                    relatedPayload?.data ||
+                    relatedPayload ||
+                    [];
+
+                const currentId = data.id || data.Id || id;
+
+                const randomRelated = Array.isArray(relatedList)
+                    ? relatedList
+                        .filter((event) => {
+                            const eventId = event.id || event.Id;
+                            return eventId && eventId !== currentId;
+                        })
+                        .sort(() => Math.random() - 0.5)
+                        .slice(0, 4)
+                    : [];
+
+                setRelatedEvents(randomRelated);
             } catch (error) {
                 console.error('Lỗi lấy dữ liệu sự kiện:', error);
                 message.error('Không tìm thấy sự kiện hoặc sự kiện đã bị xóa.');
@@ -96,42 +165,36 @@ const EventDetail = () => {
                 setLoading(false);
             }
         };
+
         fetchEventDetail();
     }, [id, slug, navigate]);
- 
-    if (loading)    return <LoadingSkeleton />;
+
+    if (loading) return <LoadingSkeleton />;
     if (!eventData) return <NotFound onBack={() => navigate('/')} />;
- 
-    const currentUrl = window.location.href;
-    const isSoldOut = eventData.isFull;
+
     const now = new Date();
-    const eventEndTime = new Date(eventData.endTime);
+    const eventEnd = new Date(eventData.endTime);
 
-    // 1. Trạng thái cơ bản của sự kiện
     const isEventCancelledOrDraft = eventData.status === 0 || eventData.status === 4;
-    const isEventEnded = now > eventEndTime;
-
-    // 2. Phân tích chi tiết từ danh sách TicketTypes do Admin cấu hình
-    const ticketTypes = eventData.ticketTypes || eventData.TicketTypes || [];
+    const isEventEnded = now > eventEnd;
 
     let hasActiveSale = false;
     let isUpcomingSale = false;
     let isSaleEnded = false;
-    let isAllSoldOut = eventData.isFull;
+    let isAllSoldOut = !!eventData.isFull;
 
     if (ticketTypes.length > 0) {
         const activeTickets = ticketTypes.filter(t => t.isActive ?? t.IsActive ?? true);
 
         if (activeTickets.length > 0) {
-            // Có vé nào đang trong khung giờ mở bán và còn chỗ không?
             hasActiveSale = activeTickets.some(t => {
-                const saleStart = new Date(t.saleStartTime ?? t.SaleStartTime);
-                const saleEnd = new Date(t.saleEndTime ?? t.SaleEndTime);
-                const remaining = t.remainingQuantity ?? t.RemainingQuantity ?? 0;
-                return now >= saleStart && now <= saleEnd && remaining > 0;
+                const ss = new Date(t.saleStartTime ?? t.SaleStartTime);
+                const se = new Date(t.saleEndTime ?? t.SaleEndTime);
+                const rem = t.remainingQuantity ?? t.RemainingQuantity ?? 0;
+
+                return now >= ss && now <= se && rem > 0;
             });
 
-            // Nếu không có vé nào đang mở bán, xác định nguyên nhân chi tiết
             if (!hasActiveSale) {
                 isUpcomingSale = activeTickets.every(t => now < new Date(t.saleStartTime ?? t.SaleStartTime));
                 isSaleEnded = activeTickets.every(t => now > new Date(t.saleEndTime ?? t.SaleEndTime));
@@ -139,168 +202,377 @@ const EventDetail = () => {
             }
         }
     } else {
-        // Fallback: Nếu không có cấu hình vé chi tiết, dự phòng theo giờ sự kiện
         hasActiveSale = !isAllSoldOut && !isEventCancelledOrDraft && !isEventEnded;
     }
 
-    // 3. Quyết định quyền mua vé cuối cùng
     const canBuy = hasActiveSale && !isEventCancelledOrDraft && !isEventEnded;
 
-    // 4. Cấu hình giao diện (Badge và Nút bấm) theo từng kịch bản
-    let statusBadge = { label: 'Đang Mở Bán', cls: 'bg-green-100 text-green-600 border-green-200' };
-    let buttonConfig = {
-        text: 'Mua Vé Ngay',
-        icon: (
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-            </svg>
-        )
-    };
+    let badgeType = 'active';
+    let badgeLabel = 'Đang Mở Bán';
+    let btnText = 'Mua Vé Ngay';
+    let btnIcon = '🎟️';
 
     if (isEventCancelledOrDraft || isEventEnded) {
-        statusBadge = { label: 'Đã Đóng', cls: 'bg-gray-100 text-gray-500 border-gray-200' };
-        buttonConfig.text = isEventEnded ? 'Đã Kết Thúc' : 'Đã Khóa';
-        buttonConfig.icon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
+        badgeType = isEventEnded ? 'ended' : 'closed';
+        badgeLabel = isEventEnded ? 'Đã Kết Thúc' : 'Đã Khóa';
+        btnText = badgeLabel;
+        btnIcon = '🔒';
     } else if (isAllSoldOut) {
-        statusBadge = { label: 'Hết Vé', cls: 'bg-red-100 text-red-600 border-red-200' };
-        buttonConfig.text = 'Đã Hết Vé';
-        buttonConfig.icon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>;
+        badgeType = 'soldout';
+        badgeLabel = 'Hết Vé';
+        btnText = 'Đã Hết Vé';
+        btnIcon = '❌';
     } else if (isUpcomingSale) {
-        statusBadge = { label: 'Sắp Mở Bán', cls: 'bg-blue-100 text-blue-600 border-blue-200' };
-        buttonConfig.text = 'Sắp Mở Bán';
-        buttonConfig.icon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
+        badgeType = 'upcoming';
+        badgeLabel = 'Sắp Mở Bán';
+        btnText = 'Sắp Mở Bán';
+        btnIcon = '📅';
     } else if (isSaleEnded) {
-        statusBadge = { label: 'Đã Đóng Bán', cls: 'bg-gray-100 text-gray-500 border-gray-200' };
-        buttonConfig.text = 'Đã Đóng Bán';
-        buttonConfig.icon = <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>;
+        badgeType = 'closed';
+        badgeLabel = 'Đã Đóng Bán';
+        btnText = 'Đã Đóng Bán';
+        btnIcon = '🔒';
     }
- 
+
+    const priceSummary = getEventPriceSummary(eventData, ticketTypes);
+    const displayPrice = priceSummary.text;
+    const isFree = priceSummary.value === 0 || displayPrice === 'Miễn phí';
+
+    const currentUrl = window.location.href;
+    const heroBackground = eventData.bannerUrl || eventData.imageUrl;
+
     return (
         <>
             <Helmet>
                 <title>{eventData.name} | Hệ Thống Bán Vé</title>
                 <meta name="description" content={eventData.description || 'Mua vé tham gia sự kiện ngay hôm nay!'} />
                 <link rel="canonical" href={currentUrl} />
-                <meta property="og:title"       content={eventData.name} />
+                <meta property="og:title" content={eventData.name} />
                 <meta property="og:description" content={eventData.description} />
-                <meta property="og:type"        content="website" />
-                <meta property="og:url"         content={currentUrl} />
+                <meta property="og:url" content={currentUrl} />
             </Helmet>
- 
-            <div className="min-h-screen bg-gray-50">
- 
-                {/* ── Hero Banner ── */}
-                <div className="relative w-full h-72 md:h-80 bg-gradient-to-br from-purple-700 via-purple-600 to-orange-500 overflow-hidden">
-                    {/* Decorative circles */}
-                    <div className="absolute -top-20 -right-20 w-80 h-80 bg-white/10 rounded-full" />
-                    <div className="absolute -bottom-16 -left-16 w-72 h-72 bg-white/10 rounded-full" />
-                    <div className="absolute top-1/2 right-1/4 w-40 h-40 bg-orange-400/20 rounded-full -translate-y-1/2" />
- 
-                    {/* Back button */}
-                    <div className="absolute top-5 left-4 md:left-8 z-10">
-                        <button
-                            onClick={() => navigate(-1)}
-                            className="flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium bg-white/10 hover:bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full transition-all"
-                        >
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                            Quay lại
-                        </button>
-                    </div>
- 
-                    {/* Hero content */}
-                    <div className="absolute bottom-8 left-4 md:left-8 right-4 md:right-8 z-10">
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full border mb-3 ${statusBadge.cls}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${canBuy ? 'bg-green-500 animate-pulse' : 'bg-current'}`} />
-                            {statusBadge.label}
-                        </span>
-                        <h1 className="text-white text-2xl md:text-4xl font-extrabold leading-tight drop-shadow-lg line-clamp-2">
-                            {eventData.name}
-                        </h1>
+
+            <div className="min-h-screen bg-[#F7F6F3]" style={{ fontFamily: "'DM Sans', 'Be Vietnam Pro', sans-serif" }}>
+                {/* ── Hero ── */}
+                <div className="relative h-[580px] w-full overflow-hidden md:h-[700px] lg:h-[760px]">
+                    <div
+                        className="absolute inset-0 bg-cover bg-center"
+                        style={{
+                            backgroundImage: heroBackground
+                                ? `url('${heroBackground}')`
+                                : 'linear-gradient(to bottom right, #1a0533, #2d1060, #6b21a8)',
+                            backgroundPosition: 'center center',
+                        }}
+                    />
+
+                    <div className="absolute inset-0 bg-black/35" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#F7F6F3] via-black/10 to-black/10" />
+
+                    {!heroBackground && (
+                        <>
+                            <div
+                                className="absolute inset-0 opacity-30"
+                                style={{
+                                    backgroundImage:
+                                        'radial-gradient(ellipse at 70% 20%, #f97316 0%, transparent 55%), radial-gradient(ellipse at 20% 80%, #a855f7 0%, transparent 50%)'
+                                }}
+                            />
+                            <div
+                                className="absolute inset-0 opacity-[0.04]"
+                                style={{
+                                    backgroundImage:
+                                        "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")"
+                                }}
+                            />
+                            <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full border border-white/10" />
+                            <div className="absolute right-10 top-10 h-40 w-40 rounded-full border border-white/5" />
+                        </>
+                    )}
+
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="absolute left-4 top-4 z-20 flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-medium text-white/80 backdrop-blur-md transition-all hover:bg-white/15 hover:text-white md:left-8 md:top-6"
+                    >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Quay lại
+                    </button>
+
+                    <div className="relative z-10 mx-auto flex h-full w-full max-w-[1400px] flex-col justify-end px-4 pb-10 md:px-8 lg:px-10">
+                        <div className="max-w-4xl">
+                            <div className="mb-3">
+                                <StatusBadge label={badgeLabel} type={badgeType} />
+                            </div>
+
+                            <h1
+                                className="line-clamp-2 max-w-4xl text-2xl font-bold leading-tight tracking-tight text-white md:text-4xl lg:text-5xl"
+                                style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}
+                            >
+                                {eventData.name}
+                            </h1>
+
+                            <div className="mt-4 flex flex-wrap gap-2 text-sm text-white/85">
+                                <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                                    📍 {eventData.location || 'Đang cập nhật'}
+                                </span>
+                                <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 backdrop-blur">
+                                    🗓 {formatDateTime(eventData.startTime)}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                 </div>
- 
-                {/* ── Main Card – overlaps hero ── */}
-                <div className="max-w-5xl mx-auto px-4 md:px-6 -mt-6 relative z-10 pb-16">
-                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
- 
-                        {/* ── Info Grid ── */}
-                        <div className="p-6 md:p-8 border-b border-gray-100">
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                <InfoCard
-                                    icon="📍"
-                                    label="Địa điểm"
-                                    value={eventData.location}
-                                    accent="orange"
-                                />
-                                <InfoCard
-                                    icon="⏰"
-                                    label="Thời gian"
-                                    value={`${new Date(eventData.startTime).toLocaleString('vi-VN')} – ${new Date(eventData.endTime).toLocaleString('vi-VN')}`}
-                                    accent="purple"
-                                />
-                                <InfoCard
-                                    icon="🎟️"
-                                    label="Giá vé"
-                                    value={`${eventData.basePrice.toLocaleString()} VNĐ`}
-                                    accent="green"
-                                />
-                            </div>
-                        </div>
- 
-                        {/* ── Description ── */}
-                        <div className="p-6 md:p-8 border-b border-gray-100">
-                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                                <span className="w-1 h-5 bg-gradient-to-b from-orange-500 to-purple-600 rounded-full inline-block" />
-                                Giới thiệu sự kiện
-                            </h2>
-                            <div className="text-gray-600 leading-relaxed text-sm md:text-base whitespace-pre-line">
-                                {eventData.description || 'Chưa có mô tả cho sự kiện này.'}
-                            </div>
-                        </div>
- 
-                        {/* ── CTA Footer ── */}
-                        <div className="px-6 md:px-8 py-6 bg-gray-50/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div>
-                                <p className="text-xs text-gray-400 font-medium uppercase tracking-wide mb-1">Giá vé từ</p>
-                                <p className="text-2xl font-extrabold text-gray-800">
-                                    {eventData.basePrice.toLocaleString()}
-                                    <span className="text-sm font-semibold text-gray-500 ml-1">VNĐ</span>
+
+                {/* ── Main Layout ── */}
+                <main className="relative z-10 mx-auto -mt-20 max-w-[1400px] px-4 pb-16 md:px-8 lg:px-10">
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_380px] xl:grid-cols-[minmax(0,1.4fr)_400px]">
+                        {/* Left content */}
+                        <section className="space-y-5">
+                            <div className="rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_8px_36px_rgba(15,23,42,0.08)] md:p-7">
+                                <h2 className="mb-4 flex items-center gap-2.5 text-base font-semibold text-gray-800">
+                                    <span className="inline-block h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 to-purple-600" />
+                                    Giới thiệu sự kiện
+                                </h2>
+
+                                <p className="whitespace-pre-line text-sm leading-7 text-gray-600">
+                                    {eventData.description || 'Chưa có mô tả cho sự kiện này.'}
                                 </p>
                             </div>
- 
-                            <button
-                                disabled={!canBuy}
-                                onClick={() => navigate(`/tickets/booking/${eventData.slug}/${eventData.id}`)}
-                                className={`
-                                    relative overflow-hidden px-10 py-3.5 rounded-xl font-bold text-base
-                                    transition-all duration-200 shadow-lg focus:outline-none focus:ring-4
-                                    ${canBuy
-                                        ? 'bg-gradient-to-r from-orange-500 to-purple-600 text-white hover:from-orange-600 hover:to-purple-700 hover:scale-[1.03] focus:ring-orange-300 shadow-orange-200'
-                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
-                                    }
-                                `}
-                            >
-                                <span className="flex items-center gap-2">
-                                    {buttonConfig.icon}
-                                    {buttonConfig.text}
-                                </span>
-                            </button>
-                        </div>
- 
+
+                            <div className="grid gap-3 md:grid-cols-2">
+                                <InfoCard
+                                    emoji="📍"
+                                    label="Địa điểm"
+                                    value={eventData.location || '—'}
+                                />
+                                <InfoCard
+                                    emoji="🗓"
+                                    label="Thời gian"
+                                    value={formatDateTime(eventData.startTime)}
+                                    sub={`Kết thúc: ${formatDateTime(eventData.endTime)}`}
+                                />
+                            </div>
+
+                            {ticketTypes.length > 0 && (
+                                <div className="overflow-hidden rounded-[24px] border border-gray-100 bg-white shadow-[0_8px_36px_rgba(15,23,42,0.06)]">
+                                    <div className="border-b border-gray-100 px-6 py-5 md:px-7">
+                                        <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-800">
+                                            <span className="inline-block h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 to-purple-600" />
+                                            Loại vé
+                                        </h2>
+                                    </div>
+
+                                    <div className="divide-y divide-gray-50">
+                                        {ticketTypes.map((t, i) => {
+                                            const price = t.price ?? t.Price ?? 0;
+                                            const rem = t.remainingQuantity ?? t.RemainingQuantity;
+                                            const name = t.name ?? t.Name ?? `Vé #${i + 1}`;
+
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className="flex items-center justify-between gap-4 px-6 py-4 transition-colors hover:bg-gray-50/70 md:px-7"
+                                                >
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-gray-800">{name}</p>
+                                                        {rem !== undefined && (
+                                                            <p className="mt-0.5 text-xs text-gray-400">Còn lại: {rem} vé</p>
+                                                        )}
+                                                    </div>
+
+                                                    <p className="shrink-0 text-sm font-bold text-gray-900">
+                                                        {price === 0 ? (
+                                                            <span className="text-emerald-600">Miễn phí</span>
+                                                        ) : (
+                                                            `${price.toLocaleString('vi-VN')} ₫`
+                                                        )}
+                                                    </p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+
+                        {/* Right booking card */}
+                        <aside className="lg:sticky lg:top-6 lg:self-start">
+                            <div className="rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_12px_44px_rgba(15,23,42,0.10)]">
+                                <p className="mb-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                    Giá vé từ
+                                </p>
+
+                                <p className="text-2xl font-bold tracking-tight text-gray-900">
+                                    {isFree ? (
+                                        <span className="text-emerald-600">Miễn phí</span>
+                                    ) : (
+                                        displayPrice
+                                    )}
+                                </p>
+
+                                <div className="mt-4 rounded-2xl bg-[#F7F6F3] p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                                        Trạng thái
+                                    </p>
+                                    <div className="mt-2">
+                                        <StatusBadge label={badgeLabel} type={badgeType} />
+                                    </div>
+                                </div>
+
+                                <div className="mt-4 rounded-2xl bg-[#F7F6F3] p-4">
+                                    <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                                        Thời gian
+                                    </p>
+                                    <p className="mt-2 text-sm font-semibold leading-6 text-gray-800">
+                                        {formatDateTime(eventData.startTime)}
+                                    </p>
+                                    <p className="mt-1 text-xs text-gray-400">
+                                        Kết thúc: {formatDateTime(eventData.endTime)}
+                                    </p>
+                                </div>
+
+                                <button
+                                    disabled={!canBuy}
+                                    onClick={() => canBuy && navigate(`/tickets/booking/${eventData.slug}/${eventData.id}`)}
+                                    className={`
+                                        mt-5 flex h-12 w-full items-center justify-center gap-2.5 rounded-2xl text-sm font-semibold
+                                        transition-all duration-200 focus:outline-none focus:ring-4
+                                        ${canBuy
+                                            ? 'bg-gray-900 text-white shadow-sm hover:scale-[1.01] hover:bg-gray-700 focus:ring-gray-200'
+                                            : 'cursor-not-allowed bg-gray-100 text-gray-400'
+                                        }
+                                    `}
+                                >
+                                    <span className="text-base leading-none">{btnIcon}</span>
+                                    {btnText}
+                                    {canBuy && <span className="opacity-60">→</span>}
+                                </button>
+
+                                <p className="mt-3 text-center text-xs text-gray-400">
+                                    Giá vé và trạng thái được cập nhật theo cấu hình hiện tại.
+                                </p>
+                            </div>
+                        </aside>
                     </div>
-                </div>
+
+                    {/* Notes when participating */}
+                    <section className="mt-6 space-y-3 rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_8px_36px_rgba(15,23,42,0.06)] md:p-7">
+                        <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-800">
+                            <span className="inline-block h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 to-purple-600" />
+                            Lưu ý khi tham gia
+                        </h2>
+
+                        <ul className="space-y-3 text-sm leading-6 text-gray-600">
+                            <li className="flex gap-3">
+                                <span className="shrink-0 text-lg leading-none">📋</span>
+                                <span>Vui lòng đến sự kiện đúng giờ để tham gia và nhận vé</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="shrink-0 text-lg leading-none">🎫</span>
+                                <span>Mang theo vé điện tử hoặc ID để nhập cảnh tham dự</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="shrink-0 text-lg leading-none">📱</span>
+                                <span>Bạn sẽ nhận được thông tin sự kiện trong mục "Vé của tôi"</span>
+                            </li>
+                            <li className="flex gap-3">
+                                <span className="shrink-0 text-lg leading-none">🚫</span>
+                                <span>Vé không hoàn lại tiền đối với trường hợp vé đã check-in</span>
+                            </li>
+                        </ul>
+                    </section>
+
+                    {/* Ticket information */}
+                    <section className="mt-6 space-y-3 rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_8px_36px_rgba(15,23,42,0.06)] md:p-7">
+                        <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-800">
+                            <span className="inline-block h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 to-purple-600" />
+                            Thông tin vé
+                        </h2>
+
+                        <div className="space-y-3 text-sm text-gray-600">
+                            <div className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 p-3.5">
+                                <span className="font-semibold text-gray-700">Hình thức vé:</span>
+                                <span>Vé điện tử (E-ticket)</span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 p-3.5">
+                                <span className="font-semibold text-gray-700">Gửi vé:</span>
+                                <span>Trong vé của bạn sau khi đặt hàng</span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3 rounded-lg bg-gray-50 p-3.5">
+                                <span className="font-semibold text-gray-700">Điều khoản:</span>
+                                <span>Không chuyển nhượng, không đưa cho người khác</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    {/* Related events */}
+                    {relatedEvents.length > 0 && (
+                        <section className="mt-6 space-y-4 rounded-[24px] border border-gray-100 bg-white p-6 shadow-[0_8px_36px_rgba(15,23,42,0.06)] md:p-7">
+                            <h2 className="flex items-center gap-2.5 text-base font-semibold text-gray-800">
+                                <span className="inline-block h-5 w-[3px] rounded-full bg-gradient-to-b from-orange-400 to-purple-600" />
+                                Sự kiện liên quan
+                            </h2>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                {relatedEvents.map((event) => {
+                                    const eventId = event.id || event.Id;
+                                    const eventSlug = event.slug || event.Slug;
+                                    const eventName = event.name || event.Name || 'Sự kiện';
+                                    const eventLocation = event.location || event.Location || 'Đang cập nhật';
+                                    const eventStartTime = event.startTime || event.StartTime;
+                                    const eventImage = event.imageUrl || event.ImageUrl || event.bannerUrl || event.BannerUrl;
+
+                                    return (
+                                        <button
+                                            key={eventId}
+                                            type="button"
+                                            onClick={() => {
+                                                if (eventSlug && eventId) {
+                                                    navigate(`/event/${eventSlug}/${eventId}`);
+                                                } else if (eventId) {
+                                                    navigate(`/event/su-kien/${eventId}`);
+                                                }
+                                            }}
+                                            className="group flex w-full gap-3 rounded-2xl bg-gray-50 p-4 text-left transition hover:-translate-y-0.5 hover:bg-gray-100"
+                                        >
+                                            <div className="h-16 w-16 shrink-0 overflow-hidden rounded-2xl bg-gradient-to-br from-orange-100 to-purple-100">
+                                                {eventImage ? (
+                                                    <img
+                                                        src={eventImage}
+                                                        alt={eventName}
+                                                        className="h-full w-full object-cover"
+                                                    />
+                                                ) : (
+                                                    <div className="flex h-full w-full items-center justify-center text-xl">
+                                                        🎫
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="min-w-0 flex-1">
+                                                <p className="line-clamp-1 text-sm font-semibold text-gray-800 group-hover:text-purple-700">
+                                                    {eventName}
+                                                </p>
+
+                                                <p className="mt-1 line-clamp-1 text-xs text-gray-500">
+                                                    📍 {eventLocation}
+                                                </p>
+
+                                                <p className="mt-1 text-xs text-gray-400">
+                                                    🗓 {formatDateTime(eventStartTime)}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </section>
+                    )}
+                </main>
             </div>
         </>
     );
 };
- 
+
 export default EventDetail;
- 
-
-
-
-
-
-

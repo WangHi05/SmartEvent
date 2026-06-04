@@ -87,6 +87,7 @@ namespace TicketSystem.Application.Services
                     Slug = e.Slug,
                     Description = e.Description,
                     Location = e.Location,
+                    ImageUrl = e.ImageUrl,
                     StartTime = e.StartTime,
                     EndTime = e.EndTime,
                     MaxCapacity = e.MaxCapacity,
@@ -169,6 +170,7 @@ namespace TicketSystem.Application.Services
                 Slug = GenerateSlug(dto.Name),
                 Description = dto.Description,
                 Location = dto.Location,
+                ImageUrl = dto.ImageUrl,
                 StartTime = dto.StartTime,
                 EndTime = dto.EndTime,
                 MaxCapacity = dto.MaxCapacity,
@@ -213,6 +215,9 @@ namespace TicketSystem.Application.Services
 
             if (dto.Location != null)
                 eventEntity.Location = dto.Location;
+
+            if (dto.ImageUrl != null)
+                eventEntity.ImageUrl = dto.ImageUrl;
 
             if (dto.StartTime.HasValue)
                 eventEntity.StartTime = dto.StartTime.Value;
@@ -342,6 +347,7 @@ namespace TicketSystem.Application.Services
                 Slug = eventEntity.Slug,
                 Description = eventEntity.Description,
                 Location = eventEntity.Location,
+                ImageUrl = eventEntity.ImageUrl,
                 StartTime = eventEntity.StartTime,
                 EndTime = eventEntity.EndTime,
                 MaxCapacity = eventEntity.MaxCapacity,
