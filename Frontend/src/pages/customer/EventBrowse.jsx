@@ -222,8 +222,8 @@ const EventBrowse = () => {
               <CustomerEventCard
                 key={event.id}
                 event={event}
-                onViewDetail={() => navigate(`/tickets/booking/${event.id}`)}
-                onBookTicket={() => navigate(`/tickets/booking/${event.id}`)}
+                onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
               />
             ))}
           </div>
@@ -244,7 +244,7 @@ const EventBrowse = () => {
                       </div>
                     </div>
                     <p className="text-xs text-slate-500">{formatCapacityLabel(event)}</p>
-                    <Button className="mt-3 w-full !rounded-2xl !border-slate-300 !text-slate-700 hover:!border-blue-300 hover:!text-blue-700 hover:!bg-blue-50" onClick={() => navigate(`/tickets/booking/${event.id}`)}>
+                    <Button className="mt-3 w-full !rounded-2xl !border-slate-300 !text-slate-700 hover:!border-blue-300 hover:!text-blue-700 hover:!bg-blue-50" onClick={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}>
                       Xem chi tiết
                     </Button>
                   </div>

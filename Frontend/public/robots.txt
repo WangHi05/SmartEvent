@@ -1,0 +1,12 @@
+# Khai báo quyền truy cập cơ bản cho mọi loại Bot
+User-agent: *
+Allow: /
+
+# Chặn Bot thu thập dữ liệu ở các trang quản trị, giao dịch và cá nhân
+Disallow: /admin/
+Disallow: /checkout/
+Disallow: /payment/
+Disallow: /tickets/booking/
+
+# Khai báo đường dẫn Sitemap cho Google Console (Đổi tên miền khi deploy thật)
+Sitemap: https://domain-backend.com/sitemap.xml

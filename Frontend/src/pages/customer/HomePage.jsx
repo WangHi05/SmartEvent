@@ -328,8 +328,8 @@ const HomePage = () => {
               <CustomerEventCard
                 key={event.id}
                 event={event}
-                onViewDetail={() => navigate(`/tickets/booking/${event.id}`)}
-                onBookTicket={() => navigate(`/tickets/booking/${event.id}`)}
+                onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
               />
             ))}
           </div>
@@ -349,8 +349,8 @@ const HomePage = () => {
               key={event.id}
               rank={index + 1}
               event={event}
-              onViewDetail={() => navigate(`/tickets/booking/${event.id}`)}
-              onBookTicket={() => navigate(`/tickets/booking/${event.id}`)}
+              onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+              onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
             />
           ))}
         </div>
@@ -373,8 +373,8 @@ const HomePage = () => {
               <div key={event.id} className="min-w-[280px] max-w-[280px] flex-none">
                 <CustomerEventCard
                   event={event}
-                  onViewDetail={() => navigate(`/tickets/booking/${event.id}`)}
-                  onBookTicket={() => navigate(`/tickets/booking/${event.id}`)}
+                  onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                  onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
                   className="h-full"
                 />
               </div>

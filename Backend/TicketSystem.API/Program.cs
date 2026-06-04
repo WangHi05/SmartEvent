@@ -189,4 +189,24 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+// Tự động áp dụng Migration khi khởi động ứng dụng
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<IApplicationDbContext>() as DbContext;
+        
+        if (context != null)
+        {
+            await context.Database.MigrateAsync(); 
+        }
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Có lỗi xảy ra khi tự động migrate database.");
+    }
+}
+
 app.Run();
