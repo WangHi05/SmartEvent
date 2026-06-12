@@ -14,7 +14,7 @@
     "antd": "^5.15.0",
     "autoprefixer": "^10.4.24",
     "axios": "^1.15.0",
-    "dayjs": "^1.11.10",
+    "dayjs": "^1.11.21",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^0.563.0",
     "postcss": "^8.5.6",

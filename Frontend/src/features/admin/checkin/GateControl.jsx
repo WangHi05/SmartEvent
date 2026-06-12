@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Input, Modal, Typography, Progress, Badge, message, List, Avatar, Spin } from 'antd';
-import { AlertOutlined, EnvironmentOutlined, CheckCircleOutlined, ThunderboltOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Card, Button, Input, Modal, Typography, Progress, Badge, message, List, Avatar, Spin, Select } from 'antd';
+import { AlertOutlined, EnvironmentOutlined, CheckCircleOutlined, ThunderboltOutlined, ReloadOutlined, DashboardOutlined } from '@ant-design/icons';
 import { Sparkles, BrainCircuit } from 'lucide-react'; 
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import axiosClient from '../../../api/axiosClient';
@@ -21,29 +21,43 @@ const GateControl = () => {
   const [aiPrediction, setAiPrediction] = useState('');
   const [aiCommand, setAiCommand] = useState('');
 
-  // 1. Thay đổi state thành mảng rỗng và thêm state quản lý trạng thái tải dữ liệu
   const [gates, setGates] = useState([]);
   const [isLoadingGates, setIsLoadingGates] = useState(true);
 
-  // 2. Hàm gọi API lấy dữ liệu thực tế từ Database
-  const fetchGateData = async () => {
-    setIsLoadingGates(true);
-    try {
-      const response = await axiosClient.get('/gate/status');
-      const data = response.data || response; 
-      
-      setGates(data);
-    } catch (error) {
-      console.error("Lỗi khi tải dữ liệu cổng:", error);
-      message.error("Không thể lấy dữ liệu thống kê cổng từ máy chủ.");
-    } finally {
-      setIsLoadingGates(false);
-    }
-  };
+  // --- STATE CHO CHỌN SỰ KIỆN ---
+  const [activeEvents, setActiveEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(null);
 
+  // Load danh sách sự kiện khi mở trang
   useEffect(() => {
-    // Tải dữ liệu cổng ngay khi component được render
-    fetchGateData();
+    const fetchActiveEvents = async () => {
+      try {
+        const res = await axiosClient.get('/events/search', { params: { pageSize: 50 } });
+        
+        let eventList = [];
+        if (Array.isArray(res.items)) eventList = res.items;
+        else if (Array.isArray(res.data?.items)) eventList = res.data.items;
+        else if (Array.isArray(res.data)) eventList = res.data;
+        else if (Array.isArray(res)) eventList = res;
+
+        setActiveEvents(eventList);
+        
+        if (eventList.length > 0) {
+          const priorityEvent = eventList.find(e => 
+            e.status === 2 || e.status === 1 || 
+            e.status === 'Ongoing' || e.status === 'Active'
+          );
+          
+          setSelectedEventId(priorityEvent ? priorityEvent.id : eventList[0].id); 
+        } else {
+          setIsLoadingGates(false);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy sự kiện:", err);
+        setIsLoadingGates(false);
+      }
+    };
+    fetchActiveEvents();
 
     // Khởi tạo kết nối SignalR
     const connection = new HubConnectionBuilder()
@@ -60,18 +74,39 @@ const GateControl = () => {
       setAcknowledgedLogs(prev => [{ gateName, staffName, time, id: Date.now() }, ...prev]);
       message.success(`Nhân viên ${staffName} tại ${gateName} đã tiếp nhận lệnh!`);
     });
-    // Lắng nghe khi có khách check-in thành công ở bất kỳ cổng nào
+
     connection.on("RefreshGateData", () => {
-      console.log("🔔 Có khách vừa check-in, cập nhật lại lưu lượng cổng!");
-      fetchGateData(); // Gọi lại hàm load API để lấy số liệu mới nhất
-    });
-    // Tuỳ chọn: Lắng nghe sự kiện cập nhật lưu lượng cổng từ SignalR để update Real-time
-    connection.on("GateTrafficUpdated", (updatedGate) => {
-      setGates(prevGates => prevGates.map(g => g.id === updatedGate.id ? updatedGate : g));
+      console.log("🔔 Có khách check-in, vui lòng nhấn Làm mới dữ liệu.");
     });
 
     return () => { connection.stop(); };
   }, []);
+
+  const fetchGateData = async () => {
+    if (!selectedEventId) {
+      setIsLoadingGates(false);
+      return;
+    }
+    
+    setIsLoadingGates(true);
+    try {
+      const response = await axiosClient.get('/gate/status', {
+        params: { eventId: selectedEventId }
+      });
+      setGates(response.data || response);
+    } catch (error) {
+      console.error("Lỗi khi tải dữ liệu cổng:", error);
+      message.error("Không thể lấy dữ liệu thống kê cổng từ máy chủ.");
+    } finally {
+      setIsLoadingGates(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedEventId) {
+      fetchGateData();
+    }
+  }, [selectedEventId]);
 
   const handleOpenAlert = (gateName) => {
     setSelectedGate(gateName);
@@ -95,7 +130,18 @@ const GateControl = () => {
     setAiPrediction('');
     setAiCommand('');
     try {
-      const response = await axiosClient.post('/gate/ai-predict', { gates: gates });
+      // BƯỚC LÀM SẠCH DỮ LIỆU (Sanitize payload)
+      // Ép kiểu chuẩn xác và loại bỏ trường `id` để tránh lỗi Model Binding 400 Bad Request
+      const aiPayload = gates.map(g => ({
+        gateName: g.name, 
+        name: g.name,
+        currentTraffic: Number(g.currentTraffic || 0),
+        capacity: Number(g.capacity || 0),
+        status: String(g.status || '')
+      }));
+
+      const response = await axiosClient.post('/gate/ai-predict', { gates: aiPayload });
+      
       const content = response.analysisContent || response.data?.analysisContent || '';
       
       const parts = content.split('**Lệnh đề xuất:**');
@@ -106,14 +152,14 @@ const GateControl = () => {
          setAiPrediction(content);
       }
     } catch (error) {
-      message.error("Lỗi kết nối đến AI Server");
+      console.error("Lỗi AI API:", error.response || error);
+      message.error("Lỗi kết nối đến AI Server. Vui lòng kiểm tra API Key.");
     } finally {
       setIsAiLoading(false);
     }
   };
 
   const handleUseAiCommand = () => {
-    // Mặc định chọn cổng đang có tình trạng nghiêm trọng nhất (ví dụ cổng đầu tiên bị quá tải)
     const overloadedGate = gates.find(g => g.status === 'Quá tải') || gates[0];
     if (overloadedGate) {
       setSelectedGate(overloadedGate.name);
@@ -122,27 +168,42 @@ const GateControl = () => {
     }
   };
 
-  const getStatusColor = (traffic, capacity) => {
-    // Tránh lỗi chia cho 0 nếu capacity chưa được load
-    if (!capacity || capacity === 0) return 'normal';
+  // Hàm sinh màu Gradient cực đẹp cho Biểu đồ Đồng hồ dựa trên % lấp đầy
+  const getDashboardGradient = (traffic, capacity) => {
+    if (!capacity || capacity === 0) return { '0%': '#10b981', '100%': '#059669' }; // Xanh lá
     const percent = (traffic / capacity) * 100;
-    if (percent > 80) return 'exception'; 
-    if (percent > 50) return 'normal'; 
-    return 'success'; 
+    if (percent > 80) return { '0%': '#ef4444', '100%': '#b91c1c' }; // Đỏ (Quá tải)
+    if (percent > 50) return { '0%': '#f59e0b', '100%': '#d97706' }; // Vàng cam (Cảnh báo)
+    return { '0%': '#3b82f6', '100%': '#1d4ed8' }; // Xanh dương (Bình thường)
   };
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-end mb-2">
+      <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end mb-2 gap-4">
         <div>
           <Title level={2} className="!mb-1">Trung tâm Điều hành Cổng</Title>
           <Text type="secondary">Quản lý luồng khách Real-time & Phân tích dự báo thông minh</Text>
         </div>
-        <div className="flex gap-4 items-center">
-          <Button icon={<ReloadOutlined />} onClick={fetchGateData} loading={isLoadingGates}>
+        
+        <div className="flex flex-col sm:flex-row gap-4 items-center w-full xl:w-auto">
+          {/* BỘ LỌC CHỌN SỰ KIỆN */}
+          <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm w-full sm:w-auto">
+            <span className="font-semibold text-gray-600 whitespace-nowrap">Đang giám sát:</span>
+            <Select
+              value={selectedEventId}
+              onChange={(val) => setSelectedEventId(val)}
+              className="w-full sm:w-64"
+              variant="borderless"
+              placeholder="Chọn sự kiện..."
+              options={activeEvents.map(e => ({ label: e.name, value: e.id }))}
+              notFoundContent="Không có sự kiện diễn ra"
+            />
+          </div>
+
+          <Button icon={<ReloadOutlined />} onClick={fetchGateData} loading={isLoadingGates} disabled={!selectedEventId} className="w-full sm:w-auto">
             Làm mới dữ liệu
           </Button>
-          <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm">
+          <div className="bg-white px-4 py-2 rounded-lg border border-gray-200 shadow-sm whitespace-nowrap">
             <Text className="text-gray-500">Chỉ huy: </Text><strong className="text-blue-700">{adminName}</strong>
           </div>
         </div>
@@ -207,8 +268,13 @@ const GateControl = () => {
       <div className="flex flex-col xl:flex-row gap-6 mt-6">
         <div className="w-full xl:w-2/3">
           {isLoadingGates ? (
-            <div className="flex justify-center items-center min-h-[300px] bg-white rounded-lg border border-gray-200">
-               <Spin size="large" tip="Đang lấy dữ liệu luồng khách từ máy chủ..." />
+            <div className="flex flex-col justify-center items-center min-h-[300px] bg-white rounded-lg border border-gray-200">
+               <Spin size="large" />
+               <span className="mt-4 text-gray-500 font-medium">Đang lấy dữ liệu luồng khách...</span>
+            </div>
+          ) : !selectedEventId ? (
+            <div className="flex justify-center items-center min-h-[300px] bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
+               Hiện tại không có sự kiện nào trong hệ thống.
             </div>
           ) : gates.length === 0 ? (
             <div className="flex justify-center items-center min-h-[300px] bg-white rounded-lg border border-gray-200 text-gray-500">
@@ -216,43 +282,96 @@ const GateControl = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-fit">
-              {gates.map(gate => (
-                <Card key={gate.id} className="shadow-sm border-gray-200 hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center space-x-2">
-                      <EnvironmentOutlined className="text-blue-500 text-xl" />
-                      <h3 className="font-bold text-lg">{gate.name}</h3>
+              {gates.map(gate => {
+                const percent = Math.round((gate.currentTraffic / gate.capacity) * 100) || 0;
+                const isOverloaded = gate.status === 'Quá tải';
+
+                return (
+                  <Card 
+                    key={gate.id || gate.name} 
+                    className={`shadow-sm transition-all duration-300 overflow-hidden border ${isOverloaded ? 'border-red-200 shadow-red-100' : 'border-gray-200 hover:border-blue-300 hover:shadow-md'} rounded-2xl`}
+                    styles={{ body: { padding: 0 } }}
+                  >
+                    {/* Header Cổng */}
+                    <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                      <div className="flex items-center space-x-3">
+                        <div className={`p-2 rounded-lg ${isOverloaded ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                          <EnvironmentOutlined className="text-xl" />
+                        </div>
+                        <h3 className="font-bold text-gray-800 text-lg m-0">{gate.name}</h3>
+                      </div>
+                      <Badge 
+                        status={isOverloaded ? 'error' : percent > 50 ? 'warning' : 'processing'} 
+                        text={<span className="font-medium text-sm">{gate.status}</span>} 
+                        className={`px-3 py-1 rounded-full ${isOverloaded ? 'bg-red-50' : 'bg-white border border-gray-200'}`}
+                      />
                     </div>
-                    <Badge status={gate.status === 'Quá tải' ? 'error' : 'success'} text={gate.status} />
-                  </div>
-                  <div className="mb-6">
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Lưu lượng hiện tại:</span><span className="font-bold">{gate.currentTraffic} / {gate.capacity}</span>
+
+                    {/* Nội dung dữ liệu & Biểu đồ Dashboard */}
+                    <div className="p-6 flex items-center justify-between gap-4">
+                      <div className="flex-1 space-y-1">
+                        <p className="text-gray-500 text-xs uppercase font-bold tracking-wider m-0">Đã check-in</p>
+                        <div className="flex items-baseline space-x-1">
+                          <span className={`text-4xl font-extrabold ${isOverloaded ? 'text-red-600' : 'text-gray-800'}`}>
+                            {gate.currentTraffic}
+                          </span>
+                          <span className="text-gray-400 font-medium text-base">/ {gate.capacity}</span>
+                        </div>
+                        <div className="mt-2 text-sm text-gray-500 flex items-center">
+                          <DashboardOutlined className="mr-1 opacity-70" /> 
+                          Công suất: <strong className="ml-1 text-gray-700">{percent}%</strong>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 relative flex justify-center items-center drop-shadow-sm">
+                        <Progress 
+                          type="dashboard" 
+                          percent={percent} 
+                          strokeColor={getDashboardGradient(gate.currentTraffic, gate.capacity)}
+                          width={110} 
+                          strokeWidth={12}
+                          gapDegree={60}
+                          format={(p) => <span className="font-extrabold text-xl text-gray-700">{p}%</span>}
+                        />
+                      </div>
                     </div>
-                    <Progress percent={Math.round((gate.currentTraffic / gate.capacity) * 100) || 0} status={getStatusColor(gate.currentTraffic, gate.capacity)} strokeWidth={12} />
-                  </div>
-                  <Button type="primary" danger={gate.status === 'Quá tải'} icon={<AlertOutlined />} className="w-full" onClick={() => handleOpenAlert(gate.name)}>
-                    Phát lệnh điều hướng
-                  </Button>
-                </Card>
-              ))}
+
+                    {/* Nút Action */}
+                    <div className="px-5 pb-5">
+                      <Button 
+                        type={isOverloaded ? "primary" : "default"} 
+                        danger={isOverloaded} 
+                        icon={<AlertOutlined />} 
+                        className={`w-full h-11 font-bold rounded-xl text-sm ${!isOverloaded ? 'text-blue-600 border-blue-200 bg-blue-50/30 hover:bg-blue-100 hover:border-blue-300 shadow-none' : 'shadow-md shadow-red-200'}`}
+                        onClick={() => handleOpenAlert(gate.name)}
+                      >
+                        PHÁT LỆNH ĐIỀU HƯỚNG
+                      </Button>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
 
         <div className="w-full xl:w-1/3">
-          <Card title={<span><CheckCircleOutlined className="text-green-500 mr-2"/>Trạng thái nhân viên nhận lệnh</span>} className="shadow-sm border-gray-200 h-full min-h-[400px]" bodyStyle={{ padding: '12px' }}>
+          <Card 
+            title={<span><CheckCircleOutlined className="text-green-500 mr-2"/>Trạng thái nhân viên nhận lệnh</span>} 
+            className="shadow-sm border-gray-200 h-full min-h-[400px] rounded-2xl" 
+            styles={{ header: { backgroundColor: '#f8fafc', borderBottom: '1px solid #f1f5f9' }, body: { padding: '16px' } }}
+          >
             <List
               itemLayout="horizontal" dataSource={acknowledgedLogs} locale={{ emptyText: 'Chưa có thông báo xác nhận' }}
               renderItem={item => (
-                <List.Item className="bg-green-50/70 mb-2 rounded-lg px-3 py-2 border border-green-100 hover:bg-green-100 transition-colors">
+                <List.Item className="bg-green-50/70 mb-3 rounded-xl px-4 py-3 border border-green-100 hover:bg-green-100 transition-colors shadow-sm">
                   <List.Item.Meta
-                    avatar={<Avatar className="bg-green-600 text-white font-bold">{item.staffName.charAt(0)}</Avatar>}
-                    title={<span className="font-bold text-gray-800 text-sm">{item.staffName}</span>}
+                    avatar={<Avatar size="large" className="bg-green-600 text-white font-bold text-lg">{item.staffName.charAt(0)}</Avatar>}
+                    title={<span className="font-bold text-gray-800">{item.staffName}</span>}
                     description={
                       <div className="mt-1">
-                        <div className="text-xs text-gray-600">Xác nhận tại: <strong className="text-blue-700">{item.gateName}</strong></div>
-                        <div className="text-xs text-gray-400 mt-0.5">Lúc: {item.time}</div>
+                        <div className="text-sm text-gray-600">Xác nhận tại: <strong className="text-blue-700">{item.gateName}</strong></div>
+                        <div className="text-xs text-gray-400 mt-1 flex items-center"><Sparkles size={12} className="mr-1"/>{item.time}</div>
                       </div>
                     }
                   />
@@ -266,10 +385,11 @@ const GateControl = () => {
       <Modal
         title={<span><AlertOutlined className="text-red-500 mr-2" /> Phát lệnh điều phối khẩn cấp</span>}
         open={isModalVisible} onOk={handleSendAlert} onCancel={() => setIsModalVisible(false)}
-        okText="Phát lệnh ngay" okButtonProps={{ danger: true, size: 'large' }} cancelButtonProps={{ size: 'large' }}
+        okText="Phát lệnh ngay" okButtonProps={{ danger: true, size: 'large', className: 'rounded-lg' }} cancelButtonProps={{ size: 'large', className: 'rounded-lg' }}
+        className="rounded-2xl overflow-hidden"
       >
-        <p className="mb-4 text-gray-600">Gửi lệnh đến: <strong className="text-black">{selectedGate}</strong></p>
-        <Input.TextArea rows={4} value={alertMessage} onChange={(e) => setAlertMessage(e.target.value)} className="text-lg" />
+        <p className="mb-4 text-gray-600 text-base">Gửi lệnh điều phối khẩn cấp đến: <strong className="text-black bg-gray-100 px-2 py-1 rounded">{selectedGate}</strong></p>
+        <Input.TextArea rows={4} value={alertMessage} onChange={(e) => setAlertMessage(e.target.value)} className="text-lg rounded-xl p-3" placeholder="Nhập nội dung lệnh..." />
       </Modal>
     </div>
   );
