@@ -110,12 +110,13 @@ namespace TicketSystem.Application.DTOs
 
     public class EventSearchRequest
     {
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
         public string? Keyword { get; set; }
         public string? Location { get; set; }
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public EventStatus? Status { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
+        public string? Category { get; set; } 
     }
 }

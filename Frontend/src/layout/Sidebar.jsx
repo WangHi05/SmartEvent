@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import useAuthStore from '../store/useAuthStore';
-import { LayoutDashboard, Calendar, QrCode, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket, Route } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket, Route, History } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen }) => {
   const navigate = useNavigate();
@@ -72,6 +72,7 @@ const Sidebar = ({ sidebarOpen }) => {
     { path: '/checkinHD', label: 'Help Desk', icon: Headset, roles: ['admin', 'manager', 'staff'] },
     { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
     { path: '/audit-logs', label: 'Theo dõi hoạt động', icon: FileText, roles: ['admin', 'manager'] },
+    { path: '/checkinlogs', label: 'Lịch sử Check-in', icon: History, roles: ['admin', 'manager'] },
     { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] },
   ];
 

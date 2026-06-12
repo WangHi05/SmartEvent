@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
-import { HelmetProvider } from 'react-helmet-async';
 import EventDetail from './pages/EventDetail';
 import viVN from 'antd/locale/vi_VN';
 
@@ -41,9 +40,9 @@ import CheckInPage from './features/admin/checkin/CheckInPage';
 import HelpDeskPage from './features/admin/checkin/HelpDeskPage';
 import BookingManagementPage from './features/admin/bookings/BookingManagementPage';
 import GateControl from './features/admin/checkin/GateControl';
-
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword'; 
+import CheckInLogs from './features/admin/audit-logs/CheckInLogs';
 
 const ROLE_MAP = {
   '0': 'admin',
@@ -138,6 +137,7 @@ function App() {
             <Route path="/Admin/Bookings" element={<BookingManagementPage />} />
             <Route path="/checkin" element={<CheckInPage />} />
             <Route path="/gateAD" element={<GateControl />} />
+            <Route path="/checkinlogs" element={<CheckInLogs />} />
             <Route path="/checkinHD" element={<HelpDeskPage />} />
             <Route
               path="/users"

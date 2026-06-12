@@ -15,7 +15,7 @@ using TicketSystem.Domain.Common;
 
 namespace TicketSystem.Application.Services
 {
-    
+    /// <summary>
     /// Service xử lý logic nghiệp vụ liên quan đến Event
     /// </summary>
     public class EventService : IEventService 
@@ -72,6 +72,16 @@ namespace TicketSystem.Application.Services
                 query = query.Where(e => e.Status == request.Status.Value);
             }
 
+            if (!string.IsNullOrWhiteSpace(request.Category) && request.Category != "Tất cả")
+            {
+                var categoryLower = request.Category.Trim().ToLower();
+                
+                // Mẹo: Nếu tương lai em thêm thuộc tính 'public string Category { get; set; }' vào Event.cs,
+                // em chỉ cần sửa dòng dưới thành: query = query.Where(e => e.Category == request.Category);
+                query = query.Where(e => e.Name.ToLower().Contains(categoryLower) || 
+                                         e.Description.ToLower().Contains(categoryLower));
+            }
+
             // 3. Tính tổng số lượng bản ghi (để Front-end làm phân trang)
             int totalCount = await query.CountAsync();
 
@@ -85,6 +95,7 @@ namespace TicketSystem.Application.Services
                     Id = e.Id,
                     Name = e.Name,
                     Slug = e.Slug,
+                    Status = (int)e.Status,
                     Description = e.Description,
                     Location = e.Location,
                     ImageUrl = e.ImageUrl,
@@ -389,6 +400,39 @@ namespace TicketSystem.Application.Services
                 return ipAddress.MapToIPv4().ToString();
 
             return ipAddress.ToString();
+        }
+
+        public async Task AutoUpdateCompletedEventsAsync()
+        {
+            var now = DateTime.UtcNow;
+
+            // Tìm tất cả sự kiện đã qua thời gian EndTime nhưng Status VẪN CHƯA là Completed (3)
+            var expiredEvents = await _context.Events
+                .Where(e => e.EndTime < now && e.Status != EventStatus.Completed)
+                .ToListAsync();
+
+            if (!expiredEvents.Any()) return;
+
+            foreach (var evt in expiredEvents)
+            {
+                var oldStatus = evt.Status;
+                evt.Status = EventStatus.Completed;
+                evt.UpdatedAt = now;
+                evt.UpdatedBy = "Hangfire System";
+
+                // Ghi log tự động
+                await LogAuditAsync(new AuditLog
+                {
+                    Action = "AutoUpdateStatus",
+                    EntityType = "Event",
+                    EntityId = evt.Id,
+                    PerformedBy = "System",
+                    Details = $"Hangfire auto-updated status from {oldStatus} to Completed (Event EndTime: {evt.EndTime})"
+                });
+            }
+
+            _context.Events.UpdateRange(expiredEvents);
+            await _context.SaveChangesAsync();
         }
     }
 }

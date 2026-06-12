@@ -2,12 +2,29 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, Result, Button, Typography, Descriptions, message, Tag, InputNumber, Modal, Select } from 'antd';
 import { HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { Html5QrcodeScanner } from 'html5-qrcode';
-import { QrcodeOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, TeamOutlined, VideoCameraOutlined, VideoCameraAddOutlined } from '@ant-design/icons';
+import { QrcodeOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, TeamOutlined, VideoCameraOutlined, VideoCameraAddOutlined, CalendarOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient'; 
 import useAuthStore from '../../../store/useAuthStore'; 
 
 const { Title, Text } = Typography;
 const { Option } = Select;
+
+// HÀM SÁT THỦ: Ép buộc tắt toàn bộ luồng phần cứng của Camera
+const stopCameraHardware = () => {
+  try {
+    const videoElements = document.querySelectorAll('video');
+    videoElements.forEach(video => {
+      const stream = video.srcObject;
+      if (stream && stream.getTracks) {
+        stream.getTracks().forEach(track => {
+          track.stop(); // Ngắt điện camera ngay lập tức
+        });
+      }
+    });
+  } catch (err) {
+    console.error("Lỗi khi ép tắt hardware camera:", err);
+  }
+};
 
 const CheckInPage = () => {
   const user = useAuthStore((state) => state.user);
@@ -23,6 +40,9 @@ const CheckInPage = () => {
   const [peopleCount, setPeopleCount] = useState(1);
   const [isCameraOpen, setIsCameraOpen] = useState(true);
   
+  const [activeEvents, setActiveEvents] = useState([]);
+  const [selectedEventId, setSelectedEventId] = useState(null);
+
   const peopleCountRef = useRef(1);
   const scannerRef = useRef(null);
   const isLockedRef = useRef(false); 
@@ -35,6 +55,47 @@ const CheckInPage = () => {
   };
 
   useEffect(() => {
+    const fetchActiveEvents = async () => {
+      try {
+        const res = await axiosClient.get('/events/search', { params: { pageSize: 50 } });
+        
+        let eventList = [];
+        if (Array.isArray(res.items)) eventList = res.items;
+        else if (Array.isArray(res.data?.items)) eventList = res.data.items;
+        else if (Array.isArray(res.data)) eventList = res.data;
+        else if (Array.isArray(res)) eventList = res;
+
+        const validEvents = eventList.filter(e => {
+          if (!e.startTime || !e.endTime) return false;
+
+          const now = new Date();
+          const start = new Date(e.startTime);
+          const end = new Date(e.endTime);
+
+          if (now > end) {
+            return false;
+          }
+
+          const checkInStartTime = new Date(start.getTime() - 4 * 60 * 60 * 1000); 
+          
+          if (now >= checkInStartTime && now <= end) {
+            return true;
+          }
+
+          return false;
+        });
+
+        setActiveEvents(validEvents);
+        
+        if (validEvents.length > 0) {
+          setSelectedEventId(validEvents[0].id);
+        }
+      } catch (err) {
+        console.error("Lỗi lấy sự kiện:", err);
+      }
+    };
+    fetchActiveEvents();
+
     const connection = new HubConnectionBuilder()
       .withUrl(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/gateHub` : 'http://localhost:5013/gateHub')
       .configureLogging(LogLevel.Information)
@@ -69,7 +130,11 @@ const CheckInPage = () => {
   };
 
   useEffect(() => {
-    if (!isCameraOpen) return;
+    // Nếu trạng thái camera là TẮT, ép buộc tắt phần cứng luôn
+    if (!isCameraOpen) {
+      stopCameraHardware();
+      return;
+    }
 
     const qrContainer = document.getElementById('qr-reader');
     if (!qrContainer) return;
@@ -85,10 +150,18 @@ const CheckInPage = () => {
     scannerRef.current = scanner;
     scanner.render(onScanSuccess, onScanFailure);
 
+    // Dọn dẹp khi Component unmount hoặc khi isCameraOpen thay đổi
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.clear().catch(e => console.debug("Lỗi dọn dẹp camera:", e));
+        scannerRef.current.clear().then(() => {
+          stopCameraHardware(); // Tắt triệt để sau khi clear
+        }).catch(e => {
+          console.debug("Lỗi dọn dẹp camera:", e);
+          stopCameraHardware(); // Nếu clear lỗi cũng phải ép tắt
+        });
         scannerRef.current = null;
+      } else {
+        stopCameraHardware();
       }
     };
   }, [isCameraOpen]); 
@@ -154,13 +227,28 @@ const CheckInPage = () => {
       
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
           
+          {/* CỘT CHỌN SỰ KIỆN */}
+          <div className="flex items-center space-x-3 bg-indigo-50/60 px-4 py-2.5 rounded-xl border border-indigo-100 w-full sm:w-auto transition-colors hover:bg-indigo-50">
+            <Text className="font-semibold text-indigo-800 whitespace-nowrap"><CalendarOutlined className="mr-1.5"/>Sự kiện:</Text>
+            <Select 
+              value={selectedEventId} 
+              onChange={(val) => setSelectedEventId(val)}
+              className="min-w-[200px]"
+              variant="borderless" 
+              dropdownStyle={{ borderRadius: '8px' }}
+              options={activeEvents.map(e => ({ label: e.name, value: e.id }))}
+              placeholder="Chọn sự kiện..."
+              notFoundContent="Chưa có sự kiện nào đang diễn ra"
+            />
+          </div>
+
           <div className="flex items-center space-x-3 bg-blue-50/60 px-4 py-2.5 rounded-xl border border-blue-100 w-full sm:w-auto transition-colors hover:bg-blue-50">
             <Text className="font-semibold text-blue-800 whitespace-nowrap">Vị trí trực:</Text>
             <Select 
               value={selectedGate} 
               onChange={(val) => setSelectedGate(val)}
-              className="min-w-[200px]"
-              bordered={false}
+              className="min-w-[180px]"
+              variant="borderless"
               dropdownStyle={{ borderRadius: '8px' }}
             >
               <Option value="Cổng chính - Lối vào 1">Cổng chính - Lối vào 1</Option>
@@ -190,7 +278,7 @@ const CheckInPage = () => {
         <Card 
           title={<span className="text-gray-700 font-semibold"><QrcodeOutlined className="mr-2 text-blue-600" /> Khung quét QR</span>} 
           className="shadow-sm border-gray-100 rounded-2xl overflow-hidden h-full"
-          headStyle={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}
+          styles={{ header: { backgroundColor: '#f8fafc', borderBottom: '1px solid #f1f5f9' } }} 
           extra={
             <Button 
                 type={isCameraOpen ? "default" : "primary"} danger={isCameraOpen}
@@ -217,8 +305,10 @@ const CheckInPage = () => {
         <Card 
           title={<span className="text-gray-700 font-semibold">Kết quả soát vé</span>} 
           className="shadow-sm border-gray-100 rounded-2xl h-full flex flex-col"
-          headStyle={{ backgroundColor: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}
-          bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '350px' }}
+          styles={{ 
+            header: { backgroundColor: '#f8fafc', borderBottom: '1px solid #f1f5f9' },
+            body: { flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', minHeight: '350px' } 
+          }}
         >
           {!scanResult && (
             <div className="text-center text-gray-400">

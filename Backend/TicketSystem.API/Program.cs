@@ -13,8 +13,18 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
+using Hangfire;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Thêm Hangfire Server (Bộ máy chạy ngầm)
+builder.Services.AddHangfireServer();
 
 // 1. Đăng ký DbContext và kết nối SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -162,7 +172,14 @@ app.UseRateLimiter();
 // 1. Phải gọi UseAuthentication (Xác minh thẻ căn cước) TRƯỚC
 app.UseAuthentication(); 
 // 2. Rồi mới gọi UseAuthorization (Kiểm tra quyền vào cổng)
-app.UseAuthorization();   
+app.UseAuthorization(); 
+
+app.UseHangfireDashboard("/hangfire");
+
+RecurringJob.AddOrUpdate<EventService>(
+    "update-expired-events-status", 
+    service => service.AutoUpdateCompletedEventsAsync(), 
+    Cron.Hourly());
 
 app.MapControllers();
 
@@ -206,6 +223,33 @@ using (var scope = app.Services.CreateScope())
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
         logger.LogError(ex, "Có lỗi xảy ra khi tự động migrate database.");
+    }
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        var logger = services.GetRequiredService<ILogger<AppDbSeeder>>();
+
+        var configuration = services.GetRequiredService<IConfiguration>();
+        bool shouldSeedData = configuration.GetValue<bool>("DatabaseSettings:SeedMockData", false);
+
+        context.Database.Migrate(); 
+        
+        await AppDbSeeder.SeedDataAsync(context, logger, forceSeed: shouldSeedData);
+        
+        if (shouldSeedData)
+        {
+            logger.LogInformation("LƯU Ý: Chế độ ép buộc tạo Mock Data đang BẬT. Nhớ tắt đi trong appsettings.json sau khi dùng xong.");
+        }
+    }
+    catch (Exception ex)
+    {
+        var programLogger = services.GetRequiredService<ILogger<Program>>();
+        programLogger.LogError(ex, "Có lỗi xảy ra khi tự động migrate hoặc seed database.");
     }
 }
 

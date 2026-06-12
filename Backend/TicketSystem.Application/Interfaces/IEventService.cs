@@ -17,5 +17,7 @@ namespace TicketSystem.Application.Interfaces
         Task<EventResponseDto?> UpdateEventAsync(UpdateEventDto request, string updatedBy);
         
         Task<bool> DeleteEventAsync(Guid id, string deletedBy);
+
+        Task AutoUpdateCompletedEventsAsync();
     }
 }

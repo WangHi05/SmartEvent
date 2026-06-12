@@ -20,23 +20,47 @@ const EventBrowse = () => {
   const [searchText, setSearchText] = useState('');
   const [category, setCategory] = useState('Tất cả');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  const [pageNumber, setPageNumber] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  // Fetch events
+  // Fetch events: GỬI TOÀN BỘ ĐIỀU KIỆN LỌC XUỐNG BACKEND
   const fetchEvents = async () => {
     setLoading(true);
     try {
+      // Chuyển đổi trạng thái text sang enum/số để Backend dễ hiểu
+      let apiStatus = undefined;
+      if (statusFilter === 'Sắp diễn ra') apiStatus = 1;
+      else if (statusFilter === 'Đang diễn ra') apiStatus = 2;
+      else if (statusFilter === 'Đã kết thúc') apiStatus = 3;
+
       const response = await axiosClient.get('/events/search', {
         params: {
-          pageNumber: 1,
+          pageNumber: pageNumber,
           pageSize: 12,
-          keyword: searchText,
+          keyword: searchText || undefined,
+          category: category !== 'Tất cả' ? category : undefined, // Gửi category xuống API
+          status: apiStatus // Gửi status xuống API
         },
       });
 
       const data = response.data || response;
       setEvents(data.items || data.data?.items || []);
+
+      if (data.totalPages) {
+        setTotalPages(data.totalPages);
+      } else if (data.data?.totalPages) {
+        setTotalPages(data.data.totalPages);
+      } else if (data.totalCount || data.data?.totalCount) {
+        const count = data.totalCount || data.data?.totalCount;
+        setTotalPages(Math.ceil(count / 12));
+      } else {
+        setTotalPages(1); 
+      }
+
     } catch (error) {
       console.error('Error fetching events:', error);
       message.error('Không thể tải danh sách sự kiện');
@@ -55,19 +79,13 @@ const EventBrowse = () => {
     if (nextStatus !== statusFilter) setStatusFilter(nextStatus);
   }, [searchParams]);
 
+  // Lắng nghe sự thay đổi của TẤT CẢ các bộ lọc để gọi lại API
   useEffect(() => {
     const timer = setTimeout(fetchEvents, 350);
     return () => clearTimeout(timer);
-  }, [searchText]);
+  }, [searchText, pageNumber, category, statusFilter]); 
 
-  const filteredEvents = useMemo(() => {
-    return events.filter((event) => {
-      const status = getEventStatusMeta(event);
-      const categoryMatch = category === 'Tất cả' || deriveEventCategory(event) === category;
-      const statusMatch = statusFilter === 'all' || status.label === statusFilter;
-      return categoryMatch && statusMatch;
-    });
-  }, [category, events, statusFilter]);
+  // XÓA BỎ LỌC TRÊN CLIENT SIDE - Sử dụng trực tiếp mảng events từ Backend trả về
 
   const trendingEvents = useMemo(
     () => [...events].sort((a, b) => getCapacityPercent(b) - getCapacityPercent(a)).slice(0, 3),
@@ -85,6 +103,9 @@ const EventBrowse = () => {
     if (nextCategory && nextCategory !== 'Tất cả') params.category = nextCategory;
     if (nextStatus && nextStatus !== 'all') params.status = nextStatus;
     setSearchParams(params);
+    
+    // Đặt lại về trang 1 khi người dùng thay đổi tiêu chí tìm kiếm/lọc
+    setPageNumber(1); 
   };
 
   return (
@@ -101,7 +122,7 @@ const EventBrowse = () => {
               </div>
               <h1 className="max-w-3xl text-4xl font-black tracking-tight sm:text-5xl xl:text-6xl">Premium Event Platform cho trải nghiệm khám phá sự kiện chuyên nghiệp hơn.</h1>
               <p className="max-w-3xl text-base leading-8 text-white/75 sm:text-lg xl:text-xl">
-                Giữ nguyên API, route và toàn bộ nút đặt vé hiện có. Chỉ nâng cấp layout để người dùng duyệt sự kiện rõ hơn trên desktop, tablet và mobile.
+                Dữ liệu giờ đây đã được lọc trực tiếp từ Database (Server-side) giúp loại bỏ tình trạng đứt quãng trang.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Button type="primary" size="large" className="!h-12 !rounded-2xl !border-white !bg-white !px-6 !font-semibold !text-slate-950 hover:!border-slate-100 hover:!bg-slate-50" onClick={() => navigate('/customer/home')}>
@@ -114,18 +135,31 @@ const EventBrowse = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
+
               <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
+
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Sự kiện hiện có</p>
+
                 <p className="mt-2 text-3xl font-black text-white">{events.length.toLocaleString('vi-VN')}</p>
+
               </div>
+
               <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
+
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Đang diễn ra</p>
+
                 <p className="mt-2 text-3xl font-black text-white">{events.filter((event) => getEventStatusMeta(event).key === 'live').length.toLocaleString('vi-VN')}</p>
+
               </div>
+
               <div className="rounded-[24px] border border-white/16 bg-white/8 p-4 backdrop-blur-md">
+
                 <p className="text-xs uppercase tracking-[0.2em] text-white/55">Top bán chạy</p>
+
                 <p className="mt-2 text-3xl font-black text-white">#{events.length ? 1 : '-'}</p>
+
               </div>
+
             </div>
           </div>
         </div>
@@ -135,7 +169,7 @@ const EventBrowse = () => {
         <CustomerSectionTitle
           kicker="Bộ lọc"
           title="Tìm kiếm nhanh theo keyword, danh mục và trạng thái"
-          description="Keyword từ thanh header sẽ được đẩy vào đây. Tabs danh mục lọc hoàn toàn client-side, không đổi API."
+          description="Dữ liệu lọc được gửi thẳng xuống máy chủ để xử lý tốc độ cao."
         />
 
         <div className="grid gap-4 xl:grid-cols-[1.4fr_0.8fr_0.8fr]">
@@ -200,7 +234,7 @@ const EventBrowse = () => {
         <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white">
           <Spin size="large" tip="Đang tải..." />
         </div>
-      ) : filteredEvents.length === 0 ? (
+      ) : events.length === 0 ? (
         <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center">
           <Empty description="Không tìm thấy sự kiện nào" />
           <Button
@@ -210,6 +244,7 @@ const EventBrowse = () => {
               setCategory('Tất cả');
               setStatusFilter('all');
               setSearchParams({});
+              setPageNumber(1);
             }}
           >
             Xoá bộ lọc
@@ -217,15 +252,45 @@ const EventBrowse = () => {
         </div>
       ) : (
         <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="grid items-stretch gap-8 sm:grid-cols-2 xl:grid-cols-3">
-            {filteredEvents.map((event) => (
-              <CustomerEventCard
-                key={event.id}
-                event={event}
-                onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
-                onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
-              />
-            ))}
+          <div className="flex flex-col">
+            <div className="grid items-stretch gap-8 sm:grid-cols-2 xl:grid-cols-3">
+              {events.map((event) => (
+                <CustomerEventCard
+                  key={event.id}
+                  event={event}
+                  onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                  onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
+                />
+              ))}
+            </div>
+
+            {/* Bộ UI Nút Phân Trang */}
+            {totalPages > 1 && (
+              <div className="mt-12 flex items-center justify-center gap-3 border-t border-slate-200 pt-8">
+                <Button 
+                  size="large" 
+                  onClick={() => setPageNumber(prev => Math.max(prev - 1, 1))} 
+                  disabled={pageNumber <= 1}
+                  className="!rounded-xl font-semibold !text-slate-600 hover:!text-blue-600 hover:!border-blue-300"
+                >
+                  Trang trước
+                </Button>
+                
+                <div className="flex items-center justify-center rounded-xl bg-slate-50 px-5 py-2.5 text-sm font-semibold text-slate-600 border border-slate-200 shadow-sm">
+                  Trang {pageNumber} / {totalPages}
+                </div>
+                
+                <Button 
+                  type="primary" 
+                  size="large" 
+                  onClick={() => setPageNumber(prev => Math.min(prev + 1, totalPages))} 
+                  disabled={pageNumber >= totalPages}
+                  className="!rounded-xl font-semibold !bg-blue-600 hover:!bg-blue-700 shadow-lg shadow-blue-600/20"
+                >
+                  Trang sau
+                </Button>
+              </div>
+            )}
           </div>
 
           <aside className="space-y-5 xl:sticky xl:top-28 xl:self-start">
