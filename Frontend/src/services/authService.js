@@ -2,7 +2,8 @@ import axiosClient from '../api/axiosClient';
 import useAuthStore from '../store/useAuthStore';
 
 export const authService = {
-        login: async (username, password, rememberMe = true) => {
+    login: async (username, password, rememberMe = true) => {
+    try {
         const response = await axiosClient.post('/users/authenticate', { 
             username, 
             password 
@@ -17,6 +18,7 @@ export const authService = {
             throw new Error("Không nhận được token từ máy chủ!");
         }
 
+        // Lưu token
         if (rememberMe) {
             localStorage.setItem('token', tokenToSave);
             localStorage.setItem('user_info', JSON.stringify(userToSave));
@@ -28,15 +30,20 @@ export const authService = {
         window.memoryToken = tokenToSave;
         useAuthStore.getState().setUser(userToSave);
 
-        await new Promise(resolve => setTimeout(resolve, 500)); // tăng delay lên 500ms
+        // Delay dài hơn và kiểm tra lại
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-        console.log("Token đã lưu thành công:", localStorage.getItem('token'));
+        console.log("✅ Token cuối cùng trước redirect:", localStorage.getItem('token'));
 
-        // Chuyển hướng sau khi token chắc chắn đã lưu
-        window.location.href = '/dashboard';   // hoặc trang admin của bạn
+        // Redirect an toàn hơn
+        window.location.replace('/dashboard');   // dùng replace thay href
 
         return response;
-    },
+    } catch (error) {
+        console.error("Login error:", error);
+        throw error;
+    }
+},
 
     register: async (userData) => {
         const payload = {
