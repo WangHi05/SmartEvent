@@ -16,6 +16,7 @@ using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.PostgreSql;
 using Npgsql;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -201,7 +202,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["JwtSettings:Audience"],
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(5),
-            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
