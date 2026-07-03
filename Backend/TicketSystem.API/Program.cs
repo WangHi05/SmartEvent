@@ -14,38 +14,67 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
 using Hangfire;
+using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+// 1. Lấy cấu hình Provider và Chuỗi kết nối từ appsettings/User Secrets
+var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SQLServer";
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// 2. CẤU HÌNH HANGFIRE THEO PROVIDER (Đã cập nhật rẽ nhánh Postgres)
+builder.Services.AddHangfire(configuration =>
+{
+    configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                 .UseSimpleAssemblyNameTypeSerializer()
+                 .UseRecommendedSerializerSettings();
+
+    if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    {
+        configuration.UsePostgreSqlStorage(options =>
+        {
+            options.UseNpgsqlConnection(connectionString);
+        });
+    }
+    else
+    {
+        configuration.UseSqlServerStorage(connectionString);
+    }
+});
 
 // Thêm Hangfire Server (Bộ máy chạy ngầm)
 builder.Services.AddHangfireServer();
 
-// 1. Đăng ký DbContext và kết nối SQL Server
+// 3. ĐĂNG KÝ DBCONTEXT THEO PROVIDER
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("TicketSystem.Infrastructure")));
+{
+    if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(connectionString,
+            b => b.MigrationsAssembly("TicketSystem.Infrastructure"));
+    }
+    else
+    {
+        options.UseSqlServer(connectionString,
+            b => b.MigrationsAssembly("TicketSystem.Infrastructure"));
+    }
+});
 
 // Đăng ký IApplicationDbContext trỏ tới cùng một instance của ApplicationDbContext
 // Điều này đảm bảo Request gửi lên dùng chung 1 kết nối Database
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
-// 2. Đăng ký Repositories và Hạ tầng
+// 4. Đăng ký Repositories và Hạ tầng
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
 builder.Services.AddScoped<IUserRepository, UserRepository>(); // Đăng ký UserRepository cụ thể
 builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>(); // Đăng ký TicketTypeRepository
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>(); // Đăng ký PasswordHasher
 
-// 2.1. Đăng ký HttpContextAccessor để lấy IP trong Service
+// 4.1. Đăng ký HttpContextAccessor để lấy IP trong Service
 builder.Services.AddHttpContextAccessor();
 
-// 3. Đăng ký Application Services (DEPENDENCY INVERSION)
+// 5. Đăng ký Application Services (DEPENDENCY INVERSION)
 builder.Services.AddScoped<IUserService, UserService>();
 // Các service khác cũng nên chuyển sang dùng Interface tương tự
 builder.Services.AddScoped<EventService, EventService>();
@@ -61,7 +90,7 @@ builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 builder.Services.AddScoped<IGateService, GateService>();
 
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
-// 4. Đăng ký Database Seeder
+// 6. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
 // Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
@@ -74,7 +103,7 @@ builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 // HttpClient cho GeminiService (Customer Support Chatbot)
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 
-// 5. CORS Configuration (cho phép Frontend gọi API)
+// 7. CORS Configuration (cho phép Frontend gọi API)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>

@@ -46,7 +46,8 @@ namespace TicketSystem.Infrastructure.Data
             {
                 entity.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_EventTime", "[StartTime] < [EndTime]");
+                    // Đổi dấu ngoặc vuông sang nháy kép để PostgreSQL hiểu được tên cột
+                    t.HasCheckConstraint("CK_EventTime", "\"StartTime\" < \"EndTime\"");
                 });
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
@@ -60,7 +61,8 @@ namespace TicketSystem.Infrastructure.Data
             {
                 entity.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_SaleTime", "[SaleStartTime] < [SaleEndTime]");
+                    // Đổi dấu ngoặc vuông sang nháy kép chuẩn PostgreSQL
+                    t.HasCheckConstraint("CK_SaleTime", "\"SaleStartTime\" < \"SaleEndTime\"");
                 });
                 entity.HasKey(e => e.Id);
                 
