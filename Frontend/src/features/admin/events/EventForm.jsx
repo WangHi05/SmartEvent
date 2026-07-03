@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, DatePicker, InputNumber, Button, message } from 'antd';
+import { Modal, Form, Input, DatePicker, InputNumber, Button, message, Upload } from 'antd';
+import { UploadOutlined, LoadingOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
 
@@ -13,6 +14,7 @@ const { RangePicker } = DatePicker;
 const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const isEdit = !!eventData;
 
   useEffect(() => {
@@ -34,6 +36,31 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
       }
     }
   }, [visible, eventData, form]);
+
+  // Xử lý khi user chọn file ảnh từ máy
+  const handleImageUpload = async (file) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await axiosClient.post('/upload/image', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const uploadedUrl = response.data.url;
+      form.setFieldsValue({ imageUrl: uploadedUrl });
+      message.success('Tải ảnh lên thành công!');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi tải ảnh lên');
+    } finally {
+      setUploading(false);
+    }
+
+    // Trả về false để Ant Design Upload không tự động submit form upload nội bộ
+    return false;
+  };
 
   const handleSubmit = async (values) => {
     setLoading(true);
@@ -115,15 +142,27 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
           <Input placeholder="Nhập địa điểm tổ chức" />
         </Form.Item>
 
+        <Form.Item label="Ảnh sự kiện / Banner">
+          <Upload
+            accept="image/*"
+            showUploadList={false}
+            beforeUpload={handleImageUpload}
+          >
+            <Button icon={uploading ? <LoadingOutlined /> : <UploadOutlined />} loading={uploading}>
+              {uploading ? 'Đang tải ảnh lên...' : 'Chọn ảnh từ máy'}
+            </Button>
+          </Upload>
+        </Form.Item>
+
+        {/* Vẫn giữ field imageUrl ẩn để lưu giá trị, và cho phép sửa tay nếu cần */}
         <Form.Item
-          label="Ảnh sự kiện / Banner URL"
+          label="Đường dẫn ảnh (tự động điền sau khi upload)"
           name="imageUrl"
           rules={[
             { max: 500, message: 'Đường dẫn ảnh không được vượt quá 500 ký tự' },
           ]}
-          tooltip="Nhập URL ảnh. Ảnh này sẽ hiển thị ở card sự kiện và trang chi tiết."
         >
-          <Input placeholder="Ví dụ: https://domain.com/images/event-banner.jpg" />
+          <Input placeholder="URL ảnh sẽ tự động điền sau khi bạn chọn ảnh ở trên" />
         </Form.Item>
 
         <Form.Item shouldUpdate={(prev, cur) => prev.imageUrl !== cur.imageUrl} noStyle>

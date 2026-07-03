@@ -224,6 +224,20 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "TicketSystem_";
 });
 
+// ===== CẤU HÌNH CLOUDINARY (LƯU TRỮ HÌNH ẢNH) =====
+// Cấu hình dịch vụ lưu trữ hình ảnh Cloudinary đọc tự động từ Biến môi trường hoặc appsettings
+builder.Services.Configure<TicketSystem.API.CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+
+// Đăng ký Cloudinary client để inject trực tiếp vào Service/Controller
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TicketSystem.API.CloudinarySettings>>().Value;
+    var account = new CloudinaryDotNet.Account(config.CloudName, config.ApiKey, config.ApiSecret);
+    return new CloudinaryDotNet.Cloudinary(account);
+});
+// ⬇️ THÊM DÒNG NÀY
+builder.Services.AddScoped<TicketSystem.API.Services.UploadService>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
