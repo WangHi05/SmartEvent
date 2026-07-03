@@ -10,9 +10,9 @@ const getInitialUser = () => {
 const persistUser = (userData) => {
     const hasLocalToken = !!localStorage.getItem('token');
     const hasSessionToken = !!sessionStorage.getItem('token');
+    const targetStorage = hasLocalToken ? localStorage : (hasSessionToken ? sessionStorage : localStorage);
 
     if (userData) {
-        const targetStorage = hasLocalToken || !hasSessionToken ? localStorage : sessionStorage;
         targetStorage.setItem('user_info', JSON.stringify(userData));
     } else {
         localStorage.removeItem('user_info');

@@ -1,9 +1,18 @@
 import axios from 'axios';
 
+const getApiBaseUrl = () => {
+    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+
+    if (!configuredBaseUrl) {
+        return 'http://localhost:5013/api';
+    }
+
+    const trimmedUrl = configuredBaseUrl.trim().replace(/\/+$/, '');
+    return trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`;
+};
+
 const axiosClient = axios.create({
-    baseURL: import.meta.env.VITE_API_BASE_URL 
-        ? `${import.meta.env.VITE_API_BASE_URL}/api` 
-        : 'http://localhost:5013/api', 
+    baseURL: getApiBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
     },
@@ -12,9 +21,9 @@ const axiosClient = axios.create({
 // REQUEST INTERCEPTOR - Phiên bản mạnh hơn
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token') || 
-                     sessionStorage.getItem('token') || 
-                     window.memoryToken;
+        const token = localStorage.getItem('token') ||
+                     sessionStorage.getItem('token') ||
+                     window.memoryToken || '';
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -34,7 +43,10 @@ axiosClient.interceptors.response.use(
         return response.data;   // Quan trọng
     },
     (error) => {
-        if (error.response?.status === 401) {
+        const isAuthEndpoint = ['/users/authenticate', '/users/register', '/users/forgot-password', '/users/reset-password', '/users/external-login']
+            .some((path) => error.config?.url?.includes(path));
+
+        if (error.response?.status === 401 && !isAuthEndpoint) {
             console.warn("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
             
             localStorage.removeItem('token');

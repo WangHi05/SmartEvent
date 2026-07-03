@@ -1,6 +1,20 @@
 import axiosClient from '../api/axiosClient';
 import useAuthStore from '../store/useAuthStore';
 
+const persistAuthState = (token, user, rememberMe) => {
+    if (rememberMe) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user_info', JSON.stringify(user));
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user_info');
+    } else {
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('user_info', JSON.stringify(user));
+        localStorage.removeItem('token');
+        localStorage.removeItem('user_info');
+    }
+};
+
 export const authService = {
     login: async (username, password, rememberMe = true) => {
     const response = await axiosClient.post('/users/authenticate', { 
@@ -17,21 +31,13 @@ export const authService = {
         throw new Error("Không nhận được token từ máy chủ!");
     }
 
-    // Lưu vào storage
-    if (rememberMe) {
-        localStorage.setItem('token', tokenToSave);
-        localStorage.setItem('user_info', JSON.stringify(userToSave));
-    } else {
-        sessionStorage.setItem('token', tokenToSave);
-        sessionStorage.setItem('user_info', JSON.stringify(userToSave));
-    }
-
+    persistAuthState(tokenToSave, userToSave, rememberMe);
     window.memoryToken = tokenToSave;
 
     // Cập nhật Zustand Store
     useAuthStore.getState().setUser(userToSave);
 
-    console.log("✅ Token đã lưu thành công:", localStorage.getItem('token'));
+    console.log("✅ Token đã lưu thành công:", localStorage.getItem('token') || sessionStorage.getItem('token'));
 
     // Trả về đúng format mà component Login đang mong đợi
     return {
@@ -75,8 +81,7 @@ export const authService = {
         const userToSave = response.user || response.User;
 
         if (tokenToSave) {
-            localStorage.setItem('token', tokenToSave);
-            localStorage.setItem('user_info', JSON.stringify(userToSave));
+            persistAuthState(tokenToSave, userToSave, true);
             window.memoryToken = tokenToSave;
             useAuthStore.getState().setUser(userToSave);
         }
