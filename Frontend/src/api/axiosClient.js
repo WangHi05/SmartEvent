@@ -9,7 +9,7 @@ const axiosClient = axios.create({
     },
 });
 
-// REQUEST INTERCEPTOR - Cải tiến
+// REQUEST INTERCEPTOR - Phiên bản mạnh hơn
 axiosClient.interceptors.request.use(
     (config) => {
         const token = localStorage.getItem('token') || 
@@ -18,8 +18,9 @@ axiosClient.interceptors.request.use(
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log(`✅ Gửi token cho: ${config.url}`);
         } else {
-            console.warn("Không tìm thấy token cho request:", config.url);
+            console.warn("❌ Không tìm thấy token cho request:", config.url);
         }
         
         return config;
