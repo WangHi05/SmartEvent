@@ -17,6 +17,7 @@ export const authService = {
             // 2. Bổ sung lưu 'user_info' (vì hàm getCurrentUser bên dưới đang gọi nó)
             if (rememberMe) {
                 localStorage.setItem('token', tokenToSave);
+                console.log("Token sau khi lưu:", localStorage.getItem("token"));
                 localStorage.setItem('user_info', JSON.stringify(userToSave));
             } else {
                 sessionStorage.setItem('token', tokenToSave);
