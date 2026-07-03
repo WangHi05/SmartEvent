@@ -238,6 +238,22 @@ builder.Services.AddSingleton(sp =>
 // ⬇️ THÊM DÒNG NÀY
 builder.Services.AddScoped<TicketSystem.API.Services.UploadService>();
 
+
+// 1. Định nghĩa chính sách CORS (Cho phép Frontend gọi API)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173", // Cho phép React chạy thử dưới máy local của Tiến
+                "https://*.vercel.app"   // Cho phép tất cả các domain deploy thử nghiệm của Vercel
+               )
+              .SetIsOriginAllowedToAllowWildcardSubdomains() // Kích hoạt cho phép wildcard dấu * ở trên
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Cần thiết nếu hai bạn có dùng Cookie hoặc mã hóa Token
+    });
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -246,6 +262,9 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+// ⬇️ CHÈN CHÍNH XÁC DÒNG NÀY VÀO ĐÂY
+app.UseCors("AllowFrontend");
 
 app.UseHttpsRedirection();
 
