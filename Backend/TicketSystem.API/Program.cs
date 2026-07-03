@@ -211,6 +211,19 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddSignalR();
 
+// ===== CẤU HÌNH REDIS DISTRIBUTED CACHE (UPSTASH) =====
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (string.IsNullOrEmpty(redisConnectionString))
+{
+    throw new InvalidOperationException("Redis:ConnectionString chưa được cấu hình. Kiểm tra biến môi trường Redis__ConnectionString trên Render.");
+}
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = redisConnectionString;
+    options.InstanceName = "TicketSystem_";
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
