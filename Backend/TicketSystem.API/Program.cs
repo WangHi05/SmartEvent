@@ -188,6 +188,25 @@ builder.Services.AddRateLimiter(options =>
 // Đăng ký JwtTokenGenerator cho DI
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
+var jwtAudience = builder.Configuration["JwtSettings:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    jwtSecret = "dev-secret-key-change-me-in-production";
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    jwtIssuer = "TicketSystem_API";
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    jwtAudience = "TicketSystem_ReactApp";
+}
+
 // ===== CẤU HÌNH JWT AUTHENTICATION =====
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -195,11 +214,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]!)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidIssuer = jwtIssuer,
             ValidateAudience = true,
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
+            ValidAudience = jwtAudience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromMinutes(5),
             RoleClaimType = ClaimTypes.Role
@@ -212,18 +231,39 @@ builder.Services.AddMemoryCache();
 
 builder.Services.AddSignalR();
 
-// ===== CẤU HÌNH REDIS DISTRIBUTED CACHE (UPSTASH) =====
-var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
-if (string.IsNullOrEmpty(redisConnectionString))
+if (string.IsNullOrWhiteSpace(jwtSecret))
 {
-    throw new InvalidOperationException("Redis:ConnectionString chưa được cấu hình. Kiểm tra biến môi trường Redis__ConnectionString trên Render.");
+    jwtSecret = "local-dev-secret-change-me";
 }
 
-builder.Services.AddStackExchangeRedisCache(options =>
+if (string.IsNullOrWhiteSpace(jwtIssuer))
 {
-    options.Configuration = redisConnectionString;
-    options.InstanceName = "TicketSystem_";
-});
+    jwtIssuer = "TicketSystem_API";
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    jwtAudience = "TicketSystem_ReactApp";
+}
+
+builder.Configuration["JwtSettings:Secret"] = jwtSecret;
+builder.Configuration["JwtSettings:Issuer"] = jwtIssuer;
+builder.Configuration["JwtSettings:Audience"] = jwtAudience;
+
+// ===== CẤU HÌNH REDIS DISTRIBUTED CACHE (UPSTASH) =====
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "TicketSystem_";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
 
 // ===== CẤU HÌNH CLOUDINARY (LƯU TRỮ HÌNH ẢNH) =====
 // Cấu hình dịch vụ lưu trữ hình ảnh Cloudinary đọc tự động từ Biến môi trường hoặc appsettings
