@@ -47,15 +47,13 @@ axiosClient.interceptors.response.use(
             .some((path) => error.config?.url?.includes(path));
 
         if (error.response?.status === 401 && !isAuthEndpoint) {
-            console.warn("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
-            
+            console.warn('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại nếu cần.');
+
             localStorage.removeItem('token');
             localStorage.removeItem('user_info');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user_info');
             window.memoryToken = null;
-            
-            window.location.href = '/login';
         }
         return Promise.reject(error);
     }
