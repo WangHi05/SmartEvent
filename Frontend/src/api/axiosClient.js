@@ -9,14 +9,19 @@ const axiosClient = axios.create({
     },
 });
 
-// REQUEST INTERCEPTOR
+// REQUEST INTERCEPTOR - Cải tiến
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        
+        const token = localStorage.getItem('token') || 
+                     sessionStorage.getItem('token') || 
+                     window.memoryToken;
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+        } else {
+            console.warn("Không tìm thấy token cho request:", config.url);
         }
+        
         return config;
     },
     (error) => Promise.reject(error)
@@ -25,7 +30,7 @@ axiosClient.interceptors.request.use(
 // RESPONSE INTERCEPTOR
 axiosClient.interceptors.response.use(
     (response) => {
-        return response.data;           // ← Quan trọng: trả về .data
+        return response.data;   // Quan trọng
     },
     (error) => {
         if (error.response?.status === 401) {
@@ -35,6 +40,7 @@ axiosClient.interceptors.response.use(
             localStorage.removeItem('user_info');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user_info');
+            window.memoryToken = null;
             
             window.location.href = '/login';
         }
