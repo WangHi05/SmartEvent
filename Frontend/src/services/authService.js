@@ -3,46 +3,42 @@ import useAuthStore from '../store/useAuthStore';
 
 export const authService = {
     login: async (username, password, rememberMe = true) => {
-    try {
-        const response = await axiosClient.post('/users/authenticate', { 
-            username, 
-            password 
-        });
-        
-        console.log("Dữ liệu Backend trả về:", response);
+    const response = await axiosClient.post('/users/authenticate', { 
+        username, 
+        password 
+    });
+    
+    console.log("Dữ liệu Backend trả về:", response);
 
-        const tokenToSave = response.token || response.Token;
-        const userToSave = response.user || response.User;
+    const tokenToSave = response.token || response.Token;
+    const userToSave = response.user || response.User;
 
-        if (!tokenToSave) {
-            throw new Error("Không nhận được token từ máy chủ!");
-        }
-
-        // Lưu token
-        if (rememberMe) {
-            localStorage.setItem('token', tokenToSave);
-            localStorage.setItem('user_info', JSON.stringify(userToSave));
-        } else {
-            sessionStorage.setItem('token', tokenToSave);
-            sessionStorage.setItem('user_info', JSON.stringify(userToSave));
-        }
-
-        window.memoryToken = tokenToSave;
-        useAuthStore.getState().setUser(userToSave);
-
-        // Delay dài hơn và kiểm tra lại
-        await new Promise(resolve => setTimeout(resolve, 800));
-
-        console.log("✅ Token cuối cùng trước redirect:", localStorage.getItem('token'));
-
-        // Redirect an toàn hơn
-        window.location.replace('/dashboard');   // dùng replace thay href
-
-        return response;
-    } catch (error) {
-        console.error("Login error:", error);
-        throw error;
+    if (!tokenToSave) {
+        throw new Error("Không nhận được token từ máy chủ!");
     }
+
+    // Lưu vào storage
+    if (rememberMe) {
+        localStorage.setItem('token', tokenToSave);
+        localStorage.setItem('user_info', JSON.stringify(userToSave));
+    } else {
+        sessionStorage.setItem('token', tokenToSave);
+        sessionStorage.setItem('user_info', JSON.stringify(userToSave));
+    }
+
+    window.memoryToken = tokenToSave;
+
+    // Cập nhật Zustand Store
+    useAuthStore.getState().setUser(userToSave);
+
+    console.log("✅ Token đã lưu thành công:", localStorage.getItem('token'));
+
+    // Trả về đúng format mà component Login đang mong đợi
+    return {
+        success: true,
+        user: userToSave,
+        token: tokenToSave
+    };
 },
 
     register: async (userData) => {
