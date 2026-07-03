@@ -2,33 +2,33 @@ import axiosClient from '../api/axiosClient';
 import useAuthStore from '../store/useAuthStore';
 
 export const authService = {
-    // Thêm tham số rememberMe (mặc định là true nếu không truyền)
-    login: async (username, password, rememberMe = true) => {
-        const response = await axiosClient.post('/users/authenticate', { username, password });
+        // Thêm tham số rememberMe (mặc định là true nếu không truyền)
+        login: async (username, password, rememberMe = true) => {
+        const response = await axiosClient.post('/users/authenticate', { 
+            username, 
+            password 
+        });
         
         console.log("Dữ liệu Backend trả về:", response);
 
         const tokenToSave = response.token || response.Token;
         const userToSave = response.user || response.User;
 
-        if (tokenToSave) {
-            // SỬA LỖI Ở ĐÂY: 
-            // 1. Đồng bộ dùng key 'jwt_token' (thay vì 'token')
-            // 2. Bổ sung lưu 'user_info' (vì hàm getCurrentUser bên dưới đang gọi nó)
-            if (rememberMe) {
-                localStorage.setItem('token', tokenToSave);
-                console.log("Token sau khi lưu:", localStorage.getItem("token"));
-                localStorage.setItem('user_info', JSON.stringify(userToSave));
-            } else {
-                sessionStorage.setItem('token', tokenToSave);
-                sessionStorage.setItem('user_info', JSON.stringify(userToSave));
-            }
-            
-            // Cập nhật Zustand Store
-            useAuthStore.getState().setUser(userToSave);
-        } else {
+        if (!tokenToSave) {
             throw new Error("Không nhận được token từ máy chủ!");
         }
+
+        // Lưu token + user
+        if (rememberMe) {
+            localStorage.setItem('token', tokenToSave);
+            localStorage.setItem('user_info', JSON.stringify(userToSave));
+        } else {
+            sessionStorage.setItem('token', tokenToSave);
+            sessionStorage.setItem('user_info', JSON.stringify(userToSave));
+        }
+        
+        // Cập nhật store
+        useAuthStore.getState().setUser(userToSave);
         
         return response;
     },
