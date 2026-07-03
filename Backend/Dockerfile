@@ -2,10 +2,9 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy tất cả các file dự án .csproj sang trước để restore dependencies
+# Chỉ copy đúng 4 file dự án thực tế có trong repo của hai bạn
 COPY ["TicketSystem.API/TicketSystem.API.csproj", "TicketSystem.API/"]
 COPY ["TicketSystem.Infrastructure/TicketSystem.Infrastructure.csproj", "TicketSystem.Infrastructure/"]
-COPY ["TicketSystem.Core/TicketSystem.Core.csproj", "TicketSystem.Core/"]
 COPY ["TicketSystem.Application/TicketSystem.Application.csproj", "TicketSystem.Application/"]
 COPY ["TicketSystem.Domain/TicketSystem.Domain.csproj", "TicketSystem.Domain/"]
 
@@ -19,11 +18,11 @@ WORKDIR "/src/TicketSystem.API"
 # Biên dịch dự án API ở chế độ Release
 RUN dotnet build "TicketSystem.API.csproj" -c Release -o /app/build
 
-# Stage 2: Publish ứng dụng
+# Stage 2: Publish ứng dụng để gom các file dll cần thiết
 FROM build AS publish
 RUN dotnet publish "TicketSystem.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Stage 3: Chạy ứng dụng bằng ASP.NET Runtime
+# Stage 3: Chạy ứng dụng bằng ASP.NET Runtime sạch
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
