@@ -15,23 +15,57 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Lấy chuỗi kết nối
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// 1. Lấy chuỗi kết nối gốc (có thể là URI postgresql:// hoặc keyword=value)
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 // TỰ ĐỘNG NHẬN DIỆN PROVIDER DỰA VÀO CONNECTION STRING
-// Postgres connection string thường bắt đầu bằng "postgres://", "postgresql://" 
-// hoặc chứa "Host=" (Npgsql keyword-value format)
-bool isPostgres = !string.IsNullOrEmpty(connectionString) &&
-    (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
-     connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
-     connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
+bool isPostgres = !string.IsNullOrEmpty(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
 
 var databaseProvider = isPostgres ? "PostgreSQL" : "SQLServer";
 
-// 2. CẤU HÌNH HANGFIRE THEO PROVIDER (Đã cập nhật rẽ nhánh Postgres)
+// TỰ ĐỘNG CONVERT URI (postgresql://user:pass@host/db?sslmode=...) 
+// SANG FORMAT KEYWORD=VALUE MÀ NPGSQL HIỂU ĐƯỢC
+string connectionString = rawConnectionString ?? string.Empty;
+
+if (isPostgres && !string.IsNullOrEmpty(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    connectionString = ConvertPostgresUriToKeywordValue(rawConnectionString);
+}
+
+// Hàm chuyển đổi URI Postgres sang định dạng Keyword=Value chuẩn của Npgsql
+static string ConvertPostgresUriToKeywordValue(string uriString)
+{
+    var uri = new Uri(uriString);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.TrimStart('/');
+    var port = uri.Port == -1 ? 5432 : uri.Port;
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = port,
+        Database = database,
+        Username = username,
+        Password = password,
+        SslMode = SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    return builder.ConnectionString;
+}
+
+// 2. CẤU HÌNH HANGFIRE THEO PROVIDER
 builder.Services.AddHangfire(configuration =>
 {
     configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
@@ -76,16 +110,15 @@ builder.Services.AddScoped<IApplicationDbContext>(provider =>
 
 // 4. Đăng ký Repositories và Hạ tầng
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-builder.Services.AddScoped<IUserRepository, UserRepository>(); // Đăng ký UserRepository cụ thể
-builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>(); // Đăng ký TicketTypeRepository
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>(); // Đăng ký PasswordHasher
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
 // 4.1. Đăng ký HttpContextAccessor để lấy IP trong Service
 builder.Services.AddHttpContextAccessor();
 
 // 5. Đăng ký Application Services (DEPENDENCY INVERSION)
 builder.Services.AddScoped<IUserService, UserService>();
-// Các service khác cũng nên chuyển sang dùng Interface tương tự
 builder.Services.AddScoped<EventService, EventService>();
 builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<TicketTypeValidationService>();
@@ -104,9 +137,6 @@ builder.Services.AddScoped<DatabaseSeeder>();
 
 // Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
-
-// Khai báo: Bất cứ khi nào một Controller cần IAiAnalysisService, 
-// hãy cấp cho nó một instance của GeminiAiService.
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 
 // HttpClient cho GeminiService (Customer Support Chatbot)
@@ -129,9 +159,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Giúp Enum tự động biến thành String (Admin, Manager...) khi trả về JSON
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        // Convert PascalCase thành camelCase cho API response
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 builder.Services.AddEndpointsApiExplorer();
@@ -171,13 +199,12 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
             ValidateAudience = true,
             ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            ValidateLifetime = true, // Kiểm tra Token hết hạn chưa
-            ClockSkew = TimeSpan.Zero, // Chống sai lệch thời gian server
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
             RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
         };
     });
 
-// Đảm bảo có AddAuthorization()
 builder.Services.AddAuthorization();
 
 builder.Services.AddMemoryCache();
@@ -197,19 +224,13 @@ app.UseHttpsRedirection();
 
 app.MapHub<GateHub>("/gateHub");
 
-// === ĐĂNG KÝ GLOBAL EXCEPTION MIDDLEWARE Ở ĐÂY ===
-// Phải đăng ký sớm để hứng được lỗi từ các Middleware/Controller phía sau
 app.UseGlobalExceptionHandler(); 
 
-// Enable CORS
 app.UseCors("AllowFrontend");
 
 app.UseRateLimiter();
 
-// ===== CẬP NHẬT PIPELINE =====
-// 1. Phải gọi UseAuthentication (Xác minh thẻ căn cước) TRƯỚC
 app.UseAuthentication(); 
-// 2. Rồi mới gọi UseAuthorization (Kiểm tra quyền vào cổng)
 app.UseAuthorization(); 
 
 app.UseHangfireDashboard("/hangfire");
@@ -244,7 +265,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Tự động áp dụng Migration khi khởi động ứng dụng
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
