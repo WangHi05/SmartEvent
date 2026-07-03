@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AlertCircle } from 'lucide-react';
 import { authService } from '../services/authService';
+import useAuthStore from '../store/useAuthStore'; // Nạp Zustand Store xử lý State đồng bộ
 
 export default function Login() {
     const navigate = useNavigate();
+    const setUser = useAuthStore((state) => state.setUser); // Lấy hàm setUser từ store ra sử dụng
     const [formData, setFormData] = useState({ username: '', password: '', rememberMe: false });
     const location = useLocation();
     const [error, setError] = useState('');
@@ -52,6 +54,12 @@ export default function Login() {
         
         try {
             const authResponse = await authService.login(formData.username, formData.password, formData.rememberMe);
+            
+            // 👉 CẬP NHẬT ĐỒNG BỘ: Đưa dữ liệu User vào Zustand Store trước khi nhảy trang
+            if (authResponse && authResponse.user) {
+                setUser(authResponse.user);
+            }
+            
             navigateAfterAuth(authResponse); 
         } catch (err) {
             // Log toàn bộ object lỗi ra console để dev dễ debug
@@ -83,6 +91,12 @@ export default function Login() {
                 providerId: '123456' 
             };
             const authResponse = await authService.externalLogin(mockProviderData);
+            
+            // Đồng bộ State cho phần Social Login
+            if (authResponse && authResponse.user) {
+                setUser(authResponse.user);
+            }
+            
             navigateAfterAuth(authResponse);
         } catch (err) {
              if (err.response) {
@@ -90,8 +104,7 @@ export default function Login() {
             } else {
                 setError(`Không thể kết nối đến dịch vụ ${provider}!`);
             }
-        }finally 
-        {
+        } finally {
             setIsLoading(false);
         }
     };
