@@ -18,9 +18,18 @@ using Hangfire.PostgreSql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Lấy cấu hình Provider và Chuỗi kết nối từ appsettings/User Secrets
-var databaseProvider = builder.Configuration["DatabaseProvider"] ?? "SQLServer";
+// 1. Lấy chuỗi kết nối
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// TỰ ĐỘNG NHẬN DIỆN PROVIDER DỰA VÀO CONNECTION STRING
+// Postgres connection string thường bắt đầu bằng "postgres://", "postgresql://" 
+// hoặc chứa "Host=" (Npgsql keyword-value format)
+bool isPostgres = !string.IsNullOrEmpty(connectionString) &&
+    (connectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     connectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+     connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
+
+var databaseProvider = isPostgres ? "PostgreSQL" : "SQLServer";
 
 // 2. CẤU HÌNH HANGFIRE THEO PROVIDER (Đã cập nhật rẽ nhánh Postgres)
 builder.Services.AddHangfire(configuration =>
