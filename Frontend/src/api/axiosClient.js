@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// 1. Khởi tạo một instance với các cấu hình mặc định
+// Thay thế đoạn cũ bằng đoạn này nhé Tiến
 const axiosClient = axios.create({
-    baseURL: 'http://localhost:5013/api', 
+    baseURL: import.meta.env.VITE_API_BASE_URL 
+        ? `${import.meta.env.VITE_API_BASE_URL}/api` 
+        : 'http://localhost:5013/api', 
     headers: {
         'Content-Type': 'application/json',
     },
