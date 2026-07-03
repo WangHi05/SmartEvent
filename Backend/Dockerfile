@@ -8,10 +8,6 @@ COPY ["TicketSystem.Infrastructure/TicketSystem.Infrastructure.csproj", "TicketS
 COPY ["TicketSystem.Application/TicketSystem.Application.csproj", "TicketSystem.Application/"]
 COPY ["TicketSystem.Domain/TicketSystem.Domain.csproj", "TicketSystem.Domain/"]
 
-# 🔥 LỆNH DỨT ĐIỂM: Ép dự án API nâng cấp EF Core lên 9.0.1 để khớp hoàn toàn với Npgsql
-RUN dotnet add "TicketSystem.API/TicketSystem.API.csproj" package Microsoft.EntityFrameworkCore --version 9.0.1 && \
-    dotnet add "TicketSystem.API/TicketSystem.API.csproj" package Microsoft.EntityFrameworkCore.Relational --version 9.0.1
-
 # Thực hiện khôi phục các thư viện NuGet đã đồng bộ
 RUN dotnet restore "TicketSystem.API/TicketSystem.API.csproj"
 
