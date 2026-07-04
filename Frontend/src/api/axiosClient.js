@@ -3,12 +3,16 @@ import axios from 'axios';
 const getApiBaseUrl = () => {
     const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
 
-    if (!configuredBaseUrl) {
-        return 'http://localhost:5013/api';
+    if (configuredBaseUrl) {
+        const trimmedUrl = configuredBaseUrl.trim().replace(/\/+$/, '');
+        return trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`;
     }
 
-    const trimmedUrl = configuredBaseUrl.trim().replace(/\/+$/, '');
-    return trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`;
+    if (import.meta.env.PROD) {
+        return '/api';
+    }
+
+    return 'http://localhost:5013/api';
 };
 
 const axiosClient = axios.create({

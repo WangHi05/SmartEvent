@@ -28,40 +28,81 @@ const GateControl = () => {
   const [activeEvents, setActiveEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
 
+  const normalizeEventList = (payload) => {
+    const items = Array.isArray(payload?.items)
+      ? payload.items
+      : Array.isArray(payload?.data?.items)
+        ? payload.data.items
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : Array.isArray(payload)
+            ? payload
+            : [];
+
+    return items.map((event, index) => ({
+      ...event,
+      id: event?.id ?? event?.Id ?? event?.eventId ?? event?.EventId,
+      name: event?.name ?? event?.Name ?? event?.title ?? event?.Title ?? `Sự kiện ${index + 1}`,
+      status: event?.status ?? event?.Status,
+    }));
+  };
+
+  const normalizeGateList = (payload) => {
+    const items = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : Array.isArray(payload?.items)
+          ? payload.items
+          : [];
+
+    return items.map((gate, index) => ({
+      ...gate,
+      id: gate?.id ?? gate?.Id ?? gate?.name ?? gate?.Name ?? index + 1,
+      name: gate?.name ?? gate?.Name ?? gate?.gateName ?? gate?.GateName ?? `Cổng ${index + 1}`,
+      currentTraffic: Number(gate?.currentTraffic ?? gate?.CurrentTraffic ?? gate?.traffic ?? 0),
+      capacity: Number(gate?.capacity ?? gate?.Capacity ?? 0),
+      status: gate?.status ?? gate?.Status ?? 'Bình thường',
+    }));
+  };
+
   // Load danh sách sự kiện khi mở trang
   useEffect(() => {
     const fetchActiveEvents = async () => {
       try {
         const res = await axiosClient.get('/events/search', { params: { pageSize: 50 } });
-        
-        let eventList = [];
-        if (Array.isArray(res.items)) eventList = res.items;
-        else if (Array.isArray(res.data?.items)) eventList = res.data.items;
-        else if (Array.isArray(res.data)) eventList = res.data;
-        else if (Array.isArray(res)) eventList = res;
+        const eventList = normalizeEventList(res);
 
         setActiveEvents(eventList);
-        
+
         if (eventList.length > 0) {
-          const priorityEvent = eventList.find(e => 
-            e.status === 2 || e.status === 1 || 
-            e.status === 'Ongoing' || e.status === 'Active'
+          const priorityEvent = eventList.find(e =>
+            e.status === 2 || e.status === 1 ||
+            e.status === 'Ongoing' || e.status === 'Active' ||
+            e.status === 'ongoing' || e.status === 'active'
           );
-          
-          setSelectedEventId(priorityEvent ? priorityEvent.id : eventList[0].id); 
+
+          setSelectedEventId(priorityEvent ? priorityEvent.id : eventList[0].id);
         } else {
+          setSelectedEventId(null);
           setIsLoadingGates(false);
         }
       } catch (err) {
         console.error("Lỗi lấy sự kiện:", err);
+        setSelectedEventId(null);
         setIsLoadingGates(false);
       }
     };
     fetchActiveEvents();
 
     // Khởi tạo kết nối SignalR
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5013';
-    const hubUrl = `${baseUrl.replace(/\/api$/, '')}/gateHub`;
+    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const baseUrl = configuredBaseUrl
+      ? configuredBaseUrl.trim().replace(/\/+$/, '').replace(/\/api$/, '')
+      : import.meta.env.PROD
+        ? window.location.origin
+        : 'http://localhost:5013';
+    const hubUrl = `${baseUrl}/gateHub`;
 
     const connection = new HubConnectionBuilder()
       .withUrl(hubUrl)
@@ -96,7 +137,7 @@ const GateControl = () => {
       const response = await axiosClient.get('/gate/status', {
         params: { eventId: selectedEventId }
       });
-      setGates(response.data || response);
+      setGates(normalizeGateList(response));
     } catch (error) {
       console.error("Lỗi khi tải dữ liệu cổng:", error);
       message.error("Không thể lấy dữ liệu thống kê cổng từ máy chủ.");

@@ -96,8 +96,15 @@ const CheckInPage = () => {
     };
     fetchActiveEvents();
 
+    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const hubUrl = configuredBaseUrl
+      ? configuredBaseUrl.trim().replace(/\/+$/, '').replace(/\/api$/, '') + '/gateHub'
+      : import.meta.env.PROD
+        ? `${window.location.origin}/gateHub`
+        : 'http://localhost:5013/gateHub';
+
     const connection = new HubConnectionBuilder()
-      .withUrl(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/gateHub` : 'http://localhost:5013/gateHub')
+      .withUrl(hubUrl)
       .configureLogging(LogLevel.Information)
       .withAutomaticReconnect()
       .build();
