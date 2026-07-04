@@ -60,8 +60,11 @@ const GateControl = () => {
     fetchActiveEvents();
 
     // Khởi tạo kết nối SignalR
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5013';
+    const hubUrl = `${baseUrl.replace(/\/api$/, '')}/gateHub`;
+
     const connection = new HubConnectionBuilder()
-      .withUrl(import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace('/api', '')}/gateHub` : 'http://localhost:5013/gateHub')
+      .withUrl(hubUrl)
       .configureLogging(LogLevel.Information)
       .withAutomaticReconnect()
       .build();
