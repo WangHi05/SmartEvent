@@ -53,7 +53,6 @@ const BookingPage = () => {
     return 'active';
   };
 
-  // Fetch event details
   useEffect(() => {
     if (!user) {
       navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`, { replace: true });
@@ -70,7 +69,6 @@ const BookingPage = () => {
         const normalizedTickets = Array.isArray(tickets) ? tickets : tickets.items || [];
         setTicketTypes(normalizedTickets);
 
-        // FIX LỖI: Clamp lại quantity đã chọn nếu số vé còn lại giảm (Lấy chính xác .quantity của Object)
         setQuantities((prev) => {
           const next = { ...prev };
           normalizedTickets.forEach((tt) => {
@@ -101,12 +99,11 @@ const BookingPage = () => {
         const normalizedTickets = Array.isArray(tickets) ? tickets : tickets.items || [];
         setTicketTypes(normalizedTickets);
 
-        // Initialize quantities
         const initialSelections = {};
         normalizedTickets.forEach(tt => {
           initialSelections[tt.id] = {
             quantity: 0,
-            memberCount: tt.minGroupSize || 2 
+            memberCount: tt.minGroupSize || 2
           };
         });
         setQuantities(initialSelections);
@@ -131,13 +128,12 @@ const BookingPage = () => {
     };
   }, [eventId, user, navigate, location.pathname]);
 
-  // Calculate total price whenever quantities change
   useEffect(() => {
     let total = 0;
     Object.keys(quantities).forEach(ticketTypeId => {
       const ticketType = ticketTypes.find(tt => tt.id === ticketTypeId);
       const selection = quantities[ticketTypeId];
-      
+
       if (ticketType && selection.quantity > 0) {
         if (ticketType.ticketMode === 1) {
           total += ticketType.price * selection.quantity;
@@ -153,7 +149,6 @@ const BookingPage = () => {
     setTotalPrice(total);
   }, [quantities, ticketTypes]);
 
-  // Handle quantity change
   const handleSelectionChange = (ticketTypeId, field, value) => {
     setQuantities(prev => ({
       ...prev,
@@ -164,16 +159,13 @@ const BookingPage = () => {
     }));
   };
 
-  // Calculate total tickets selected
   const getTotalQuantity = () => {
     return Object.values(quantities).reduce((sum, item) => sum + (item?.quantity || 0), 0);
   };
 
-  // Proceed to checkout
   const handleProceedToCheckout = () => {
-    // FIX LỖI "KHÔNG BẤM ĐƯỢC": Chỉ kiểm tra thuộc tính .quantity thay vì so sánh cả Object
     const selectedTickets = Object.keys(quantities).filter(id => quantities[id]?.quantity > 0);
-    
+
     if (selectedTickets.length === 0) {
       message.warning('Vui lòng chọn ít nhất 1 vé');
       return;
@@ -188,18 +180,18 @@ const BookingPage = () => {
         .map(id => {
           const ticketType = ticketTypes.find(tt => tt.id === id);
           const selection = quantities[id];
-          
+
           let subtotal = ticketType.price * selection.quantity;
           if (ticketType.ticketMode === 2 && ticketType.priceMode === 1) {
               subtotal = ticketType.price * selection.quantity * selection.memberCount;
           }
-    
+
           return {
             ticketTypeId: id,
             ticketTypeName: ticketType?.name,
             price: ticketType?.price,
             quantity: selection.quantity,
-            memberCount: ticketType.ticketMode === 2 ? selection.memberCount : 1, 
+            memberCount: ticketType.ticketMode === 2 ? selection.memberCount : 1,
             subtotal: subtotal
           };
         })
@@ -221,16 +213,15 @@ const BookingPage = () => {
 
   if (!event) {
     return (
-      <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
         <Empty description="Không tìm thấy sự kiện" />
-        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-2xl !border-orange-500 !bg-orange-500">
+        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-green-600 !bg-green-600">
           Quay lại danh sách sự kiện
         </Button>
       </div>
     );
   }
 
-  // FIX LỖI LINTING: Đã xóa các biến eventStatus và statusColor không được sử dụng
   const now = dayjs();
   const endTime = dayjs(event.endTime);
   const isFull = event.currentOccupancy >= event.maxCapacity;
@@ -240,9 +231,9 @@ const BookingPage = () => {
   const closedTicketTypes = ticketTypes.filter((ticketType) => getTicketSaleState(ticketType) !== 'active');
 
   return (
-    <div className="space-y-8 py-2">
+    <div className="space-y-6 py-2">
       <CustomerSectionTitle
-        kicker="Booking flow"
+        kicker="Booking"
         title="Đặt vé sự kiện"
         description="Lựa chọn vé cá nhân hoặc vé đoàn tùy theo nhu cầu tham dự."
         action={(
@@ -254,52 +245,58 @@ const BookingPage = () => {
 
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={14}>
-          {/* FIX CẢNH BÁO: Đổi bodyStyle thành styles={{ body: ... }} */}
-          <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]" styles={{ body: { padding: 0 } }}>
-            <div className="relative min-h-[280px] bg-slate-900" style={{ background: event.imageUrl ? `linear-gradient(180deg, rgba(15,23,42,0.08), rgba(15,23,42,0.82)), url(${event.imageUrl}) center/cover no-repeat` : 'linear-gradient(135deg, #111827 0%, #1f2937 50%, #f97316 100%)' }}>
+          <Card className="overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 0 } }}>
+            <div
+              className="relative min-h-[220px] bg-gray-900"
+              style={{
+                background: event.imageUrl
+                  ? `linear-gradient(180deg, rgba(15,23,42,0.15), rgba(15,23,42,0.85)), url(${event.imageUrl}) center/cover no-repeat`
+                  : '#0F172A'
+              }}
+            >
               <div className="absolute inset-x-0 bottom-0 p-6 text-white">
                 <Tag color={statusMeta.color} className="!mb-3 !rounded-full !px-3 !py-1 !font-semibold">
                   {statusMeta.label}
                 </Tag>
-                <h3 className="text-3xl font-black leading-tight">{event.name}</h3>
+                <h3 className="text-2xl font-bold leading-tight">{event.name}</h3>
                 <p className="mt-2 max-w-2xl text-sm text-white/75">{event.description}</p>
               </div>
             </div>
 
-            <div className="space-y-5 p-6">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Thời gian</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{formatDateRange(event.startTime, event.endTime)}</p>
+            <div className="space-y-4 p-6">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-3.5">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Thời gian</p>
+                  <p className="mt-1.5 text-sm font-semibold text-gray-900">{formatDateRange(event.startTime, event.endTime)}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Địa điểm</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{event.location}</p>
+                <div className="rounded-lg bg-gray-50 p-3.5">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Địa điểm</p>
+                  <p className="mt-1.5 text-sm font-semibold text-gray-900">{event.location}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Giá từ</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-900">{priceSummary.text}</p>
+                <div className="rounded-lg bg-gray-50 p-3.5">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Giá từ</p>
+                  <p className="mt-1.5 text-sm font-semibold text-green-700">{priceSummary.text}</p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <div className="mb-3 flex items-center justify-between text-sm text-slate-600">
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <div className="mb-2.5 flex items-center justify-between text-sm text-gray-600">
                   <span className="inline-flex items-center gap-2"><TeamOutlined /> Sức chứa</span>
                   <span>{formatCapacityLabel(event)}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                  <div className="h-full rounded-full bg-gradient-to-r from-orange-500 to-emerald-500" style={{ width: `${capacityPercent}%` }} />
+                <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                  <div className="h-full rounded-full bg-green-600" style={{ width: `${capacityPercent}%` }} />
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><CalendarOutlined /> Thời gian diễn ra</div>
-                  <p className="mt-2 text-sm text-slate-600">{formatDateRange(event.startTime, event.endTime)}</p>
+                <div className="rounded-lg bg-gray-50 p-3.5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900"><CalendarOutlined /> Thời gian diễn ra</div>
+                  <p className="mt-2 text-sm text-gray-600">{formatDateRange(event.startTime, event.endTime)}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900"><EnvironmentOutlined /> Mô tả</div>
-                  <p className="mt-2 line-clamp-3 text-sm text-slate-600">{event.description}</p>
+                <div className="rounded-lg bg-gray-50 p-3.5">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900"><EnvironmentOutlined /> Mô tả</div>
+                  <p className="mt-2 line-clamp-3 text-sm text-gray-600">{event.description}</p>
                 </div>
               </div>
             </div>
@@ -307,8 +304,7 @@ const BookingPage = () => {
         </Col>
 
         <Col xs={24} lg={10}>
-          {/* FIX CẢNH BÁO: Đổi bodyStyle thành styles={{ body: ... }} */}
-          <Card className="sticky top-28 overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]" styles={{ body: { padding: 24 } }}>
+          <Card className="sticky top-24 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
             <CustomerSectionTitle
               kicker="Tickets"
               title="Chọn loại vé"
@@ -318,7 +314,7 @@ const BookingPage = () => {
             {ticketTypes.length > 0 && closedTicketTypes.length > 0 && (
               <Alert
                 showIcon
-                className="mt-4"
+                className="mt-4 !rounded-lg"
                 type={selectableTicketTypes.length > 0 ? 'warning' : 'error'}
                 message={selectableTicketTypes.length > 0
                   ? 'Có loại vé đã kết thúc bán hoặc chưa mở bán'
@@ -329,7 +325,7 @@ const BookingPage = () => {
               />
             )}
 
-            <div className="mt-6 space-y-4">
+            <div className="mt-5 space-y-3">
               {ticketTypes.length === 0 ? (
                 <Empty description="Không có loại vé nào" />
               ) : (
@@ -344,26 +340,26 @@ const BookingPage = () => {
                   const saleStatusColor = ticketSaleState === 'active' ? 'green' : ticketSaleState === 'upcoming' ? 'blue' : 'red';
 
                   return (
-                    <div key={ticketType.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-orange-300 hover:bg-white">
+                    <div key={ticketType.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:border-green-400 hover:bg-white">
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-bold text-slate-950">{ticketType.name}</p>
+                          <p className="text-sm font-semibold text-gray-900">{ticketType.name}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
                             <Tag color={saleStatusColor} className="!mr-0 !rounded-full !px-2 !py-0.5 !text-[11px]">
                               {saleStatusLabel}
                             </Tag>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-gray-500">
                               {isTicketSelectable ? `Còn ${ticketType.remainingQuantity} vé` : 'Không thể chọn số lượng'}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right text-sm font-black text-orange-600">{formatCurrency(ticketType.price)}</div>
+                        <div className="text-right text-sm font-bold text-green-700">{formatCurrency(ticketType.price)}</div>
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
                         {ticketType.ticketMode === 2 && (
                           <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Số người/đoàn:</span>
+                            <span className="text-xs text-gray-500">Số người/đoàn:</span>
                             <InputNumber
                               min={ticketType.minGroupSize || 2}
                               max={ticketType.maxGroupSize || 15}
@@ -375,7 +371,7 @@ const BookingPage = () => {
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500">Số lượng mua:</span>
+                          <span className="text-xs text-gray-500">Số lượng mua:</span>
                           <InputNumber
                             min={0}
                             max={ticketType.remainingQuantity}
@@ -391,14 +387,14 @@ const BookingPage = () => {
               )}
             </div>
 
-            <div className="mt-6 space-y-3 rounded-3xl bg-slate-950 p-5 text-white">
-              <div className="flex items-center justify-between text-sm text-white/70">
+            <div className="mt-5 space-y-3 rounded-lg bg-gray-900 p-5 text-white">
+              <div className="flex items-center justify-between text-sm text-gray-300">
                 <span>Tổng số vé</span>
                 <strong className="text-white">{getTotalQuantity()}</strong>
               </div>
-              <div className="flex items-center justify-between text-sm text-white/70">
+              <div className="flex items-center justify-between text-sm text-gray-300">
                 <span>Tổng tiền</span>
-                <strong className="text-2xl font-black text-white">{formatCurrency(totalPrice)}</strong>
+                <strong className="text-xl font-bold text-white">{formatCurrency(totalPrice)}</strong>
               </div>
 
               <Button
@@ -407,13 +403,13 @@ const BookingPage = () => {
                 size="large"
                 onClick={handleProceedToCheckout}
                 disabled={isEnded || isFull || getTotalQuantity() === 0}
-                className="!h-12 !rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold"
+                className="!h-11 !rounded-lg !border-green-600 !bg-green-600 !font-semibold hover:!border-green-700 hover:!bg-green-700"
               >
                 Tiếp tục đến thanh toán
               </Button>
 
-              {isEnded && <div className="rounded-2xl bg-white/10 p-3 text-sm text-red-300">Sự kiện đã kết thúc</div>}
-              {isFull && !isEnded && <div className="rounded-2xl bg-white/10 p-3 text-sm text-red-300">Sự kiện đã hết chỗ</div>}
+              {isEnded && <div className="rounded-lg bg-white/10 p-3 text-sm text-red-300">Sự kiện đã kết thúc</div>}
+              {isFull && !isEnded && <div className="rounded-lg bg-white/10 p-3 text-sm text-red-300">Sự kiện đã hết chỗ</div>}
             </div>
           </Card>
         </Col>

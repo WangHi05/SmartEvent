@@ -18,7 +18,11 @@ namespace TicketSystem.Application.Common
             {
                 DateTimeKind.Utc => TimeZoneInfo.ConvertTimeFromUtc(dateTime, TimeZone.Value),
                 DateTimeKind.Local => TimeZoneInfo.ConvertTime(dateTime, TimeZone.Value),
-                _ => dateTime
+                // Dữ liệu timestamptz từ Postgres đôi khi được Npgsql trả về với Kind=Unspecified,
+                // nhưng giá trị số thực chất luôn là UTC trong toàn hệ thống này.
+                // Nếu không xử lý nhánh này, các so sánh thời gian (Ongoing/Completed, ExpiredTicket...)
+                // sẽ bị lệch đúng bằng độ lệch múi giờ (7 giờ) so với VietnamTime.Now.
+                _ => TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(dateTime, DateTimeKind.Utc), TimeZone.Value)
             };
         }
 

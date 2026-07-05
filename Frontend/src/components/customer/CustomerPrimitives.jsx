@@ -137,12 +137,12 @@ export const getEventPriceSummary = (event, ticketTypes) => {
     if (Number.isFinite(fallbackPrice) && fallbackPrice > 0) {
       return {
         type: 'price',
-        text: `Giá từ ${formatVndCurrency(fallbackPrice)}`,
+        text: `Từ ${formatVndCurrency(fallbackPrice)}`,
         value: fallbackPrice
       };
     }
 
-    return { type: 'updating', text: 'Đang cập nhật', value: null };
+    return { type: 'updating', text: '', value: null };
   }
 
   const now = dayjs();
@@ -184,7 +184,7 @@ export const getEventPriceSummary = (event, ticketTypes) => {
   if (Number.isFinite(minPrice)) {
     return {
       type: 'price',
-      text: `Giá từ ${formatVndCurrency(minPrice)}`,
+      text: `Từ ${formatVndCurrency(minPrice)}`,
       value: minPrice
     };
   }
@@ -201,8 +201,12 @@ export const getEventPriceSummary = (event, ticketTypes) => {
     return { type: 'ended', text: 'Đã kết thúc bán', value: null };
   }
 
-  return { type: 'updating', text: 'Đang cập nhật', value: null };
+  return { type: 'updating', text: '—', value: null };
 };
+
+/* ---------------------------------------------------------------------- */
+/* SECTION TITLE — gọn, chữ đen, không badge cầu kỳ                        */
+/* ---------------------------------------------------------------------- */
 
 export const CustomerSectionTitle = ({
   kicker,
@@ -211,21 +215,21 @@ export const CustomerSectionTitle = ({
   action,
   className = ''
 }) => (
-  <div className={`flex flex-col gap-4 md:flex-row md:items-end md:justify-between ${className}`}>
-    <div className="max-w-2xl space-y-2">
+  <div className={`flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-end md:justify-between ${className}`}>
+    <div className="max-w-2xl space-y-1">
       {kicker ? (
-        <div className="inline-flex items-center gap-2 rounded-full border border-orange-100 bg-orange-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-orange-700">
-          <TrendingUp size={12} />
+        <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-green-700">
+          <TrendingUp size={13} />
           {kicker}
         </div>
       ) : null}
 
-      <h2 className="text-[22px] font-bold tracking-[-0.01em] text-slate-900 sm:text-[26px]">
+      <h2 className="text-xl font-bold text-gray-900 sm:text-2xl">
         {title}
       </h2>
 
       {description ? (
-        <p className="max-w-2xl text-sm font-normal leading-7 text-slate-500 sm:text-[15px]">
+        <p className="max-w-2xl text-sm leading-6 text-gray-500">
           {description}
         </p>
       ) : null}
@@ -235,31 +239,39 @@ export const CustomerSectionTitle = ({
   </div>
 );
 
+/* ---------------------------------------------------------------------- */
+/* METRIC CARD — nền trắng, viền mỏng, icon nền màu nhạt (không gradient)  */
+/* ---------------------------------------------------------------------- */
+
 export const CustomerMetricCard = ({
   icon: Icon,
   label,
   value,
   hint,
-  accent = 'from-orange-500 to-amber-500'
+  accent = 'bg-green-50 text-green-700'
 }) => (
-  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] backdrop-blur">
-    <div className="flex items-start justify-between gap-4">
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+  <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex items-start justify-between gap-3">
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
           {label}
         </p>
-        <p className="text-[22px] font-bold leading-tight text-slate-900">
+        <p className="text-xl font-bold leading-tight text-gray-900">
           {value}
         </p>
-        {hint ? <p className="text-sm font-normal leading-6 text-slate-500">{hint}</p> : null}
+        {hint ? <p className="text-xs text-gray-500">{hint}</p> : null}
       </div>
 
-      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg`}>
-        {Icon ? <Icon size={20} /> : null}
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${accent}`}>
+        {Icon ? <Icon size={18} /> : null}
       </div>
     </div>
   </div>
 );
+
+/* ---------------------------------------------------------------------- */
+/* EVENT CARD — kiểu Ticketbox: ảnh trên, ribbon trạng thái, giá xanh lá   */
+/* ---------------------------------------------------------------------- */
 
 export const CustomerEventCard = ({
   event,
@@ -276,116 +288,100 @@ export const CustomerEventCard = ({
 
   const imageStyle = event?.imageUrl
     ? {
-        backgroundImage: `linear-gradient(180deg, rgba(15,23,42,0.06), rgba(15,23,42,0.75)), url(${event.imageUrl})`,
+        backgroundImage: `url(${event.imageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center'
       }
     : {
-        backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #38bdf8 100%)'
+        backgroundColor: '#0F172A'
       };
 
-  const statusClassName =
+  const statusBadge =
     status.key === 'live'
-      ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-      : status.key === 'upcoming'
-        ? 'border border-blue-200 bg-blue-50 text-blue-700'
-        : 'border border-slate-200 bg-slate-100 text-slate-600';
+      ? { text: 'Đang diễn ra', className: 'bg-green-600 text-white' }
+      : status.key === 'ended'
+        ? { text: 'Đã diễn ra', className: 'bg-orange-500 text-white' }
+        : null;
 
   return (
     <article
       className={[
-        'group flex h-full min-h-[560px] flex-col overflow-hidden rounded-[30px]',
-        'border border-slate-200/70 bg-white shadow-[0_20px_60px_rgba(15,23,42,0.10)]',
-        'transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_72px_rgba(15,23,42,0.14)]',
+        'group flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 bg-white',
+        'transition-shadow duration-200 hover:shadow-md',
         className
       ].join(' ')}
     >
-      <div className="relative h-72 shrink-0 overflow-hidden" style={imageStyle}>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/88 via-slate-950/18 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-950/0 via-indigo-950/10 to-blue-600/15" />
-
-        <div className="absolute left-4 top-4 flex max-w-[calc(100%-2rem)] flex-wrap gap-2">
-          <Tag className={`!m-0 !rounded-full !px-3 !py-1 !font-semibold ${statusClassName}`}>
-            {status.label}
-          </Tag>
-
-          <Tag className="!m-0 !max-w-[130px] !rounded-full !border-white/20 !bg-slate-950/35 !px-3 !py-1 !text-white backdrop-blur-sm">
-            <span className="block truncate">{category}</span>
-          </Tag>
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 p-5 text-white">
-          <p className="mb-2 line-clamp-2 text-[11px] font-semibold uppercase leading-6 tracking-[0.14em] text-white/72">
-            {formatDateRange(event?.startTime, event?.endTime)}
-          </p>
-
-          <h3 className="line-clamp-2 min-h-[64px] text-[22px] font-bold leading-[1.18] tracking-[-0.01em]">
-            {event?.name || 'Sự kiện nổi bật'}
-          </h3>
-        </div>
+      <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden" style={imageStyle}>
+        {statusBadge ? (
+          <span className={`absolute right-0 top-0 rounded-bl-lg px-2.5 py-1 text-[11px] font-semibold ${statusBadge.className}`}>
+            {statusBadge.text}
+          </span>
+        ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-6">
-        <div className="space-y-2 text-sm text-slate-600">
-          <div className="flex min-h-[40px] items-start gap-2">
-            <CalendarDays size={16} className="mt-0.5 shrink-0 text-blue-600" />
-            <span className="line-clamp-2">
-              {formatDateRange(event?.startTime, event?.endTime)}
-            </span>
-          </div>
+      <div className="flex flex-1 flex-col p-4">
+        <span className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">
+          {category}
+        </span>
 
-          <div className="flex min-h-[22px] items-start gap-2">
-            <MapPin size={16} className="mt-0.5 shrink-0 text-blue-600" />
-            <span className="line-clamp-1">
-              {event?.location || 'Địa điểm đang cập nhật'}
-            </span>
-          </div>
+        <h3 className="line-clamp-2 min-h-[44px] text-[15px] font-semibold leading-snug text-gray-900">
+          {event?.name || 'Sự kiện nổi bật'}
+        </h3>
 
-          <div className="flex min-h-[22px] items-start gap-2">
-            <Clock3 size={16} className="mt-0.5 shrink-0 text-blue-600" />
-            <span className="line-clamp-1">
-              {priceSummary.text}
-            </span>
+        <p className="mt-2 text-sm font-bold text-green-600">
+          {priceSummary.text}
+        </p>
+
+        <div className="mt-3 space-y-1.5 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <CalendarDays size={13} className="shrink-0 text-gray-400" />
+            <span className="line-clamp-1">{formatDateRange(event?.startTime, event?.endTime)}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <MapPin size={13} className="shrink-0 text-gray-400" />
+            <span className="line-clamp-1">{event?.location || ''}</span>
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <div className="mb-2 flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            <span className="shrink-0">Sức bán</span>
-            <span className="truncate text-right">{formatCapacityLabel(event)}</span>
+        <div className="mt-3 border-t border-gray-100 pt-3">
+          <div className="mb-1.5 flex items-center justify-between text-[11px] text-gray-500">
+            <span>Sức bán</span>
+            <span>{formatCapacityLabel(event)}</span>
           </div>
-
           <Progress
             percent={progress}
             showInfo={false}
-            strokeColor={isSoldOut ? '#ef4444' : '#2563eb'}
-            trailColor="#e2e8f0"
+            size="small"
+            strokeColor={isSoldOut ? '#dc2626' : '#16a34a'}
+            trailColor="#e5e7eb"
           />
         </div>
 
-        <div className="mt-auto pt-5">
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              className="!h-12 !rounded-2xl !border-slate-300 !font-semibold !text-slate-700 hover:!border-blue-300 hover:!text-blue-700"
-              onClick={onViewDetail}
-            >
-              Xem chi tiết
-            </Button>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button
+            className="!h-9 !rounded-lg !border-gray-300 !text-sm !font-medium !text-gray-700 hover:!border-green-600 hover:!text-green-700"
+            onClick={onViewDetail}
+          >
+            Chi tiết
+          </Button>
 
-            <Button
-              type="primary"
-              className="!h-12 !rounded-2xl !border-orange-500 !bg-orange-500 !font-semibold shadow-lg shadow-orange-500/20 hover:!border-orange-600 hover:!bg-orange-600"
-              onClick={onBookTicket}
-              disabled={isEnded || isSoldOut}
-            >
-              {isEnded ? 'Đã kết thúc' : isSoldOut ? 'Hết chỗ' : 'Đặt vé'}
-            </Button>
-          </div>
+          <Button
+            type="primary"
+            className="!h-9 !rounded-lg !border-green-600 !bg-green-600 !text-sm !font-medium hover:!border-green-700 hover:!bg-green-700"
+            onClick={onBookTicket}
+            disabled={isEnded || isSoldOut}
+          >
+            {isEnded ? 'Đã kết thúc' : isSoldOut ? 'Hết chỗ' : 'Đặt vé'}
+          </Button>
         </div>
       </div>
     </article>
   );
 };
+
+/* ---------------------------------------------------------------------- */
+/* RANKING ITEM — hàng ngang, số thứ hạng đặc, gọn gàng                    */
+/* ---------------------------------------------------------------------- */
 
 export const CustomerRankingItem = ({
   rank,
@@ -404,59 +400,39 @@ export const CustomerRankingItem = ({
         backgroundPosition: 'center'
       }
     : {
-        backgroundImage: 'linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #38bdf8 100%)'
+        backgroundColor: '#0F172A'
       };
 
   return (
     <article
       className={[
-        'group flex flex-col gap-4 rounded-[28px] border border-slate-200/70 bg-white p-4',
-        'shadow-[0_20px_60px_rgba(15,23,42,0.10)] transition duration-300',
-        'hover:-translate-y-1 hover:shadow-[0_26px_72px_rgba(15,23,42,0.14)]',
+        'flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3',
+        'transition-shadow duration-200 hover:shadow-md',
         'md:flex-row md:items-center',
         className
       ].join(' ')}
     >
-      <div className="flex items-center gap-4 md:min-w-[92px]">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-400 text-2xl font-black text-white shadow-lg shadow-blue-600/20">
-          #{rank}
-        </div>
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gray-900 text-sm font-bold text-white">
+        #{rank}
       </div>
 
-      <div className="h-28 w-full overflow-hidden rounded-2xl md:h-28 md:w-44 md:shrink-0" style={imageStyle}>
-        <div className="flex h-full w-full items-end bg-gradient-to-t from-slate-950/70 via-slate-950/20 to-transparent p-3 text-white">
-          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-sm">
-            {status.label}
-          </span>
-        </div>
-      </div>
+      <div className="h-24 w-full shrink-0 overflow-hidden rounded-lg md:h-20 md:w-32" style={imageStyle} />
 
-      <div className="min-w-0 flex-1 space-y-3">
-        <div className="space-y-1">
-          <h3 className="truncate text-[20px] font-bold leading-tight tracking-[-0.01em] text-slate-950">
-            {event?.name || 'Sự kiện nổi bật'}
-          </h3>
-          <p className="text-sm font-normal leading-6 text-slate-500">
-            {formatDateRange(event?.startTime, event?.endTime)}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2 text-[11px] font-medium text-slate-500">
-          <span className="rounded-full bg-slate-100 px-3 py-1">
-            {deriveEventCategory(event)}
-          </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1">
-            {formatCapacityLabel(event)}
-          </span>
-          <span className="rounded-full bg-slate-100 px-3 py-1">
-            {priceSummary.text}
-          </span>
+      <div className="min-w-0 flex-1 space-y-1">
+        <h3 className="truncate text-[15px] font-semibold text-gray-900">
+          {event?.name || 'Sự kiện nổi bật'}
+        </h3>
+        <p className="text-xs text-gray-500">{formatDateRange(event?.startTime, event?.endTime)}</p>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">{deriveEventCategory(event)}</span>
+          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600">{formatCapacityLabel(event)}</span>
+          <span className="font-bold text-green-600">{priceSummary.text}</span>
         </div>
       </div>
 
       <div className="flex shrink-0 gap-2 md:flex-col">
         <Button
-          className="!h-10 !rounded-2xl !border-slate-300 !text-slate-700 hover:!border-blue-300 hover:!text-blue-700"
+          className="!h-9 !rounded-lg !border-gray-300 !text-sm !text-gray-700 hover:!border-green-600 hover:!text-green-700"
           onClick={onViewDetail}
         >
           Chi tiết
@@ -464,8 +440,8 @@ export const CustomerRankingItem = ({
 
         <Button
           type="primary"
-          className="!h-10 !rounded-2xl !border-orange-500 !bg-orange-500 hover:!border-orange-600 hover:!bg-orange-600"
-          icon={<ArrowRight size={16} />}
+          className="!h-9 !rounded-lg !border-green-600 !bg-green-600 !text-sm hover:!border-green-700 hover:!bg-green-700"
+          icon={<ArrowRight size={14} />}
           onClick={onBookTicket}
           disabled={status.key === 'ended' || getCapacityPercent(event) >= 100}
         >

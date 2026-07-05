@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Table, Tag, Select, Space, Button, Drawer, Descriptions, message } from 'antd';
 import { EyeOutlined, CalendarOutlined, DollarOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import { CustomerMetricCard, CustomerSectionTitle, formatCurrency } from '../../components/customer/CustomerPrimitives';
 import { formatVietnamDateTime } from '../../utils/vietnamTime';
@@ -64,9 +63,9 @@ const MyOrders = () => {
     const paid = orders.filter((order) => order.paymentStatusName === 'Completed').length;
     const pending = orders.filter((order) => order.paymentStatusName === 'Pending').length;
     return [
-      { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'from-orange-500 to-amber-500' },
-      { label: 'Đã thanh toán', value: paid.toLocaleString('vi-VN'), hint: 'Paid orders', icon: DollarOutlined, accent: 'from-emerald-500 to-teal-500' },
-      { label: 'Đang chờ', value: pending.toLocaleString('vi-VN'), hint: 'Pending orders', icon: CalendarOutlined, accent: 'from-slate-800 to-slate-600' },
+      { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'bg-green-50 text-green-700' },
+      { label: 'Đã thanh toán', value: paid.toLocaleString('vi-VN'), hint: 'Paid orders', icon: DollarOutlined, accent: 'bg-blue-50 text-blue-700' },
+      { label: 'Đang chờ', value: pending.toLocaleString('vi-VN'), hint: 'Pending orders', icon: CalendarOutlined, accent: 'bg-gray-100 text-gray-700' },
     ];
   }, [orders]);
 
@@ -104,7 +103,7 @@ const MyOrders = () => {
       title: 'Thao tác',
       key: 'actions',
       render: (_, row) => (
-        <Button icon={<EyeOutlined />} onClick={() => openDetail(row.id)}>
+        <Button icon={<EyeOutlined />} onClick={() => openDetail(row.id)} className="!rounded-lg">
           Xem chi tiết
         </Button>
       ),
@@ -112,11 +111,11 @@ const MyOrders = () => {
   ];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <CustomerSectionTitle
         kicker="My orders"
         title="Lịch sử đặt vé"
-        description="Giao diện theo kiểu dashboard giúp xem đơn hàng rõ hơn, nhưng giữ nguyên API, lọc và drawer chi tiết."
+        description="Xem toàn bộ đơn hàng, lọc theo trạng thái thanh toán và mở chi tiết khi cần."
       />
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -125,8 +124,8 @@ const MyOrders = () => {
         ))}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-[28px] border border-slate-200 bg-white p-5 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-slate-500">Xem toàn bộ lịch sử đơn hàng, lọc theo trạng thái thanh toán và mở drawer chi tiết khi cần.</p>
+      <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-gray-500">Lọc theo trạng thái thanh toán để xem nhanh đơn hàng cần theo dõi.</p>
         <Space>
           <Select
             allowClear
@@ -147,7 +146,7 @@ const MyOrders = () => {
         </Space>
       </div>
 
-      <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <Table
           rowKey="id"
           columns={columns}

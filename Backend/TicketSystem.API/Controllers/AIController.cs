@@ -21,10 +21,37 @@ namespace TicketSystem.API.Controllers
     {
         private const string FriendlyErrorMessage = "Hiện tại trợ lý AI đang gặp sự cố. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ.";
 
+        private const string OffTopicAnswer = "Mình là trợ lý hỗ trợ của SmartEvent nên chỉ có thể giúp bạn về sự kiện, vé, thanh toán, tài khoản và các vấn đề liên quan đến hệ thống. Bạn có câu hỏi nào về những nội dung này không?";
+
         private static readonly JsonSerializerOptions PromptJsonOptions = new()
         {
             WriteIndented = true,
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+        };
+
+        private static readonly string[] OffTopicIndicators =
+        {
+            "thoi tiet", "du bao thoi tiet",
+            "ti so bong da", "ket qua bong da", "world cup",
+            "cong thuc nau an", "nau an mon",
+            "dich covid", "virus corona",
+            "ai la tong thong", "chinh tri", "bau cu",
+            "lich su the gioi", "chien tranh",
+            "giai phuong trinh", "toan hoc", "dao ham", "tich phan",
+            "dich tieng anh sang", "dich sang tieng",
+            "viet code", "lap trinh", "ngon ngu python", "ngon ngu java",
+            "tu van tam ly", "suc khoe tam than",
+            "benh vien nao", "trieu chung benh", "thuoc gi",
+            "gia vang hom nay", "ty gia usd", "chung khoan"
+        };
+
+        private static readonly string[] OnTopicHints =
+        {
+            "ve", "su kien", "gia", "dat ve", "thanh toan", "hoan tien",
+            "check in", "checkin", "qr", "don hang", "tai khoan",
+            "dang nhap", "mat khau", "voucher", "hoa don", "ticket",
+            "event", "smartevent", "booking", "order", "refund",
+            "dia diem", "dang dien ra", "sap dien ra", "mo ban"
         };
 
         private static readonly IReadOnlyDictionary<string, string[]> ProvinceAliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
@@ -137,9 +164,23 @@ namespace TicketSystem.API.Controllers
                     _logger.LogWarning("Suspicious prompt injection pattern detected in chatbot message: {Message}", userMessage);
                 }
 
+                var normalized = NormalizeSearchText(userMessage);
+
+                // Chặn sớm câu hỏi ngoài phạm vi ngay ở tầng code, không phụ thuộc Gemini.
+                // Đảm bảo luôn có câu trả lời đúng chuẩn dù Gemini lỗi/timeout.
+                if (IsLikelyOffTopic(normalized))
+                {
+                    return Ok(new CustomerSupportResponseDto
+                    {
+                        IsSuccess = true,
+                        ResponseType = "text",
+                        Answer = OffTopicAnswer,
+                        Data = null
+                    });
+                }
+
                 var eventCatalog = await LoadEventCatalogAsync(cancellationToken);
                 var profile = AnalyzeQueryProfile(userMessage, eventCatalog);
-                var normalized = NormalizeSearchText(userMessage);
                 var userId = GetAuthenticatedUserId();
                 var conversationHistory = BuildConversationHistory(request.History);
 
@@ -265,6 +306,18 @@ namespace TicketSystem.API.Controllers
             }
         }
 
+        private static bool IsLikelyOffTopic(string normalizedMessage)
+        {
+            // Nếu message có nhắc đến các từ khóa của hệ thống thì không coi là off-topic,
+            // dù có lẫn từ khóa "nhạy cảm" khác trong câu.
+            if (ContainsAnyNormalized(normalizedMessage, OnTopicHints))
+            {
+                return false;
+            }
+
+            return ContainsAnyNormalized(normalizedMessage, OffTopicIndicators);
+        }
+
         private Task<object?> BuildStructuredDataAsync(
             CustomerSupportQueryProfile profile,
             List<EventSupportContext> eventCatalog,
@@ -273,10 +326,12 @@ namespace TicketSystem.API.Controllers
             if (profile.ResponseType == "open_sales"
                 || profile.ResponseType == "price_list"
                 || profile.ResponseType == "upcoming_events"
+                || profile.ResponseType == "ongoing_events"
                 || profile.Mode == CustomerSupportMode.LocationFilter
                 || profile.Mode == CustomerSupportMode.MusicTopic
                 || profile.Mode == CustomerSupportMode.NearestUpcoming
                 || profile.Mode == CustomerSupportMode.UpcomingEvents
+                || profile.Mode == CustomerSupportMode.OngoingEvents
                 || profile.Mode == CustomerSupportMode.SpecificEventOrTicket
                 || profile.IsRecommendationQuery
                 || profile.PriceMin.HasValue
@@ -324,7 +379,7 @@ namespace TicketSystem.API.Controllers
                         })
                         .ToList()
                 })
-                .Where(eventItem => eventItem.TicketTypes.Count > 0 || profile.ResponseType == "open_sales")
+                .Where(eventItem => eventItem.TicketTypes.Count > 0 || profile.ResponseType == "open_sales" || profile.ResponseType == "ongoing_events" || profile.Mode == CustomerSupportMode.OngoingEvents)
                 .ToList();
 
             if (profile.IsCheapestQuery)
@@ -396,6 +451,7 @@ namespace TicketSystem.API.Controllers
                                "Bạn PHẢI dựa trên dữ liệu hệ thống trong CONTEXT.\n" +
                                "Không được bịa tên sự kiện, giá vé, số lượng vé, trạng thái đơn hàng hoặc chính sách.\n" +
                                "Nếu người dùng hỏi danh sách sự kiện sắp diễn ra, chỉ liệt kê event public, chưa kết thúc, StartTime >= VietnamTime.Now trong CONTEXT; nếu vé đang mở bán thì nêu giá/trạng thái còn vé, nếu vé chưa mở hoặc đã đóng thì nói rõ, không nhầm với open sales.\n" +
+                               "Nếu người dùng hỏi sự kiện nào đang diễn ra ngay bây giờ, chỉ liệt kê event có StartTime <= VietnamTime.Now <= EndTime trong CONTEXT, không nhầm với sự kiện sắp diễn ra hoặc đang mở bán vé.\n" +
                                "Nếu CONTEXT không có dữ liệu liên quan, hãy nói chưa có thông tin và hướng dẫn khách liên hệ nhân viên hỗ trợ.\n" +
                                "Nếu câu hỏi quá ngắn hoặc mơ hồ như 'vé', 'giá', 'sự kiện', hãy hỏi lại để làm rõ và đưa ví dụ cụ thể.\n" +
                                "Nếu câu hỏi không liên quan đến SmartEvent, sự kiện, vé, thanh toán, hủy vé hoặc check-in, hãy lịch sự từ chối.\n" +
@@ -451,11 +507,22 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
         private async Task<List<EventSupportContext>> LoadEventCatalogAsync(CancellationToken cancellationToken)
         {
             var now = VietnamTime.Now;
+
+            // QUAN TRỌNG: cột StartTime/EndTime trong DB lưu dạng UTC (timestamptz).
+            // Câu LINQ dưới đây được dịch thành SQL và so sánh trực tiếp với giá trị UTC trong DB,
+            // nên khung lọc phải tính theo DateTime.UtcNow, KHÔNG dùng VietnamTime.Now (giờ VN).
+            // Trộn 2 loại giờ khác nhau ở đây từng gây lệch ~7 giờ khi lọc sự kiện.
+            var nowUtc = DateTime.UtcNow;
+            var lookbackStart = nowUtc.AddDays(-30);
+            var lookaheadEnd = nowUtc.AddDays(365);
+
             var events = await _dbContext.Events
                 .AsNoTracking()
+                .Where(eventItem => eventItem.Status != EventStatus.Cancelled)
+                .Where(eventItem => eventItem.StartTime <= lookaheadEnd && eventItem.EndTime >= lookbackStart)
                 .OrderBy(eventItem => eventItem.StartTime)
                 .ThenBy(eventItem => eventItem.EndTime)
-                .Take(50)
+                .Take(300)
                 .ToListAsync(cancellationToken);
 
             var result = new List<EventSupportContext>();
@@ -505,6 +572,10 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
         private List<EventSupportContext> BuildContextEvents(CustomerSupportQueryProfile profile, List<EventSupportContext> eventCatalog, string normalizedMessage)
         {
             var now = VietnamTime.Now;
+            if (profile.Mode == CustomerSupportMode.OngoingEvents)
+            {
+                return BuildOngoingContextEvents(eventCatalog, profile, now, 5);
+            }
             if (profile.ResponseType == "upcoming_events"
                 || profile.Mode == CustomerSupportMode.UpcomingEvents
                 || profile.Mode == CustomerSupportMode.NearestUpcoming)
@@ -617,6 +688,9 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
             var asksOpenSalesList = ContainsAnyNormalized(normalized,
                 "su kien nao dang mo ban",
+                "su kien dang mo ban",
+                "cho toi xem su kien dang mo ban",
+                "xem su kien dang mo ban",
                 "danh sach su kien",
                 "cac su kien dang mo ban",
                 "su kien hien co",
@@ -659,6 +733,16 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 "su kien sap toi khong",
                 "con su kien nao sap toi khong",
                 "upcoming");
+
+            var asksOngoingEvents = ContainsAnyNormalized(normalized,
+            "co su kien nao dang dien ra",
+            "co su kien dang dien ra",
+            "su kien nao dang dien ra",
+            "su kien dang dien ra",
+            "cho toi xem su kien dang dien ra",
+            "xem su kien dang dien ra",
+            "su kien nao dang to chuc",
+            "dang dien ra");
 
             var asksBookingGuide = ContainsAnyNormalized(normalized,
                 "huong dan dat ve",
@@ -900,6 +984,16 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                     FocusDescription = BuildFocusDescription(matchedEventName, ticketKeyword, priceMax, isCheapestQuery, locationKeyword, timeRange, categoryKeyword, recommendationIntent)
                 };
             }
+
+            if (asksOngoingEvents && !hasSpecificFilters)
+            {
+            return new CustomerSupportQueryProfile
+            {
+                ResponseType = "ongoing_events",
+                Mode = CustomerSupportMode.OngoingEvents,
+                FocusDescription = "Danh sách sự kiện đang diễn ra"
+            };
+        }
 
             if (asksOpenSalesList && !hasSpecificFilters && !asksMusicTopic && !asksNearest)
             {
@@ -1426,6 +1520,17 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 return BuildUpcomingEventsFallbackAnswer(contextEvents);
             }
 
+            if (profile.ResponseType == "ongoing_events" || profile.Mode == CustomerSupportMode.OngoingEvents)
+            {
+                if (contextEvents.Count == 0)
+                {
+                    return "Hiện tại chưa có sự kiện nào đang diễn ra.";
+                }
+
+                var ongoingNames = string.Join(", ", contextEvents.Select(eventItem => eventItem.Name).Take(5));
+                return $"Các sự kiện đang diễn ra hiện tại: {ongoingNames}.";
+            }
+
             if (profile.Mode == CustomerSupportMode.LocationFilter && contextEvents.Count == 0)
             {
                 return BuildNoLocationEventsAnswer(profile.LocationKeyword);
@@ -1759,6 +1864,27 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
 
             return upcomingEvents;
         }
+        private static List<EventSupportContext> BuildOngoingContextEvents(
+            IEnumerable<EventSupportContext> eventCatalog,
+            CustomerSupportQueryProfile profile,
+            DateTime now,
+            int takeCount)
+        {
+            var ongoingEvents = eventCatalog
+                .Where(eventItem => eventItem.IsPublic)
+                .Where(eventItem => eventItem.Status == EventStatus.Ongoing)
+                .Where(eventItem => eventItem.StartTime <= now && eventItem.EndTime >= now)
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.SpecificEventName) || MatchesSpecificEvent(eventItem, profile))
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.LocationKeyword) || MatchesLocation(eventItem, profile.LocationKeyword!, profile.LocationKeyword!, null))
+                .Where(eventItem => string.IsNullOrWhiteSpace(profile.CategoryKeyword) || MatchesCategory(eventItem, profile.CategoryKeyword!))
+                .Where(eventItem => !profile.IsRecommendationQuery || string.IsNullOrWhiteSpace(profile.RecommendationInterest) || MatchesCategory(eventItem, profile.RecommendationInterest!))
+                .Select(eventItem => ProjectUpcomingContextEvent(eventItem))
+                .OrderBy(eventItem => eventItem.StartTime)
+                .Take(takeCount)
+                .ToList();
+
+            return ongoingEvents;
+        }
 
         private static EventSupportContext ProjectUpcomingContextEvent(EventSupportContext eventItem)
         {
@@ -1966,9 +2092,15 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                     : ProjectContextEvent(eventItem, now, profile))
                 .ToList();
 
+            var shouldRequireTicketTypes = !locationOnlyQuery
+                && profile.Mode != CustomerSupportMode.OngoingEvents
+                && profile.ResponseType != "ongoing_events";
+
             var projectedEvents = locationOnlyQuery
                 ? allProjected
-                : allProjected.Where(eventItem => eventItem.TicketTypes.Any());
+                : shouldRequireTicketTypes
+                    ? allProjected.Where(eventItem => eventItem.TicketTypes.Any())
+                    : allProjected;
 
             // Log events that were dropped because they have no valid ticket types
             try
@@ -2571,7 +2703,6 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 var now = d.VietnamNow;
                 var parts = new List<string>();
 
-                // Event-level status/time checks
                 if (d.EffectiveStatus == EventStatus.Cancelled)
                 {
                     parts.Add("Sự kiện đã bị hủy.");
@@ -2585,7 +2716,6 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                     parts.Add($"Sự kiện chưa bắt đầu (bắt đầu {d.StartTime:dd/MM/yyyy HH:mm}).");
                 }
 
-                // Ticket-level diagnosis
                 if (d.TicketDiagnostics == null || d.TicketDiagnostics.Count == 0)
                 {
                     parts.Add("Không có loại vé được cấu hình cho sự kiện.");
@@ -2608,9 +2738,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                     parts.AddRange(ticketReasons);
                 }
 
-                // Determine suggested fix
                 var suggested = new List<string>();
-                // If event status incorrect
                 if (d.EffectiveStatus != EventStatus.Active && d.EffectiveStatus != EventStatus.Ongoing)
                 {
                     suggested.Add("Kiểm tra trường Event.Status (đặt thành Active nếu sự kiện đang mở bán/chuẩn bị mở bán).");
@@ -2622,7 +2750,6 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 }
                 else
                 {
-                    // Aggregate ticket issues
                     var allInactive = d.TicketDiagnostics.All(t => !t.IsActive);
                     var allNotStarted = d.TicketDiagnostics.All(t => now < t.SaleStartTime);
                     var allEnded = d.TicketDiagnostics.All(t => now > t.SaleEndTime);
@@ -3363,6 +3490,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
         {
             GenericList,
             UpcomingEvents,
+            OngoingEvents,
             MusicTopic,
             NearestUpcoming,
             BookingGuide,

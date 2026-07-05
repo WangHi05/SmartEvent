@@ -29,9 +29,9 @@ const CheckoutPage = () => {
 
   if (!bookingData) {
     return (
-      <div className="rounded-[28px] border border-dashed border-slate-300 bg-white p-10 text-center">
+      <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
         <Empty description="Không tìm thấy dữ liệu đơn hàng" />
-        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-2xl !border-orange-500 !bg-orange-500">
+        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-green-600 !bg-green-600">
           Quay lại danh sách sự kiện
         </Button>
       </div>
@@ -40,12 +40,10 @@ const CheckoutPage = () => {
 
   const handlePlaceOrder = async () => {
     try {
-      // 1. Validate Form thông tin định danh trước
       const values = await form.validateFields();
-      
+
       setLoading(true);
-      
-      // 2. Gom dữ liệu tạo order
+
       const firstSelection = bookingData.selections[0];
       const orderData = {
         eventId: bookingData.eventId,
@@ -55,7 +53,7 @@ const CheckoutPage = () => {
         paymentMethod: paymentMethod,
         buyerName: values.fullName,
         buyerPhone: values.phone,
-        buyerCccd: values.cccd || null 
+        buyerCccd: values.cccd || null
       };
 
       const response = await axiosClient.post('/orders', orderData);
@@ -63,7 +61,6 @@ const CheckoutPage = () => {
 
       message.success('Tạo đơn hàng thành công!');
 
-      // 3. Xử lý chuyển hướng thanh toán
       const paymentPayload = {
         orderId: result?.orderId,
         totalPrice: Number(result?.totalPrice || bookingData.totalPrice || 0),
@@ -88,7 +85,6 @@ const CheckoutPage = () => {
       navigate('/customer/payment-result', { state: paymentPayload });
     } catch (error) {
       if (error.errorFields) {
-        // Lỗi do chưa nhập đủ thông tin bắt buộc trong form
         message.warning('Vui lòng điền đầy đủ thông tin bắt buộc');
       } else {
         console.error('Error creating order:', error);
@@ -105,30 +101,27 @@ const CheckoutPage = () => {
       title: 'VNPay',
       description: 'Thanh toán qua cổng VNPay (thẻ ngân hàng, ví điện tử)',
       icon: CreditCardOutlined,
-      accent: 'from-orange-500 to-amber-500',
     },
     {
       value: 2,
       title: 'QR Payment',
       description: 'Chuyển khoản mã QR',
       icon: QrcodeOutlined,
-      accent: 'from-emerald-500 to-teal-500',
     },
     {
       value: 3,
       title: 'Thanh toán tại quầy',
       description: 'Nhận vé và thanh toán trực tiếp',
       icon: ShoppingCartOutlined,
-      accent: 'from-slate-800 to-slate-600',
     },
   ];
 
   return (
-    <div className="space-y-8 py-2 max-w-6xl mx-auto">
+    <div className="mx-auto max-w-6xl space-y-6 py-2">
       <CustomerSectionTitle
         kicker="Checkout"
-        title="Thanh toán & Nhận vé"
-        description="Hoàn tất thông tin cá nhân và chọn phương thức thanh toán để nhận mã QR Check-in."
+        title="Thanh toán & nhận vé"
+        description="Hoàn tất thông tin cá nhân và chọn phương thức thanh toán để nhận mã QR check-in."
         action={(
           <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
             Quay lại
@@ -139,91 +132,91 @@ const CheckoutPage = () => {
       <Row gutter={[24, 24]}>
         <Col xs={24} lg={14}>
           <div className="space-y-6">
-            <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.06)]" bodyStyle={{ padding: 24 }}>
-              <h3 className="text-xl font-black text-slate-950">Tóm tắt đơn hàng</h3>
-              
-              <div className="mt-6 rounded-3xl bg-slate-950 p-5 text-white">
-                <p className="text-xs uppercase tracking-[0.2em] text-white/60">Sự kiện</p>
-                <p className="mt-2 text-2xl font-black">{bookingData.eventName}</p>
+            <Card className="overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
+              <h3 className="text-lg font-bold text-gray-900">Tóm tắt đơn hàng</h3>
+
+              <div className="mt-5 rounded-lg bg-gray-900 p-5 text-white">
+                <p className="text-xs uppercase tracking-wide text-gray-400">Sự kiện</p>
+                <p className="mt-1.5 text-xl font-bold">{bookingData.eventName}</p>
               </div>
 
-              <div className="mt-6 space-y-3">
+              <div className="mt-5 space-y-2.5">
                 {bookingData.selections.map((selection, index) => (
-                  <div key={index} className="flex items-start justify-between rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div key={index} className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 p-4">
                     <div>
-                      <p className="font-bold text-slate-950">{selection.ticketTypeName}</p>
-                      <p className="text-sm text-slate-500">{selection.quantity} vé × {formatCurrency(selection.price)}</p>
+                      <p className="font-semibold text-gray-900">{selection.ticketTypeName}</p>
+                      <p className="text-sm text-gray-500">{selection.quantity} vé × {formatCurrency(selection.price)}</p>
                     </div>
-                    <div className="text-right font-black text-slate-950">{formatCurrency(selection.subtotal)}</div>
+                    <div className="text-right font-bold text-gray-900">{formatCurrency(selection.subtotal)}</div>
                   </div>
                 ))}
               </div>
               <Divider />
               <div className="flex items-center justify-between">
-                <span className="text-base font-semibold text-slate-600">Tổng cộng</span>
-                <span className="text-3xl font-black text-orange-600">{formatCurrency(bookingData.totalPrice)}</span>
+                <span className="text-base font-semibold text-gray-600">Tổng cộng</span>
+                <span className="text-2xl font-bold text-green-700">{formatCurrency(bookingData.totalPrice)}</span>
               </div>
             </Card>
 
-            <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.06)]" bodyStyle={{ padding: 24 }}>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-100 text-orange-600">
-                  <SafetyCertificateOutlined className="text-xl" />
+            <Card className="overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
+              <div className="mb-5 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-700">
+                  <SafetyCertificateOutlined className="text-lg" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-black text-slate-950">Thông tin nhận vé</h3>
-                  <p className="text-sm text-slate-500">Mã QR Check-in sẽ được gắn với thông tin này.</p>
+                  <h3 className="text-lg font-bold text-gray-900">Thông tin nhận vé</h3>
+                  <p className="text-sm text-gray-500">Mã QR check-in sẽ được gắn với thông tin này.</p>
                 </div>
               </div>
 
               <Form form={form} layout="vertical" requiredMark={false}>
                 <Row gutter={16}>
                   <Col span={12}>
-                    <Form.Item 
-                      name="fullName" 
-                      label={<span className="font-semibold text-slate-700">Họ và tên <span className="text-red-500">*</span></span>}
+                    <Form.Item
+                      name="fullName"
+                      label={<span className="font-medium text-gray-700">Họ và tên <span className="text-red-500">*</span></span>}
                       rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}
                     >
-                      <Input size="large" className="!rounded-xl" placeholder="Nhập tên người đi" />
+                      <Input size="large" className="!rounded-lg" placeholder="Nhập tên người đi" />
                     </Form.Item>
                   </Col>
                   <Col span={12}>
-                    <Form.Item 
-                      name="phone" 
-                      label={<span className="font-semibold text-slate-700">Số điện thoại <span className="text-red-500">*</span></span>}
+                    <Form.Item
+                      name="phone"
+                      label={<span className="font-medium text-gray-700">Số điện thoại <span className="text-red-500">*</span></span>}
                       rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}
                     >
-                      <Input size="large" className="!rounded-xl" placeholder="Để nhận thông báo" />
+                      <Input size="large" className="!rounded-lg" placeholder="Để nhận thông báo" />
                     </Form.Item>
                   </Col>
                 </Row>
-                
-                <Form.Item 
-                  name="cccd" 
+
+                <Form.Item
+                  name="cccd"
                   className="mb-0"
                   label={
                     <div className="flex items-center">
-                      <span className="font-semibold text-slate-700">Số CMND / CCCD</span>
-                      <span className="ml-1 text-slate-400 font-normal">(Tùy chọn)</span>
-                      <Tooltip 
+                      <span className="font-medium text-gray-700">Số CMND / CCCD</span>
+                      <span className="ml-1 font-normal text-gray-400">(Tùy chọn)</span>
+                      <Tooltip
                         title="Dữ liệu này được mã hóa bảo mật. Dùng để đối chiếu tại Quầy Hỗ Trợ (Help Desk) trong trường hợp bạn làm mất điện thoại hoặc lỗi vé."
                         placement="top"
                       >
-                        <InfoCircleOutlined className="ml-2 text-orange-500 cursor-help" />
+                        <InfoCircleOutlined className="ml-2 cursor-help text-gray-400" />
                       </Tooltip>
                     </div>
                   }
                 >
-                  <Input size="large" className="!rounded-xl" placeholder="Nhập số CCCD (Khuyến nghị)" />
+                  <Input size="large" className="!rounded-lg" placeholder="Nhập số CCCD (khuyến nghị)" />
                 </Form.Item>
 
                 <Alert
-                  className="mt-4 !rounded-xl !border-orange-200 !bg-orange-50"
+                  className="mt-4 !rounded-lg !border-amber-200 !bg-amber-50"
                   type="warning"
                   showIcon
-                  message={<span className="font-semibold text-orange-800">Lưu ý quan trọng về Xử lý sự cố</span>}
+                  message={<span className="font-semibold text-amber-800">Lưu ý quan trọng về xử lý sự cố</span>}
                   description={
-                    <span className="text-orange-700 text-sm">
+                    <span className="text-sm text-amber-700">
                       Theo quy định của BTC, nếu bạn không cung cấp CCCD lúc mua vé, trong trường hợp bạn làm mất điện thoại hoặc không có kết nối mạng tại sự kiện, Quầy hỗ trợ (Help Desk) sẽ <b>không có cơ sở để xác minh danh tính và có quyền từ chối cấp lại thẻ/vé vào cổng</b>.
                     </span>
                   }
@@ -234,14 +227,14 @@ const CheckoutPage = () => {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card className="overflow-hidden !rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)] sticky top-6" styles={{ body: { padding: 24 } }}>
-            <h3 className="text-xl font-black text-slate-950">Phương thức thanh toán</h3>
-            <p className="mt-1 text-sm text-slate-500">Chọn phương thức phù hợp với bạn.</p>
+          <Card className="sticky top-6 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
+            <h3 className="text-lg font-bold text-gray-900">Phương thức thanh toán</h3>
+            <p className="mt-1 text-sm text-gray-500">Chọn phương thức phù hợp với bạn.</p>
 
             <Radio.Group
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 20 }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}
             >
               {paymentOptions.map((option) => {
                 const Icon = option.icon;
@@ -250,19 +243,19 @@ const CheckoutPage = () => {
                   <Card
                     key={option.value}
                     onClick={() => setPaymentMethod(option.value)}
-                    className={`cursor-pointer !rounded-2xl border transition ${selected ? 'border-orange-500 bg-orange-50 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
-                    styles={{ body: { padding: 16 } }}
+                    className={`cursor-pointer !rounded-lg border transition ${selected ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    styles={{ body: { padding: 14 } }}
                   >
                     <Radio value={option.value} className="w-full">
                       <div className="flex items-center gap-3">
-                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${option.accent} text-white`}>
-                          <Icon className="text-lg" />
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
+                          <Icon className="text-base" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-bold text-slate-950">{option.title}</p>
-                          <p className="text-xs text-slate-500 line-clamp-1">{option.description}</p>
+                          <p className="font-semibold text-gray-900">{option.title}</p>
+                          <p className="line-clamp-1 text-xs text-gray-500">{option.description}</p>
                         </div>
-                        {selected && <CheckCircleOutlined className="text-orange-600 text-lg" />}
+                        {selected && <CheckCircleOutlined className="text-lg text-green-600" />}
                       </div>
                     </Radio>
                   </Card>
@@ -278,7 +271,7 @@ const CheckoutPage = () => {
               size="large"
               onClick={handlePlaceOrder}
               loading={loading}
-              className="!h-14 !rounded-2xl !border-orange-500 !bg-orange-500 !text-lg !font-bold shadow-[0_8px_20px_rgba(249,115,22,0.3)] hover:shadow-[0_10px_25px_rgba(249,115,22,0.4)] transition-all"
+              className="!h-12 !rounded-lg !border-green-600 !bg-green-600 !text-base !font-semibold hover:!border-green-700 hover:!bg-green-700"
             >
               Thanh toán {formatCurrency(bookingData.totalPrice)}
             </Button>
