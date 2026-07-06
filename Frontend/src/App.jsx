@@ -58,23 +58,23 @@ const normalizeRole = (role) => {
   return ROLE_MAP[rawRole] || rawRole;
 };
 
+// 🔄 ĐÃ CẬP NHẬT LUỒNG VÀO WEB: Nếu chưa đăng nhập, dẫn thẳng vào trang chủ Client
 const RoleBasedHome = () => {
   const user = useAuthStore((state) => state.user);
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/customer/home" replace />;
   }
 
   const role = normalizeRole(user?.role || user?.Role);
 
   if (role === 'customer') {
-    return <Navigate to="/customer/events" replace />;
+    return <Navigate to="/customer/home" replace />;
   }
 
   if (role === 'admin') return <Navigate to="/admin/dashboard" replace />;
   if (role === 'director') return <Navigate to="/director/dashboard" replace />;
   if (role === 'staff') return <Navigate to="/bookings" replace />;
-  // Fallback: manager -> legacy dashboard
   return <Navigate to="/dashboard" replace />;
 };
 
@@ -96,7 +96,7 @@ const AdminShell = () => {
 
 const LegacyBookingRedirect = () => {
   const { eventId } = useParams();
-  return <Navigate to={`/tickets/booking/${eventId}`} replace />;
+  return <Navigate to={`/tickets/booking/su-kien/${eventId}`} replace />;
 };
 
 function App() {
@@ -179,8 +179,12 @@ function App() {
             <Route path="change-password" element={<ProtectedRoute element={<CustomerChangePassword />} requiredRole="Customer" />} />
           </Route>
 
-          {/* Booking route theo yêu cầu */}
-          <Route path="/tickets/booking/:slug/:eventId" element={<BookingPage />} />
+          {/* 🛡️ 👉 ĐÃ SỬA CHẶN MUA VÉ: Bọc BookingPage vào ProtectedRoute để bắt buộc đăng nhập mới được vào đặt vé */}
+          <Route 
+            path="/tickets/booking/:slug/:eventId" 
+            element={<ProtectedRoute element={<BookingPage />} requiredRole="Customer" />} 
+          />
+          
           {/* Backward compatibility route */}
           <Route path="/customer/booking/:eventId" element={<LegacyBookingRedirect />} />
 

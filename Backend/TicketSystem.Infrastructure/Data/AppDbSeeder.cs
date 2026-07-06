@@ -10,13 +10,77 @@ using Microsoft.Extensions.Logging;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common;
 
-// Dùng bí danh (Alias) để khắc phục lỗi CS0104 trùng tên với Enum TicketType
 using EntityTicketType = TicketSystem.Domain.Entities.TicketType;
 
 namespace TicketSystem.Infrastructure.Data
 {
     public class AppDbSeeder
     {
+        // Danh sách địa điểm Việt Nam thật, đảm bảo Name và Location luôn khớp nhau.
+        // Trước đây dùng f.Address.FullAddress() (locale "vi" không có data thật) khiến
+        // Location bị sinh ngẫu nhiên kiểu "Bến Tre, Tajikistan" không liên quan gì đến
+        // tên thành phố trong Name -> AI chatbot lọc theo địa điểm luôn ra rỗng.
+        private static readonly (string City, string[] Venues)[] VietnamLocations = new[]
+        {
+            ("Hà Nội", new[]
+            {
+                "Trung tâm Hội nghị Quốc gia, Hà Nội",
+                "Nhà hát Lớn Hà Nội, Hà Nội",
+                "Sân vận động Mỹ Đình, Hà Nội",
+                "Trung tâm Triển lãm Giảng Võ, Hà Nội",
+                "Hồ Hoàn Kiếm, Hà Nội",
+                "Đại học Kinh tế Quốc dân, Hà Nội"
+            }),
+            ("TP.HCM", new[]
+            {
+                "Trung tâm Hội chợ và Triển lãm Sài Gòn (SECC), TP.HCM",
+                "Nhà thi đấu Phú Thọ, TP.HCM",
+                "Landmark 81, TP.HCM",
+                "Nhà hát Thành phố, TP.HCM",
+                "Sân vận động Quân khu 7, TP.HCM",
+                "Bảo tàng Áo Dài, TP.HCM"
+            }),
+            ("Đà Nẵng", new[]
+            {
+                "Cung Thể thao Tiên Sơn, Đà Nẵng",
+                "Công viên Biển Đông, Đà Nẵng",
+                "Da Nang Innovation Hub, Đà Nẵng"
+            }),
+            ("Hải Phòng", new[]
+            {
+                "Cung Văn hóa Hữu nghị Việt Tiệp, Hải Phòng"
+            }),
+            ("Cần Thơ", new[]
+            {
+                "Trung tâm Hội chợ Triển lãm Quốc tế Cần Thơ",
+                "Nhà thi đấu đa năng Cần Thơ",
+                "Can Tho Creative Center, Cần Thơ"
+            }),
+            ("Huế", new[]
+            {
+                "Trung tâm Văn hóa Thông tin tỉnh Thừa Thiên Huế",
+                "Đại Nội Huế"
+            }),
+            ("Nha Trang", new[]
+            {
+                "Quảng trường 2 tháng 4, Nha Trang",
+                "Trung tâm Hội nghị 46 Trần Phú, Nha Trang"
+            }),
+            ("Vũng Tàu", new[]
+            {
+                "Bãi biển Vũng Tàu",
+                "Nhà thi đấu Vũng Tàu"
+            }),
+            ("Đà Lạt", new[]
+            {
+                "Quảng trường Lâm Viên, Đà Lạt"
+            }),
+            ("Bình Dương", new[]
+            {
+                "Trung tâm Hội nghị và Triển lãm tỉnh Bình Dương"
+            })
+        };
+
         // Hàm Helper tạo Slug chuẩn SEO
         private static string GenerateSlug(string phrase)
         {
@@ -46,14 +110,14 @@ namespace TicketSystem.Infrastructure.Data
             logger.LogInformation("Bắt đầu khởi tạo Mock Data (Có dữ liệu Kiểm soát Cổng) bằng Bogus...");
 
             // --- BƯỚC 1: TẠO USERS ---
-            var dummyPasswordHash = "hashed_password_123"; 
+            var dummyPasswordHash = "hashed_password_123";
             var userFaker = new Faker<User>("vi")
                 .CustomInstantiator(f => User.Create(
                     username: f.Internet.UserName(),
                     passwordHash: dummyPasswordHash,
                     fullName: f.Name.FullName(),
                     email: f.Internet.Email(),
-                    role: UserRole.Customer, 
+                    role: UserRole.Customer,
                     createdBy: "SystemSeeder"
                 ))
                 .RuleFor(u => u.PhoneNumber, f => f.Phone.PhoneNumber("09########"));
@@ -64,9 +128,23 @@ namespace TicketSystem.Infrastructure.Data
             // --- BƯỚC 2: TẠO EVENTS QUÁ KHỨ VÀ TƯƠNG LAI ---
             var eventFaker = new Faker<Event>("vi")
                 .RuleFor(e => e.Id, f => Guid.NewGuid())
-                .RuleFor(e => e.Name, f => $"Sự kiện {f.Commerce.Department()} - {f.Address.City()}")
+                .RuleFor(e => e.Name, f =>
+                {
+                    var loc = f.PickRandom(VietnamLocations);
+                    return $"Sự kiện {f.Commerce.Department()} - {loc.City}";
+                })
                 .RuleFor(e => e.Slug, (f, e) => $"{GenerateSlug(e.Name)}-{f.Random.AlphaNumeric(6).ToLower()}")
-                .RuleFor(e => e.Location, f => f.Address.FullAddress())
+                .RuleFor(e => e.Location, (f, e) =>
+                {
+                    // Lấy đúng thành phố đã gắn trong Name (phần sau " - ") để Location
+                    // luôn khớp với Name, tránh tình trạng Name ghi "Cần Thơ" nhưng
+                    // Location lại là một địa chỉ ngẫu nhiên không liên quan.
+                    var separatorIndex = e.Name.LastIndexOf(" - ", StringComparison.Ordinal);
+                    var city = separatorIndex >= 0 ? e.Name[(separatorIndex + 3)..] : null;
+                    var match = VietnamLocations.FirstOrDefault(l => l.City == city);
+                    var venues = match.Venues ?? VietnamLocations[0].Venues;
+                    return f.PickRandom(venues);
+                })
                 .RuleFor(e => e.StartTime, f => f.Date.Between(DateTime.UtcNow.AddMonths(-3), DateTime.UtcNow.AddMonths(1)))
                 .RuleFor(e => e.EndTime, (f, e) => e.StartTime.AddHours(f.Random.Int(4, 72)))
                 .RuleFor(e => e.MaxCapacity, f => f.Random.Int(300, 2000))
@@ -74,9 +152,9 @@ namespace TicketSystem.Infrastructure.Data
                 .RuleFor(e => e.CancellationDeadlineHours, f => f.PickRandom(24, 48, 72))
                 .RuleFor(e => e.Status, (f, e) => {
                     var now = DateTime.UtcNow;
-                    if (e.EndTime < now) return EventStatus.Completed; 
-                    if (e.StartTime <= now && e.EndTime >= now) return EventStatus.Ongoing;   
-                    return EventStatus.Active;        
+                    if (e.EndTime < now) return EventStatus.Completed;
+                    if (e.StartTime <= now && e.EndTime >= now) return EventStatus.Ongoing;
+                    return EventStatus.Active;
                 })
                 .RuleFor(e => e.CreatedAt, f => DateTime.UtcNow)
                 .RuleFor(e => e.CreatedBy, "SystemSeeder");
@@ -85,20 +163,19 @@ namespace TicketSystem.Infrastructure.Data
 
             // ĐẶC BIỆT: TẠO 1 SỰ KIỆN LỚN ĐANG DIỄN RA HÔM NAY ĐỂ TEST TRUNG TÂM ĐIỀU HÀNH CỔNG
             var currentUtc = DateTime.UtcNow;
-            // Cho sự kiện bắt đầu từ sáng hôm nay (nếu bây giờ là tối, thì nó đã chạy được 1 lúc)
-            var todayEventStart = currentUtc.Date.AddHours(-2); 
+            var todayEventStart = currentUtc.Date.AddHours(-2);
             var todayEventEnd = currentUtc.Date.AddHours(5);
-            
+
             var todayEvent = new Event
             {
                 Id = Guid.NewGuid(),
                 Name = "Lễ hội Âm nhạc & Công nghệ Cloud 2026",
                 Slug = $"le-hoi-am-nhac-cong-nghe-cloud-2026-{Guid.NewGuid().ToString("N").Substring(0, 5)}",
                 Description = "Sự kiện siêu hoành tráng để kiểm thử Radar AI.",
-                Location = "Trung tâm Hội chợ và Triển lãm Sài Gòn (SECC)",
-                StartTime = todayEventStart, 
-                EndTime = todayEventEnd,     
-                MaxCapacity = 5000, // Đặt sức chứa 5000 giống trong giao diện của em
+                Location = "Trung tâm Hội chợ và Triển lãm Sài Gòn (SECC), TP.HCM",
+                StartTime = todayEventStart,
+                EndTime = todayEventEnd,
+                MaxCapacity = 5000,
                 CurrentOccupancy = 0,
                 CancellationDeadlineHours = 24,
                 Status = (todayEventStart <= currentUtc && todayEventEnd >= currentUtc) ? EventStatus.Ongoing : EventStatus.Active,
@@ -115,8 +192,7 @@ namespace TicketSystem.Infrastructure.Data
             var payments = new List<Payment>();
             var tickets = new List<Ticket>();
             var checkInLogs = new List<CheckInLog>();
-            
-            // Danh sách các cổng để random
+
             string[] gateList = { "Cổng chính - Lối vào 1", "Cổng phụ - Lối vào 2", "Cổng VIP" };
 
             foreach (var evt in events)
@@ -130,15 +206,14 @@ namespace TicketSystem.Infrastructure.Data
                     .RuleFor(tt => tt.RemainingQuantity, (f, tt) => tt.Quantity)
                     .RuleFor(tt => tt.MaxPerUser, 5)
                     .RuleFor(tt => tt.SaleStartTime, evt.StartTime.AddDays(-30))
-                    .RuleFor(tt => tt.SaleEndTime, evt.EndTime) 
-                    .RuleFor(tt => tt.TicketMode, f => (dynamic)f.PickRandom(1, 2)) 
+                    .RuleFor(tt => tt.SaleEndTime, evt.EndTime)
+                    .RuleFor(tt => tt.TicketMode, f => (dynamic)f.PickRandom(1, 2))
                     .RuleFor(tt => tt.MinGroupSize, (f, tt) => (int)tt.TicketMode == 2 ? 2 : (int?)null)
                     .RuleFor(tt => tt.MaxGroupSize, (f, tt) => (int)tt.TicketMode == 2 ? 10 : (int?)null);
 
                 var eventTicketTypes = typeFaker.Generate(2);
                 ticketTypes.AddRange(eventTicketTypes);
 
-                // Nếu là sự kiện hôm nay, tạo lượng đơn hàng RẤT LỚN (200-400 đơn) để Cổng có dữ liệu dồi dào
                 int orderCount = (evt.Id == todayEvent.Id) ? new Faker().Random.Int(200, 400) : new Faker().Random.Int(10, 30);
 
                 var orderFaker = new Faker<Order>("vi")
@@ -152,20 +227,20 @@ namespace TicketSystem.Infrastructure.Data
                     .RuleFor(o => o.CreatedAt, f => f.Date.Between(evt.StartTime.AddDays(-15), evt.StartTime.AddHours(-2)));
 
                 var eventOrders = orderFaker.Generate(orderCount);
-                
+
                 foreach(var order in eventOrders)
                 {
                     var type = eventTicketTypes.First(t => t.Id == order.TicketTypeId);
                     order.TotalPrice = type.Price * order.Quantity;
 
-                    bool isCancelled = new Faker().Random.Bool(0.05f); // 5% hủy vé
+                    bool isCancelled = new Faker().Random.Bool(0.05f);
                     order.OrderStatus = isCancelled ? OrderStatus.Cancelled : OrderStatus.Confirmed;
 
                     if (isCancelled)
                     {
                         order.CancelRequestAt = evt.StartTime.AddHours(-new Faker().Random.Int(24, 168));
                         order.RefundAmount = order.TotalPrice * 0.5m;
-                        order.RefundedAt = order.CancelRequestAt.Value.AddHours(2); 
+                        order.RefundedAt = order.CancelRequestAt.Value.AddHours(2);
                         type.RemainingQuantity += order.Quantity;
                     }
                     else
@@ -178,7 +253,7 @@ namespace TicketSystem.Infrastructure.Data
                             PaymentMethod = new Faker().PickRandom<PaymentMethod>(),
                             PaymentStatus = PaymentStatus.Completed,
                             TransactionReference = "PAY" + new Faker().Random.AlphaNumeric(10).ToUpper(),
-                            PaidAt = order.CreatedAt.AddMinutes(new Faker().Random.Int(2, 15)), 
+                            PaidAt = order.CreatedAt.AddMinutes(new Faker().Random.Int(2, 15)),
                             CreatedAt = order.CreatedAt,
                             CreatedBy = "SystemSeeder"
                         };
@@ -205,9 +280,8 @@ namespace TicketSystem.Infrastructure.Data
 
                         if (!isCancelled && evt.StartTime <= DateTime.UtcNow)
                         {
-                            bool isCheckedIn = new Faker().Random.Bool(0.85f); 
-                            
-                            // GIẢ LẬP CHECK-IN THÀNH CÔNG
+                            bool isCheckedIn = new Faker().Random.Bool(0.85f);
+
                             if (isCheckedIn)
                             {
                                 ticket.Status = TicketStatus.CHECKED_IN;
@@ -215,16 +289,14 @@ namespace TicketSystem.Infrastructure.Data
                                 ticket.RemainingSlots = 0;
                                 evt.CurrentOccupancy += ticket.GroupSize;
 
-                                // Tính toán thời gian check-in hợp lý (Real-time distribution)
                                 DateTime checkInTime;
                                 if (evt.Id == todayEvent.Id)
                                 {
-                                    // Sự kiện hôm nay: Rải đều từ lúc mở cổng (trước 1 tiếng) cho đến tận BÂY GIỜ
                                     var minutesSinceOpen = (DateTime.UtcNow - evt.StartTime.AddMinutes(-60)).TotalMinutes;
                                     if (minutesSinceOpen > 0)
                                         checkInTime = evt.StartTime.AddMinutes(-60).AddMinutes(new Faker().Random.Double(0, minutesSinceOpen));
                                     else
-                                        checkInTime = DateTime.UtcNow.AddMinutes(-5); // Fallback
+                                        checkInTime = DateTime.UtcNow.AddMinutes(-5);
                                 }
                                 else
                                 {
@@ -240,7 +312,6 @@ namespace TicketSystem.Infrastructure.Data
                                     CheckinDate = DateOnly.FromDateTime(checkInTime),
                                     Type = ScanType.Entry,
                                     PeopleCount = ticket.GroupSize,
-                                    // PHÂN BỔ RANDOM VÀO CÁC CỔNG
                                     GateName = new Faker().PickRandom(gateList),
                                     StaffId = "Staff_" + new Faker().Random.Number(1, 5),
                                     CheckInResult = "Success",
@@ -249,10 +320,8 @@ namespace TicketSystem.Infrastructure.Data
                                 };
                                 checkInLogs.Add(log);
                             }
-                            
-                            // GIẢ LẬP GIAN LẬN QUÉT VÉ (CHO AI PHÂN TÍCH)
-                            // Tạo 5% xác suất có người dùng mã QR cũ (đã checkin) hoặc mã sai để cố vào cổng
-                            bool isFakeAttempt = new Faker().Random.Bool(0.05f); 
+
+                            bool isFakeAttempt = new Faker().Random.Bool(0.05f);
                             if (isFakeAttempt)
                             {
                                 var attemptTime = evt.StartTime.AddMinutes(new Faker().Random.Int(10, 180));
@@ -282,7 +351,7 @@ namespace TicketSystem.Infrastructure.Data
 
             await context.Set<EntityTicketType>().AddRangeAsync(ticketTypes);
             await context.Set<Order>().AddRangeAsync(orders);
-            await context.Set<Payment>().AddRangeAsync(payments); 
+            await context.Set<Payment>().AddRangeAsync(payments);
             await context.Set<Ticket>().AddRangeAsync(tickets);
             await context.Set<CheckInLog>().AddRangeAsync(checkInLogs);
 
