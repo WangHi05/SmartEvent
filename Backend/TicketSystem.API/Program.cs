@@ -7,6 +7,7 @@ using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
 using TicketSystem.API.Middleware;
 using TicketSystem.API.Hubs;
+using TicketSystem.Application.Strategies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -94,13 +95,16 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
     if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
     {
-        options.UseNpgsql(connectionString,
-            b => b.MigrationsAssembly("TicketSystem.Infrastructure"));
+        options.UseNpgsql(connectionString, b => 
+        {
+            b.MigrationsAssembly("TicketSystem.Infrastructure");
+            b.UseVector(); 
+        });
     }
     else
     {
-        options.UseSqlServer(connectionString,
-            b => b.MigrationsAssembly("TicketSystem.Infrastructure"));
+        options.UseSqlServer(connectionString, b => 
+            b.MigrationsAssembly("TicketSystem.Infrastructure"));
     }
 });
 
@@ -131,11 +135,15 @@ builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 builder.Services.AddScoped<IGateService, GateService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
 // 6. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
+builder.Services.AddScoped<IRefundStrategy, PartialRefundStrategy>();
+builder.Services.AddScoped<IRefundStrategy, FullRefundStrategy>();
+builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
 // Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();

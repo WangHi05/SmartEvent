@@ -14,11 +14,13 @@ namespace TicketSystem.API.Controllers
     {
         private readonly ITicketCheckInService _checkInService;
         private readonly IOrderService _orderService;
+        private readonly ITicketService _ticketService; 
 
-        public TicketsController(ITicketCheckInService checkInService, IOrderService orderService)
+        public TicketsController(ITicketCheckInService checkInService, IOrderService orderService, ITicketService ticketService)
         {
             _checkInService = checkInService;
             _orderService = orderService;
+            _ticketService = ticketService;
         }
 
         [HttpPost("{id}/checkin")]
@@ -101,6 +103,24 @@ namespace TicketSystem.API.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+        }
+
+        /// <summary>
+        /// Lấy ngẫu nhiên một mã QR chưa sử dụng để phục vụ Load Testing (K6).
+        /// </summary>
+        [HttpGet("get-unused-qr-for-test")]
+        [Authorize]
+        public async Task<IActionResult> GetUnusedQrForTest()
+        {
+            // Bây giờ biến _ticketService không còn bị NULL nữa
+            var qrPayload = await _ticketService.GetUnusedQrForTestAsync();
+
+            if (string.IsNullOrEmpty(qrPayload))
+            {
+                return NotFound(new { message = "Không tìm thấy vé chưa sử dụng trong Database." });
+            }
+
+            return Ok(new { qrPayload = qrPayload });
         }
     }
 }
