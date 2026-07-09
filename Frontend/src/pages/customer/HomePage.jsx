@@ -3,18 +3,17 @@ import { Button, Carousel, Spin, message } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  CalendarDays,
-  Coffee,
-  GalleryHorizontal,
-  Laptop2,
-  Mic2,
-  Music2,
-  Sparkles,
-  Ticket,
-  Users,
-  Volleyball,
   Flame,
-  ShieldCheck
+  Music2,
+  Mic2,
+  Volleyball,
+  GalleryHorizontal,
+  Ticket,
+  Laptop2,
+  Coffee,
+  Users,
+  Compass,
+  Sparkles
 } from 'lucide-react';
 import axiosClient from '../../api/axiosClient';
 import {
@@ -29,28 +28,25 @@ import {
 
 const heroSlides = [
   {
-    eyebrow: 'Nền tảng bán vé premium',
-        title: 'Khám phá sự kiện hấp dẫn theo phong cách Ticketbox',
-    description: 'Hero banner lớn, card đẹp, thanh toán mượt và trải nghiệm mua vé chuyên nghiệp trên mọi thiết bị.',
+    eyebrow: 'SHOW THỰC CẢNH ĐẶC SẮC',
+    title: 'SÂN KHẤU KỊCH HUYỀN ẢO: NGUYỄN DU HỒ XUÂN HƯƠNG',
+    description: 'Một tác phẩm nghệ thuật đỉnh cao, chạm tới mọi cung bậc cảm xúc của người xem. Đặt vé trực tuyến giữ chỗ đẹp ngay hôm nay.',
     cta: 'Đặt vé ngay',
-    accent: 'from-[#5FBF9A] via-[#66C7BC] to-[#5BBFD6]',
-    glow: 'bg-cyan-200/30'
+    imageUrl: 'https://images.unsplash.com/photo-1503095396549-807759245b35?q=80&w=1200&auto=format&fit=crop'
   },
   {
-    eyebrow: 'Sự kiện nổi bật',
-        title: 'Concert, workshop, hội thảo và thể thao trong một hành trình thú vị',
-    description: 'Bộ lọc danh mục, ranking bán chạy, thông tin sức chứa và nút đặt vé được giữ nguyên logic.',
+    eyebrow: 'ĐẠI NHẠC HỘI LIVE CONCERT',
+    title: 'MYSTIC NIGHT: KAY TRẦN - TĂNG PHÚC',
+    description: 'Bùng nổ không gian âm nhạc thời thượng cùng dàn nghệ sĩ trending hàng đầu. Hệ thống quét mã QR kiểm soát cổng siêu tốc không lo ùn tắc.',
     cta: 'Khám phá sự kiện',
-    accent: 'from-[#14B8A6] via-[#2BAFC8] to-[#3B82F6]',
-    glow: 'bg-blue-200/30'
+    imageUrl: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=1200&auto=format&fit=crop'
   },
   {
-    eyebrow: 'SmartEvent for customers',
-        title: 'Thiết kế hiện đại, responsive và gần gũi như một website bán vé chuyên nghiệp',
-    description: 'Giữ nguyên route, API và các nút hiện có nhưng nâng cấp toàn bộ trải nghiệm thị giác.',
+    eyebrow: 'WORKSHOP & TRIỂN LÃM SÁNG TẠO',
+    title: 'KẾT NỐI KHÔNG GIAN VÀ IDOL CỦA BẠN',
+    description: 'Chuỗi sự kiện giao lưu, chia sẻ kinh nghiệm và kết nối cộng đồng thông minh. Quản lý luồng khách tự động tích hợp công nghệ AI.',
     cta: 'Xem lịch đặt vé',
-    accent: 'from-[#10B981] via-[#3BC7C5] to-[#67E8F9]',
-    glow: 'bg-emerald-200/30'
+    imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=1200&auto=format&fit=crop'
   }
 ];
 
@@ -58,22 +54,19 @@ const HomePage = () => {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeHeroIndex, setActiveHeroIndex] = useState(0);
 
   useEffect(() => {
     const fetchEvents = async () => {
       setLoading(true);
-
       try {
         const response = await axiosClient.get('/events/search', {
-          params: { pageNumber: 1, pageSize: 24, keyword: '' }
+          params: { pageNumber: 1, pageSize: 50, keyword: '' }
         });
-
         const payload = response?.data || response;
         setEvents(payload?.items || payload?.data?.items || []);
       } catch (error) {
         console.error('Error loading home events:', error);
-        message.error('Không thể tải sự kiện nổi bật');
+        message.error('Không thể tải danh sách sự kiện');
       } finally {
         setLoading(false);
       }
@@ -91,196 +84,155 @@ const HomePage = () => {
       {
         label: 'Sự kiện đang mở bán',
         value: totalEvents.toLocaleString('vi-VN'),
-        hint: 'Dữ liệu realtime từ hệ thống',
+        hint: 'Dữ liệu realtime',
         icon: Ticket,
-        accent: 'from-orange-500 to-amber-500'
+        accent: 'bg-slate-100 text-slate-800 border border-slate-200'
       },
       {
         label: 'Đang diễn ra',
         value: liveEvents.toLocaleString('vi-VN'),
-        hint: 'Theo dõi theo thời gian thực',
+        hint: 'Theo thời gian thực',
         icon: Flame,
-        accent: 'from-emerald-500 to-teal-500'
+        accent: 'bg-indigo-50 text-indigo-700 border border-indigo-100'
       },
       {
         label: 'Sold-out',
         value: soldOutEvents.toLocaleString('vi-VN'),
-        hint: 'Sự kiện đã hết chỗ',
+        hint: 'Đã hết chỗ',
         icon: Users,
-        accent: 'from-slate-800 to-slate-600'
+        accent: 'bg-slate-50 text-slate-600 border border-slate-200'
       }
     ];
   }, [events]);
 
-  const featuredEvents = useMemo(() => events.slice(0, 6), [events]);
+  const featuredEvents = useMemo(() => events.slice(0, 4), [events]);
+
+  const musicEvents = useMemo(() => {
+    return events.filter(e => {
+      const categoryStr = String(e.category?.name || e.categoryName || e.category || '').toLowerCase();
+      const titleStr = String(e.name || e.title || '').toLowerCase();
+      
+      return categoryStr.includes('nhạc') || 
+             categoryStr.includes('music') || 
+             categoryStr.includes('concert') ||
+             titleStr.includes('nhạc') ||
+             titleStr.includes('concert');
+    }).slice(0, 4);
+  }, [events]);
+
+  const tourEvents = useMemo(() => {
+    return events.filter(e => {
+      const categoryStr = String(e.category?.name || e.categoryName || e.category || '').toLowerCase();
+      const titleStr = String(e.name || e.title || '').toLowerCase();
+      
+      return categoryStr.includes('tham quan') || 
+             categoryStr.includes('triển lãm') || 
+             categoryStr.includes('workshop') || 
+             categoryStr.includes('hội thảo') ||
+             titleStr.includes('workshop') ||
+             titleStr.includes('hội thảo') ||
+             titleStr.includes('triển lãm');
+    }).slice(0, 4);
+  }, [events]);
 
   const trendingEvents = useMemo(
     () => [...events].sort((a, b) => getCapacityPercent(b) - getCapacityPercent(a)).slice(0, 5),
     [events]
   );
 
-  const upcomingEvents = useMemo(
-    () => [...events].filter((event) => getEventStatusMeta(event).key === 'upcoming').slice(0, 8),
-    [events]
-  );
-
   const categoryChips = useMemo(() => EVENT_CATEGORIES.filter((item) => item.value !== 'all'), []);
 
-  const activeSlide = heroSlides[activeHeroIndex] || heroSlides[0];
-
   return (
-    <div className="space-y-12 pb-4">
-      <section
-        className={`relative overflow-hidden rounded-[40px] border border-slate-200 bg-gradient-to-br ${activeSlide.accent} text-white shadow-[0_30px_80px_rgba(15,23,42,0.16)] transition-colors duration-700`}
-      >
-        <Carousel
-          autoplay
-          autoplaySpeed={5000}
-          afterChange={(index) => setActiveHeroIndex(index)}
-          dots={{ className: '!bottom-8 [&_li_button]:!bg-white/45 [&_li.slick-active_button]:!bg-white' }}
-        >
-          {heroSlides.map((slide, index) => (
-            <div key={slide.title}>
-              <div
-                className={`relative min-h-[640px] overflow-hidden bg-gradient-to-br ${slide.accent} px-6 py-12 pb-20 sm:px-10 lg:px-14 xl:px-16`}
-              >
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.20),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.14),transparent_30%)]" />
-                <div className={`absolute -right-12 top-10 h-56 w-56 rounded-full ${slide.glow} blur-3xl`} />
-                <div className="absolute -left-20 bottom-0 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black/8 to-transparent" />
+    <div className="space-y-12 pb-10 bg-slate-50/50 min-h-screen">
+      {/* 🎬 HERO BANNER ĐỘNG - ĐÃ FIX FIX CHIỀU CAO ĐỒNG BỘ KHÔNG BỊ KHUYẾT */}
+      <section className="overflow-hidden rounded-2xl border border-slate-200 shadow-md bg-slate-950 h-[430px]">
+        <Carousel autoplay autoplaySpeed={4000} effect="fade">
+          {heroSlides.map((slide) => (
+            <div key={slide.title} className="relative overflow-hidden h-[430px] flex items-center">
+              
+              {/* Ảnh nền phủ kín 100% diện tích slide cha */}
+              <div 
+                className="absolute inset-0 bg-cover bg-center opacity-100 pointer-events-none transition-all duration-1000 h-full w-full"
+                style={{ backgroundImage: `url(${slide.imageUrl})` }}
+              />
+              
+              <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/10 to-transparent pointer-events-none h-full w-full" />
+              
+              {/* Nội dung căn giữa hoàn hảo nhờ flex items-center */}
+              <div className="w-full grid gap-8 px-6 sm:px-12 lg:grid-cols-[1.3fr_0.7fr] lg:px-16 relative z-10 py-6">
+                <div className="max-w-xl space-y-4 bg-slate-950/70 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-white/15 shadow-2xl text-white">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-200 border border-indigo-400/20">
+                    <Sparkles size={11} /> {slide.eyebrow}
+                  </span>
 
-                <div className="relative grid items-center gap-10 lg:min-h-[540px] lg:grid-cols-[1.15fr_0.85fr]">
-                  <div className="max-w-3xl space-y-7">
-                    <div className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-white shadow-sm backdrop-blur-sm">
-                      <Sparkles size={14} />
-                      {slide.eyebrow}
-                    </div>
+                  <h1 className="text-2xl font-black leading-tight text-white sm:text-3xl lg:text-4xl tracking-tight">
+                    {slide.title}
+                  </h1>
 
-                    <h1 className="text-4xl font-extrabold leading-[1.08] tracking-[-0.02em] text-white drop-shadow-[0_10px_24px_rgba(15,23,42,0.12)] sm:text-5xl lg:text-6xl xl:text-7xl">
-                      {slide.title}
-                    </h1>
+                  <p className="text-xs leading-relaxed text-slate-200 sm:text-sm font-normal line-clamp-2">
+                    {slide.description}
+                  </p>
 
-                    <p className="max-w-2xl text-base font-normal leading-8 text-slate-950/82 sm:text-lg xl:text-xl">
-                      {slide.description}
-                    </p>
+                  <div className="flex flex-wrap gap-3 pt-2">
+                    <Button
+                      type="primary"
+                      size="large"
+                      className="!h-11 !rounded-xl !border-indigo-600 !bg-indigo-600 !px-6 !text-xs !font-bold hover:!border-indigo-500 hover:!bg-indigo-500 shadow-md transition-all transform hover:scale-[1.01]"
+                      onClick={() => navigate('/customer/events')}
+                    >
+                      {slide.cta}
+                      <ArrowRight size={14} className="ml-1.5" />
+                    </Button>
 
-                    <div className="flex flex-wrap gap-3">
-                      <Button
-                        type="primary"
-                        size="large"
-                        className="!h-12 !rounded-2xl !border-orange-300 !bg-white !px-6 !font-medium !text-slate-950 shadow-[0_14px_35px_rgba(15,23,42,0.16)] hover:!border-orange-400 hover:!text-orange-600"
-                        onClick={() => navigate('/customer/events')}
-                      >
-                        {slide.cta}
-                        <ArrowRight size={16} className="ml-2" />
-                      </Button>
-
-                      <Button
-                        size="large"
-                        className="!h-12 !rounded-2xl !border-white/25 !bg-white/20 !px-6 !font-medium !text-white shadow-sm backdrop-blur-sm hover:!border-white/45 hover:!bg-white/28"
-                        onClick={() => navigate('/customer/my-orders')}
-                      >
-                        Lịch sử đặt vé
-                      </Button>
-                    </div>
-
-                    <div className="grid gap-4 pt-4 sm:grid-cols-3">
-                      {metrics.map((metric) => (
-                        <CustomerMetricCard key={metric.label} {...metric} />
-                      ))}
-                    </div>
+                    <Button
+                      size="large"
+                      className="!h-11 !rounded-xl !border-white/30 !bg-white/10 !px-6 !text-xs !font-semibold !text-white hover:!border-white hover:!bg-white/20 transition-all"
+                      onClick={() => navigate('/customer/my-orders')}
+                    >
+                      Lịch sử đặt vé
+                    </Button>
                   </div>
+                </div>
 
-                  <div className="relative">
-                    <div className="absolute -left-6 top-8 h-24 w-24 rounded-full bg-white/20 blur-2xl" />
-
-                    <div className="relative overflow-hidden rounded-[34px] border border-white/40 bg-white/68 p-5 text-slate-800 shadow-[0_30px_80px_rgba(15,23,42,0.16)] backdrop-blur-xl">
-                      <div className="mb-4 flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                            Spotlight {String(index + 1).padStart(2, '0')}
-                          </p>
-                          <p className="text-lg font-bold text-slate-900">Bản xem nhanh sự kiện</p>
-                        </div>
-
-                        <div className="rounded-full border border-white/60 bg-white/55 px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
-                          Live updates
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="rounded-[26px] border border-white/55 bg-white/45 p-4 shadow-sm">
-                          <div className="mb-3 flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/70 text-xl font-black text-slate-700 shadow-sm">
-                              S
-                            </div>
-                            <div>
-                              <p className="font-bold text-slate-900">SmartEvent</p>
-                              <p className="text-sm text-slate-500">Premium customer journey</p>
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-3 text-sm font-medium text-slate-600">
-                            <div className="rounded-2xl border border-white/60 bg-white/45 p-3">Carousel hero</div>
-                            <div className="rounded-2xl border border-white/60 bg-white/45 p-3">Event ranking</div>
-                            <div className="rounded-2xl border border-white/60 bg-white/45 p-3">Category filter</div>
-                            <div className="rounded-2xl border border-white/60 bg-white/45 p-3">Responsive grid</div>
-                          </div>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                          {categoryChips.slice(0, 3).map((category) => (
-                            <button
-                              key={category.value}
-                              onClick={() => navigate(`/customer/events?category=${encodeURIComponent(category.label)}`)}
-                              className="rounded-2xl border border-white/55 bg-white/35 px-4 py-3 text-left text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:bg-white/55 hover:text-slate-950"
-                            >
-                              {category.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                <div className="hidden rounded-2xl border border-white/15 bg-slate-950/70 backdrop-blur-md p-6 lg:block relative z-10 shadow-2xl h-fit self-center">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-300 mb-3.5 flex items-center gap-2">
+                    <Compass size={13} className="text-indigo-400" /> Danh mục thịnh hành
+                  </p>
+                  <div className="space-y-2">
+                    {categoryChips.slice(0, 4).map((category) => (
+                      <button
+                        key={category.value}
+                        onClick={() => navigate(`/customer/events?category=${encodeURIComponent(category.label)}`)}
+                        className="block w-full rounded-xl border border-white/5 bg-white/5 px-4 py-2.5 text-left text-xs text-slate-200 transition-all hover:border-indigo-500/50 hover:bg-white/10 hover:text-white font-semibold"
+                      >
+                        {category.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
+
             </div>
           ))}
         </Carousel>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <CustomerMetricCard
-          icon={CalendarDays}
-          label="Nội dung cập nhật"
-          value={events.length.toLocaleString('vi-VN')}
-          hint="Sự kiện đồng bộ từ hệ thống"
-          accent="from-orange-500 to-amber-500"
-        />
-        <CustomerMetricCard
-          icon={ShieldCheck}
-          label="Thanh toán an toàn"
-          value="VNPay"
-          hint="Luồng thanh toán hiện có được giữ nguyên"
-          accent="from-slate-800 to-slate-600"
-        />
-        <CustomerMetricCard
-          icon={Music2}
-          label="Nhiều chủ đề"
-          value={EVENT_CATEGORIES.length - 2}
-          hint="Nhạc sống, workshop, triển lãm..."
-          accent="from-emerald-500 to-teal-500"
-        />
+      {/* 📊 KHỐI METRICS */}
+      <section className="grid gap-5 sm:grid-cols-3">
+        <CustomerMetricCard {...metrics[0]} />
+        <CustomerMetricCard {...metrics[1]} />
+        <CustomerMetricCard {...metrics[2]} />
       </section>
 
-      <section className="space-y-5">
+      {/* 🗂️ CHIP LIST DANH MỤC */}
+      <section className="space-y-5 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         <CustomerSectionTitle
-          kicker="Danh mục nổi bật"
-          title="Khám phá sự kiện theo chủ đề"
-          description="Click từng danh mục để vào trang sự kiện và lọc nhanh theo loại nội dung bạn quan tâm."
+          kicker="DANH MỤC SỰ KIỆN"
+          title="Tìm kiếm sự kiện theo sở thích"
+          description="Hệ thống lọc tự động phân loại thông minh giúp bạn tìm kiếm nhanh chóng nhất."
         />
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-4 lg:grid-cols-7">
           {categoryChips.map((category, index) => {
             const icons = [Music2, Mic2, Volleyball, GalleryHorizontal, Ticket, Laptop2, Coffee];
             const Icon = icons[index] || Ticket;
@@ -289,41 +241,39 @@ const HomePage = () => {
               <button
                 key={category.value}
                 onClick={() => navigate(`/customer/events?category=${encodeURIComponent(category.label)}`)}
-                className="group rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-[0_18px_50px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:border-orange-300 hover:shadow-[0_25px_60px_rgba(249,115,22,0.15)]"
+                className="group flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center transition-all hover:border-indigo-500 hover:bg-white hover:shadow-md"
               >
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-50 text-orange-600 transition group-hover:bg-orange-500 group-hover:text-white">
-                  <Icon size={18} />
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-all group-hover:bg-indigo-600 group-hover:text-white shadow-sm">
+                  <Icon size={20} />
                 </div>
-                <p className="text-base font-bold text-slate-950">{category.label}</p>
-                <p className="mt-1 text-sm text-slate-500">Bộ sưu tập sự kiện chọn lọc</p>
+                <p className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">{category.label}</p>
               </button>
             );
           })}
         </div>
       </section>
 
+      {/* 🌟 PHÂN KHU 1: ĐANG MỞ BÁN NỔI BẬT */}
       <section className="space-y-5">
         <CustomerSectionTitle
-          kicker="Sự kiện nổi bật"
-          title="Card sự kiện premium"
-          description="Bố cục dạng Ticketbox với ảnh nổi bật, trạng thái, giá từ, sức chứa và nút đặt vé nhanh."
+          kicker="ĐANG MỞ BÁN"
+          title="SỰ KIỆN NỔI BẬT NHẤT"
           action={(
             <Link
               to="/customer/events"
-              className="inline-flex items-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-orange-300 hover:text-orange-700"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
             >
-              Xem toàn bộ sự kiện
-              <ArrowRight size={16} />
+              Xem tất cả <ArrowRight size={14} />
             </Link>
           )}
         />
 
         {loading ? (
-          <div className="flex min-h-[260px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white">
-            <Spin size="large" tip="Đang tải sự kiện nổi bật..." />
+          <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <Spin size="large" tip="Đang tải dữ liệu sự kiện..." />
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {featuredEvents.map((event) => (
               <CustomerEventCard
                 key={event.id}
@@ -336,14 +286,86 @@ const HomePage = () => {
         )}
       </section>
 
-      <section className="space-y-5">
+      {/* 🎵 PHÂN KHU 2: CA NHẠC & NGHỆ THUẬT */}
+      <section className="space-y-5 border-t border-slate-200/60 pt-8">
         <CustomerSectionTitle
-          kicker="Top bán chạy"
-          title="Trending / ranking"
-          description="Xếp hạng theo mức độ lấp đầy chỗ ngồi, giữ nguyên dữ liệu hiện tại và chỉ đổi cách trình bày."
+          kicker="CHỦ ĐỀ ĐANG HOT"
+          title="Ca Nhạc & Nghệ Thuật Sân Khấu"
+          description="Tận hưởng không gian âm nhạc thời thượng cùng hệ thống phân luồng check-in an toàn."
+          action={(
+            <Link
+              to="/customer/events?category=Nhạc sống"
+              className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:underline"
+            >
+              Xem thêm sự kiện ca nhạc
+            </Link>
+          )}
         />
 
-        <div className="space-y-4">
+        {loading ? (
+          <div className="flex min-h-[200px] items-center justify-center"><Spin /></div>
+        ) : musicEvents.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-400 font-medium">
+            Chưa có sự kiện thuộc chủ đề Ca nhạc trực tuyến.
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {musicEvents.map((event) => (
+              <CustomerEventCard
+                key={event.id}
+                event={event}
+                onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 🗺️ PHÂN KHU 3: THAM QUAN & WORKSHOP */}
+      <section className="space-y-5 border-t border-slate-200/60 pt-8">
+        <CustomerSectionTitle
+          kicker="KHÁM PHÁ TRẢI NGHIỆM"
+          title="Tham Quan, Triển Lãm & Học Tập"
+          description="Nâng cao kiến thức và trải nghiệm thực tế với các buổi workshop chọn lọc."
+          action={(
+            <Link
+              to="/customer/events?category=Workshop"
+              className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:underline"
+            >
+              Xem thêm trải nghiệm
+            </Link>
+          )}
+        />
+
+        {loading ? (
+          <div className="flex min-h-[200px] items-center justify-center"><Spin /></div>
+        ) : tourEvents.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-12 text-center text-sm text-slate-400 font-medium">
+            Chưa có sự kiện thuộc chủ đề Tham quan hoặc Hội thảo.
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {tourEvents.map((event) => (
+              <CustomerEventCard
+                key={event.id}
+                event={event}
+                onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
+                onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 🔥 BẢNG XẾP HẠNG TOP BÁN CHẠY */}
+      <section className="space-y-5 border-t border-slate-200/60 pt-8">
+        <CustomerSectionTitle
+          kicker="XẾP HẠNG THỊ TRƯỜNG"
+          title="Top 5 sự kiện bán chạy nhất"
+        />
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm space-y-3">
           {trendingEvents.map((event, index) => (
             <CustomerRankingItem
               key={event.id}
@@ -356,63 +378,27 @@ const HomePage = () => {
         </div>
       </section>
 
-      <section className="space-y-5">
-        <CustomerSectionTitle
-          kicker="Upcoming events"
-          title="Cuộn ngang các sự kiện sắp tới"
-          description="Một rail cuộn mượt trên desktop/mobile để khách hàng duyệt nhanh lịch sắp diễn ra."
-        />
-
-        <div className="-mx-2 flex gap-4 overflow-x-auto px-2 pb-2">
-          {upcomingEvents.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-slate-300 bg-white px-6 py-12 text-sm text-slate-500">
-              Chưa có sự kiện sắp diễn ra trong danh sách hiện tại.
-            </div>
-          ) : (
-            upcomingEvents.map((event) => (
-              <div key={event.id} className="min-w-[280px] max-w-[280px] flex-none">
-                <CustomerEventCard
-                  event={event}
-                  onViewDetail={() => navigate(`/event/${event.slug || 'su-kien'}/${event.id}`)}
-                  onBookTicket={() => navigate(`/tickets/booking/${event.slug || 'su-kien'}/${event.id}`)}
-                  className="h-full"
-                />
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className="overflow-hidden rounded-[36px] border border-slate-200 bg-gradient-to-br from-slate-950 via-slate-900 to-orange-600 p-8 text-white shadow-[0_30px_80px_rgba(15,23,42,0.22)] lg:p-10">
-        <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
-          <div className="space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white/80">
-              <Sparkles size={14} />
-              SmartEvent premium journey
-            </div>
-
-            <h3 className="text-3xl font-black tracking-tight sm:text-4xl">
-              Mọi thứ sẵn sàng cho trải nghiệm đặt vé chuyên nghiệp
-            </h3>
-
-            <p className="max-w-2xl text-sm leading-7 text-white/75 sm:text-base">
-              Không thay đổi route, token flow hay API. Chỉ nâng cấp toàn bộ giao diện để trang khách hàng trông như một website bán vé thật sự.
-            </p>
+      {/* 🚀 BOTTOM CTA CONTAINER */}
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/40 via-transparent to-slate-950/50 pointer-events-none"></div>
+        <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between relative z-10">
+          <div>
+            <h3 className="text-xl font-extrabold text-white tracking-tight">Sẵn sàng cho sự kiện tiếp theo của bạn?</h3>
+            <p className="mt-1 text-sm text-slate-300">Đặt vé an toàn, nhận mã QR soát vé cổng tích hợp AI mượt mà.</p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row lg:flex-col">
+          <div className="flex gap-3 shrink-0">
             <Button
               type="primary"
               size="large"
-              className="!h-12 !rounded-2xl !border-white !bg-white !px-6 !font-semibold !text-slate-950"
+              className="!h-11 !rounded-xl !border-indigo-600 !bg-indigo-600 !px-6 !font-bold hover:!border-indigo-500 hover:!bg-indigo-500 shadow-md transition-all"
               onClick={() => navigate('/customer/events')}
             >
-              Bắt đầu khám phá
+              Khám phá ngay
             </Button>
-
             <Button
               size="large"
-              className="!h-12 !rounded-2xl !border-white/20 !bg-white/10 !px-6 !font-semibold !text-white hover:!border-white/35 hover:!bg-white/15"
+              className="!h-11 !rounded-xl !border-slate-600 !bg-slate-800/80 !px-6 !font-semibold !text-white hover:!border-slate-400 transition-all"
               onClick={() => navigate('/customer/contact')}
             >
               Liên hệ hỗ trợ

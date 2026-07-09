@@ -95,16 +95,16 @@ const CustomerLayout = () => {
   };
 
   const accountDropdown = userMenuOpen && user ? (
-    <div className="absolute right-0 top-[calc(100%+0.75rem)] z-50 w-[min(18rem,calc(100vw-1rem))] rounded-3xl border border-slate-200 bg-white p-2 text-slate-700 shadow-[0_24px_70px_rgba(15,23,42,0.16)] ring-1 ring-black/5 backdrop-blur-xl sm:w-[18rem]">
-      <div className="rounded-2xl bg-slate-50 px-4 py-3">
-        <p className="truncate text-sm font-semibold text-slate-900">{getDisplayName(user)}</p>
-        <p className="truncate text-xs font-medium text-slate-500">Tài khoản khách hàng</p>
+    <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-gray-200 bg-white p-2 text-gray-700 shadow-lg sm:w-[16rem]">
+      <div className="rounded-md bg-gray-50 px-3 py-2.5">
+        <p className="truncate text-sm font-semibold text-gray-900">{getDisplayName(user)}</p>
+        <p className="truncate text-xs text-gray-500">Tài khoản khách hàng</p>
       </div>
 
-      <div className="mt-2 space-y-1">
+      <div className="mt-1 space-y-0.5">
         {accountMenuItems.map((item) => {
           if (item.type === 'divider') {
-            return <div key="divider" className="my-2 border-t border-slate-200" />;
+            return <div key="divider" className="my-1 border-t border-gray-200" />;
           }
 
           return (
@@ -112,13 +112,13 @@ const CustomerLayout = () => {
               key={item.key}
               type="button"
               onClick={() => handleAccountAction(item)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-sm font-medium transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium transition-colors ${
                 item.danger
-                  ? 'text-rose-600 hover:bg-rose-50'
-                  : 'text-slate-700 hover:bg-slate-100'
+                  ? 'text-red-600 hover:bg-red-50'
+                  : 'text-gray-700 hover:bg-gray-100'
               }`}
             >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-xl ${item.danger ? 'bg-rose-50 text-rose-500' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`flex h-7 w-7 items-center justify-center rounded-md ${item.danger ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'}`}>
                 {item.icon}
               </span>
               <span>{item.label}</span>
@@ -148,10 +148,10 @@ const CustomerLayout = () => {
             setMobileOpen(false);
           }
         }}
-        className={`px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+        className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
           isActivePath(item.path)
-            ? 'bg-white text-slate-950 shadow-sm'
-            : 'text-slate-200 hover:text-white hover:bg-white/10'
+            ? 'bg-indigo-600 text-white shadow-sm'
+            : 'text-gray-300 hover:bg-gray-800 hover:text-white'
         }`}
       >
         {item.label}
@@ -159,33 +159,39 @@ const CustomerLayout = () => {
     ));
 
   return (
-    <div className="customer-shell min-h-screen bg-slate-50 text-slate-800">
-      <header className="sticky top-0 z-40 border-b border-slate-800/80 bg-slate-950/95 text-white shadow-[0_20px_60px_rgba(15,23,42,0.24)] backdrop-blur-xl">
-        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-5 px-5 py-4 sm:px-8 lg:px-10 xl:px-12">
-          <Link to="/customer/home" className="flex items-center gap-2">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-400 text-xl font-black text-white shadow-lg shadow-blue-600/30">
-              S
+    <div className="min-h-screen bg-slate-50/50 text-slate-800">
+      <header className="sticky top-0 z-40 bg-gray-900 text-white shadow-sm border-b border-gray-800">
+        <div className="mx-auto flex w-full max-w-[1440px] items-center gap-5 px-5 py-3.5 sm:px-8 lg:px-10">
+          
+          {/* 🚀 FIXED HEADER LOGO: Đã sửa bọc nền trắng tràn viền đầy đặn cực đẹp */}
+          <Link to="/customer/home" className="flex items-center gap-3 select-none">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white overflow-hidden shadow-md shrink-0">
+              <img 
+                src="/logo.png" 
+                alt="SmartEvent Logo" 
+                className="h-full w-full object-cover"
+              />
             </div>
             <div>
-              <p className="text-lg font-bold tracking-tight">SmartEvent</p>
-              <p className="-mt-1 text-xs font-medium text-white/65">Premium live ticketing</p>
+              <p className="text-sm font-black leading-none tracking-tight text-white">SmartEvent</p>
+              <p className="text-[10px] text-gray-400 font-bold tracking-wider uppercase mt-1">Nền tảng đặt vé</p>
             </div>
           </Link>
 
-          <div className="hidden min-w-0 flex-1 xl:block xl:max-w-[620px]">
+          <div className="hidden min-w-0 flex-1 xl:block xl:max-w-[480px]">
             <Input.Search
               size="large"
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               onSearch={handleSearch}
               placeholder="Tìm kiếm sự kiện, nghệ sĩ, workshop..."
-              prefix={<Search size={16} className="text-slate-400" />}
-              className="customer-search-shell"
+              prefix={<Search size={15} className="text-gray-400" />}
               allowClear
+              className="custom-search-input"
             />
           </div>
 
-          <nav className="hidden items-center gap-2 xl:flex">{renderNavLinks()}</nav>
+          <nav className="hidden items-center gap-1.5 xl:flex">{renderNavLinks()}</nav>
 
           <div className="hidden items-center gap-3 xl:flex" ref={desktopMenuRef}>
             {user ? (
@@ -193,28 +199,27 @@ const CustomerLayout = () => {
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((value) => !value)}
-                  className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-2.5 transition hover:border-blue-400/40 hover:bg-white/12"
+                  className="flex items-center gap-2.5 rounded-xl border border-gray-700 bg-gray-800/80 px-3 py-1.5 transition hover:border-gray-600 shadow-sm"
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
                 >
-                  <Avatar size={36} className="bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+                  <Avatar size={26} className="bg-indigo-600 text-white font-bold text-xs">
                     {getAvatarLabel(user)}
                   </Avatar>
                   <div className="min-w-0 text-left">
-                    <p className="max-w-[10rem] truncate text-sm font-medium text-white">{getDisplayName(user)}</p>
-                    <p className="text-xs font-medium text-white/65">Tài khoản khách hàng</p>
+                    <p className="max-w-[9rem] truncate text-xs font-bold text-white">{getDisplayName(user)}</p>
                   </div>
-                  <ChevronDown size={16} className={`text-white/75 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={13} className="text-gray-400 transition-transform" />
                 </button>
 
                 {accountDropdown}
               </div>
             ) : (
               <>
-                <Button onClick={() => navigate('/login')} className="!rounded-2xl !border-white/15 !bg-white/8 !text-white hover:!border-white/30 hover:!bg-white/12">
+                <Button onClick={() => navigate('/login')} className="!h-9 !rounded-xl !border-gray-700 !bg-transparent !text-xs !font-bold !text-white hover:!border-gray-500 transition-all">
                   Đăng nhập
                 </Button>
-                <Button type="primary" onClick={() => navigate('/register')} className="!rounded-2xl !border-blue-600 !bg-blue-600 !font-semibold shadow-lg shadow-blue-600/30 hover:!border-blue-700 hover:!bg-blue-700">
+                <Button type="primary" onClick={() => navigate('/register')} className="!h-9 !rounded-xl !border-indigo-600 !bg-indigo-600 !text-xs !font-bold hover:!border-indigo-500 hover:!bg-indigo-500 shadow-md transition-all">
                   Đăng ký
                 </Button>
               </>
@@ -227,14 +232,14 @@ const CustomerLayout = () => {
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/8 px-3 py-2 transition hover:border-blue-400/40 hover:bg-white/12"
+                  className="flex items-center gap-2 rounded-xl border border-gray-700 bg-gray-800 px-2.5 py-1.5 transition hover:border-gray-600"
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
                 >
-                  <Avatar size={30} className="bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+                  <Avatar size={24} className="bg-indigo-600 text-white font-bold text-xs">
                     {getAvatarLabel(user)}
                   </Avatar>
-                  <ChevronDown size={14} className={`text-white/75 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={12} className="text-gray-400 transition-transform" />
                 </button>
 
                 {accountDropdown}
@@ -242,7 +247,7 @@ const CustomerLayout = () => {
             ) : null}
 
             <button
-              className="rounded-xl p-2 text-white hover:bg-white/10"
+              className="rounded-xl p-2 text-white hover:bg-gray-800 transition-colors"
               onClick={() => setMobileOpen(true)}
               aria-label="Open navigation"
             >
@@ -268,8 +273,8 @@ const CustomerLayout = () => {
               allowClear
             />
           </div>
-          <div className="space-y-2">{renderNavLinks(true)}</div>
-          <div className="mt-6 border-t border-slate-200 pt-4">
+          <div className="space-y-1">{renderNavLinks(true)}</div>
+          <div className="mt-6 border-t border-gray-200 pt-4">
             {user ? (
               <div className="space-y-2">
                 <Button block onClick={() => { setMobileOpen(false); navigate('/customer/profile'); }} icon={<UserRound size={16} />}>
@@ -285,7 +290,7 @@ const CustomerLayout = () => {
             ) : (
               <div className="space-y-2">
                 <Button block onClick={() => { setMobileOpen(false); navigate('/login'); }}>Đăng nhập</Button>
-                <Button block type="primary" onClick={() => { setMobileOpen(false); navigate('/register'); }}>
+                <Button block type="primary" onClick={() => { setMobileOpen(false); navigate('/register'); }} className="!bg-indigo-600 !border-indigo-600">
                   Đăng ký
                 </Button>
               </div>
@@ -294,32 +299,33 @@ const CustomerLayout = () => {
         </Drawer>
       </header>
 
-      <main className="mx-auto w-full max-w-[1600px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8 xl:px-12 xl:py-10">
-        <div className="customer-glass rounded-[36px] p-5 sm:p-8 lg:p-10">
-          <Outlet />
-        </div>
+      <main className="mx-auto w-full max-w-[1440px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+        <Outlet />
       </main>
 
-      <footer className="mt-10 border-t border-slate-800/80 bg-slate-950 px-4 py-10 text-slate-300">
-        <div className="mx-auto grid max-w-[1600px] gap-8 px-5 sm:px-8 lg:grid-cols-4 lg:px-10 xl:px-12">
-          <div className="space-y-4 lg:col-span-1">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-400 font-black text-white shadow-lg shadow-blue-600/30">
-                S
+      <footer className="mt-10 border-t border-gray-800 bg-gray-900 px-5 py-10 text-gray-300 sm:px-8 lg:px-10">
+        <div className="mx-auto grid max-w-[1440px] gap-8 lg:grid-cols-4">
+          
+          {/* 🚀 FIXED FOOTER LOGO: Sửa đồng bộ bọc nền trắng tràn viền đầy đặn dưới chân trang */}
+          <div className="space-y-3 lg:col-span-1">
+            <div className="flex items-center gap-3 select-none">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white overflow-hidden shadow-md shrink-0">
+                <img 
+                  src="/logo.png" 
+                  alt="SmartEvent Logo" 
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <div>
-                <p className="text-lg font-extrabold text-white">SmartEvent</p>
-                <p className="text-sm text-white/60">Premium ticketing experience</p>
-              </div>
+              <p className="text-base font-black tracking-tight text-white">SmartEvent</p>
             </div>
-            <p className="text-sm leading-6 text-white/65">
+            <p className="text-sm leading-6 text-gray-400">
               Đặt vé nhanh, trải nghiệm đẹp, quản lý minh bạch cho khách hàng và nhà tổ chức.
             </p>
           </div>
 
           <div>
-            <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-white/80">Hỗ trợ</p>
-            <div className="space-y-2 text-sm text-white/65">
+            <p className="mb-3 text-sm font-semibold text-white">Hỗ trợ</p>
+            <div className="space-y-1.5 text-sm text-gray-400">
               <p>Hotline: 1900 1234</p>
               <p>Email: support@smartevent.vn</p>
               <p>Hoàn vé & chính sách</p>
@@ -327,8 +333,8 @@ const CustomerLayout = () => {
           </div>
 
           <div>
-            <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-white/80">Khám phá</p>
-            <div className="space-y-2 text-sm text-white/65">
+            <p className="mb-3 text-sm font-semibold text-white">Khám phá</p>
+            <div className="space-y-1.5 text-sm text-gray-400">
               <Link to="/customer/events" className="block hover:text-white">Sự kiện</Link>
               <Link to="/customer/my-tickets" className="block hover:text-white">Vé của tôi</Link>
               <Link to="/customer/my-orders" className="block hover:text-white">Lịch sử đặt vé</Link>
@@ -337,23 +343,23 @@ const CustomerLayout = () => {
           </div>
 
           <div>
-            <p className="mb-4 text-sm font-bold uppercase tracking-[0.2em] text-white/80">Kết nối</p>
-            <div className="flex gap-3">
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
-                <Facebook size={18} />
+            <p className="mb-3 text-sm font-semibold text-white">Kết nối</p>
+            <div className="flex gap-2.5">
+              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white transition-colors">
+                <Facebook size={16} />
               </a>
-              <a href="https://youtube.com" target="_blank" rel="noreferrer" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
-                <Youtube size={18} />
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white transition-colors">
+                <Youtube size={16} />
               </a>
-              <a href="https://zalo.me" target="_blank" rel="noreferrer" className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white transition hover:bg-white/10">
-                <MessageCircle size={18} />
+              <a href="https://zalo.me" target="_blank" rel="noreferrer" className="flex h-9 w-9 items-center justify-center rounded-md border border-gray-700 text-gray-300 hover:border-gray-500 hover:text-white transition-colors">
+                <MessageCircle size={16} />
               </a>
             </div>
           </div>
         </div>
-        <div className="mx-auto mt-8 flex max-w-[1600px] items-center justify-between border-t border-white/10 px-5 pt-6 text-xs text-white/50 sm:px-8 lg:px-10 xl:px-12">
+        <div className="mx-auto mt-8 flex max-w-[1440px] items-center justify-between border-t border-gray-800 pt-6 text-xs text-gray-500">
           <span>© 2026 SmartEvent. All rights reserved.</span>
-          <span>Premium live ticketing platform</span>
+          <span>Nền tảng đặt vé trực tuyến</span>
         </div>
       </footer>
     </div>

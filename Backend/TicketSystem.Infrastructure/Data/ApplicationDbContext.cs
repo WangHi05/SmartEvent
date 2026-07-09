@@ -3,6 +3,7 @@ using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common;
 using TicketSystem.Application.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Pgvector; 
 
 namespace TicketSystem.Infrastructure.Data
 {
@@ -22,10 +23,14 @@ namespace TicketSystem.Infrastructure.Data
         public DbSet<Order> Orders { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
+        public DbSet<SystemKnowledge> SystemKnowledges { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // Khai báo extension vector cho PostgreSQL để hỗ trợ RAG
+            modelBuilder.HasPostgresExtension("vector");
 
             var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
                 v => v.ToUniversalTime(),
@@ -46,7 +51,8 @@ namespace TicketSystem.Infrastructure.Data
             {
                 entity.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_EventTime", "[StartTime] < [EndTime]");
+                    // Đổi dấu ngoặc vuông sang nháy kép để PostgreSQL hiểu được tên cột
+                    t.HasCheckConstraint("CK_EventTime", "\"StartTime\" < \"EndTime\"");
                 });
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).HasMaxLength(255).IsRequired();
@@ -60,7 +66,8 @@ namespace TicketSystem.Infrastructure.Data
             {
                 entity.ToTable(t =>
                 {
-                    t.HasCheckConstraint("CK_SaleTime", "[SaleStartTime] < [SaleEndTime]");
+                    // Đổi dấu ngoặc vuông sang nháy kép chuẩn PostgreSQL
+                    t.HasCheckConstraint("CK_SaleTime", "\"SaleStartTime\" < \"SaleEndTime\"");
                 });
                 entity.HasKey(e => e.Id);
                 
@@ -192,6 +199,15 @@ namespace TicketSystem.Infrastructure.Data
                 entity.HasIndex(e => e.SettingKey).IsUnique();
             });
 
+            // 9. SystemKnowledge Configuration (Dữ liệu Vector cho AI)
+            modelBuilder.Entity<SystemKnowledge>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                
+                // Cấu hình kiểu dữ liệu vector trong database với 768 chiều (chuẩn của Gemini)
+                entity.Property(e => e.Embedding)
+                      .HasColumnType("vector(768)");
+            });
             
         }
     }

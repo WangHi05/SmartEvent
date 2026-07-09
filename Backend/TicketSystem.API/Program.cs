@@ -15,41 +15,115 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Threading.RateLimiting;
 using Hangfire;
+using Hangfire.PostgreSql;
+using Npgsql;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddHangfire(configuration => configuration
-    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
-    .UseSimpleAssemblyNameTypeSerializer()
-    .UseRecommendedSerializerSettings()
-    .UseSqlServerStorage(builder.Configuration.GetConnectionString("DefaultConnection")));
+// 1. Lấy chuỗi kết nối gốc (có thể là URI postgresql:// hoặc keyword=value)
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+// TỰ ĐỘNG NHẬN DIỆN PROVIDER DỰA VÀO CONNECTION STRING
+bool isPostgres = !string.IsNullOrEmpty(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
+
+var databaseProvider = isPostgres ? "PostgreSQL" : "SQLServer";
+
+// TỰ ĐỘNG CONVERT URI (postgresql://user:pass@host/db?sslmode=...) 
+// SANG FORMAT KEYWORD=VALUE MÀ NPGSQL HIỂU ĐƯỢC
+string connectionString = rawConnectionString ?? string.Empty;
+
+if (isPostgres && !string.IsNullOrEmpty(rawConnectionString) &&
+    (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+     rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)))
+{
+    connectionString = ConvertPostgresUriToKeywordValue(rawConnectionString);
+}
+
+// Hàm chuyển đổi URI Postgres sang định dạng Keyword=Value chuẩn của Npgsql
+static string ConvertPostgresUriToKeywordValue(string uriString)
+{
+    var uri = new Uri(uriString);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty;
+    var database = uri.AbsolutePath.TrimStart('/');
+    var port = uri.Port == -1 ? 5432 : uri.Port;
+
+    var builder = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = port,
+        Database = database,
+        Username = username,
+        Password = password,
+        SslMode = SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    return builder.ConnectionString;
+}
+
+// 2. CẤU HÌNH HANGFIRE THEO PROVIDER
+builder.Services.AddHangfire(configuration =>
+{
+    configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                 .UseSimpleAssemblyNameTypeSerializer()
+                 .UseRecommendedSerializerSettings();
+
+    if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    {
+        configuration.UsePostgreSqlStorage(options =>
+        {
+            options.UseNpgsqlConnection(connectionString);
+        });
+    }
+    else
+    {
+        configuration.UseSqlServerStorage(connectionString);
+    }
+});
 
 // Thêm Hangfire Server (Bộ máy chạy ngầm)
 builder.Services.AddHangfireServer();
 
-// 1. Đăng ký DbContext và kết nối SQL Server
+// 3. ĐĂNG KÝ DBCONTEXT THEO PROVIDER
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), 
-    npgsqlOptions => npgsqlOptions.UseVector())
-);
+{
+    if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseNpgsql(connectionString, b => 
+        {
+            b.MigrationsAssembly("TicketSystem.Infrastructure");
+            b.UseVector(); 
+        });
+    }
+    else
+    {
+        options.UseSqlServer(connectionString, b => 
+            b.MigrationsAssembly("TicketSystem.Infrastructure"));
+    }
+});
 
 // Đăng ký IApplicationDbContext trỏ tới cùng một instance của ApplicationDbContext
 // Điều này đảm bảo Request gửi lên dùng chung 1 kết nối Database
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
-// 2. Đăng ký Repositories và Hạ tầng
+// 4. Đăng ký Repositories và Hạ tầng
 builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
-builder.Services.AddScoped<IUserRepository, UserRepository>(); // Đăng ký UserRepository cụ thể
-builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>(); // Đăng ký TicketTypeRepository
-builder.Services.AddScoped<IPasswordHasher, PasswordHasher>(); // Đăng ký PasswordHasher
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>();
+builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 
-// 2.1. Đăng ký HttpContextAccessor để lấy IP trong Service
+// 4.1. Đăng ký HttpContextAccessor để lấy IP trong Service
 builder.Services.AddHttpContextAccessor();
 
-// 3. Đăng ký Application Services (DEPENDENCY INVERSION)
+// 5. Đăng ký Application Services (DEPENDENCY INVERSION)
 builder.Services.AddScoped<IUserService, UserService>();
-// Các service khác cũng nên chuyển sang dùng Interface tương tự
 builder.Services.AddScoped<EventService, EventService>();
 builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<TicketTypeValidationService>();
@@ -64,7 +138,7 @@ builder.Services.AddScoped<IGateService, GateService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
-// 4. Đăng ký Database Seeder
+// 6. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
 builder.Services.AddScoped<IRefundStrategy, PartialRefundStrategy>();
@@ -72,15 +146,12 @@ builder.Services.AddScoped<IRefundStrategy, FullRefundStrategy>();
 builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
 // Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
-
-// Khai báo: Bất cứ khi nào một Controller cần IAiAnalysisService, 
-// hãy cấp cho nó một instance của GeminiAiService.
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 
 // HttpClient cho GeminiService (Customer Support Chatbot)
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 
-// 5. CORS Configuration (cho phép Frontend gọi API)
+// 7. CORS Configuration (cho phép Frontend gọi API)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
@@ -97,9 +168,7 @@ builder.Services.AddApplicationServices();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Giúp Enum tự động biến thành String (Admin, Manager...) khi trả về JSON
         options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
-        // Convert PascalCase thành camelCase cho API response
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 builder.Services.AddEndpointsApiExplorer();
@@ -127,6 +196,25 @@ builder.Services.AddRateLimiter(options =>
 // Đăng ký JwtTokenGenerator cho DI
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
+var jwtAudience = builder.Configuration["JwtSettings:Audience"];
+
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    jwtSecret = "dev-secret-key-change-me-in-production";
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    jwtIssuer = "TicketSystem_API";
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    jwtAudience = "TicketSystem_ReactApp";
+}
+
 // ===== CẤU HÌNH JWT AUTHENTICATION =====
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -134,24 +222,87 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]!)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
             ValidateIssuer = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
+            ValidIssuer = jwtIssuer,
             ValidateAudience = true,
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            ValidateLifetime = true, // Kiểm tra Token hết hạn chưa
-            ClockSkew = TimeSpan.Zero, // Chống sai lệch thời gian server
-            RoleClaimType = "http://schemas.microsoft.com/ws/2008/06/identity/claims/role"
+            ValidAudience = jwtAudience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(5),
+            RoleClaimType = ClaimTypes.Role
         };
     });
 
-// Đảm bảo có AddAuthorization()
 builder.Services.AddAuthorization();
 
 builder.Services.AddMemoryCache();
 
 builder.Services.AddSignalR();
 
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    jwtSecret = "local-dev-secret-change-me";
+}
+
+if (string.IsNullOrWhiteSpace(jwtIssuer))
+{
+    jwtIssuer = "TicketSystem_API";
+}
+
+if (string.IsNullOrWhiteSpace(jwtAudience))
+{
+    jwtAudience = "TicketSystem_ReactApp";
+}
+
+builder.Configuration["JwtSettings:Secret"] = jwtSecret;
+builder.Configuration["JwtSettings:Issuer"] = jwtIssuer;
+builder.Configuration["JwtSettings:Audience"] = jwtAudience;
+
+// ===== CẤU HÌNH REDIS DISTRIBUTED CACHE (UPSTASH) =====
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
+if (!string.IsNullOrWhiteSpace(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "TicketSystem_";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
+// ===== CẤU HÌNH CLOUDINARY (LƯU TRỮ HÌNH ẢNH) =====
+// Cấu hình dịch vụ lưu trữ hình ảnh Cloudinary đọc tự động từ Biến môi trường hoặc appsettings
+builder.Services.Configure<TicketSystem.API.CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+
+// Đăng ký Cloudinary client để inject trực tiếp vào Service/Controller
+builder.Services.AddSingleton(sp =>
+{
+    var config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TicketSystem.API.CloudinarySettings>>().Value;
+    var account = new CloudinaryDotNet.Account(config.CloudName, config.ApiKey, config.ApiSecret);
+    return new CloudinaryDotNet.Cloudinary(account);
+});
+// ⬇️ THÊM DÒNG NÀY
+builder.Services.AddScoped<TicketSystem.API.Services.UploadService>();
+
+
+// 1. Định nghĩa chính sách CORS (Cho phép Frontend gọi API)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173", // Cho phép React chạy thử dưới máy local của Tiến
+                "https://*.vercel.app"   // Cho phép tất cả các domain deploy thử nghiệm của Vercel
+               )
+              .SetIsOriginAllowedToAllowWildcardSubdomains() // Kích hoạt cho phép wildcard dấu * ở trên
+              .AllowAnyHeader()
+              .AllowAnyMethod()
+              .AllowCredentials(); // Cần thiết nếu hai bạn có dùng Cookie hoặc mã hóa Token
+    });
+});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -161,23 +312,20 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+// ⬇️ CHÈN CHÍNH XÁC DÒNG NÀY VÀO ĐÂY
+app.UseCors("AllowFrontend");
+
 app.UseHttpsRedirection();
 
 app.MapHub<GateHub>("/gateHub");
 
-// === ĐĂNG KÝ GLOBAL EXCEPTION MIDDLEWARE Ở ĐÂY ===
-// Phải đăng ký sớm để hứng được lỗi từ các Middleware/Controller phía sau
 app.UseGlobalExceptionHandler(); 
 
-// Enable CORS
 app.UseCors("AllowFrontend");
 
 app.UseRateLimiter();
 
-// ===== CẬP NHẬT PIPELINE =====
-// 1. Phải gọi UseAuthentication (Xác minh thẻ căn cước) TRƯỚC
 app.UseAuthentication(); 
-// 2. Rồi mới gọi UseAuthorization (Kiểm tra quyền vào cổng)
 app.UseAuthorization(); 
 
 app.UseHangfireDashboard("/hangfire");
@@ -212,7 +360,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-// Tự động áp dụng Migration khi khởi động ứng dụng
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;

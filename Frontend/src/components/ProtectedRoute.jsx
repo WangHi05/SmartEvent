@@ -1,14 +1,7 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/useAuthStore';
 
-/**
- * Component ProtectedRoute - Bảo vệ các route dựa trên authentication & role
- * 
- * Cách dùng:
- * <ProtectedRoute requiredRole="Customer" element={<CustomerPage />} />
- * <ProtectedRoute requiredRole="Admin" element={<AdminPage />} />
- */
 const ROLE_MAP = {
   '0': 'admin',
   '1': 'manager',
@@ -24,10 +17,21 @@ const normalizeRole = (role) => {
 
 const ProtectedRoute = ({ element, requiredRole = null }) => {
   const user = useAuthStore((state) => state.user);
+  const location = useLocation(); // Lấy vị trí URL hiện tại mà người dùng đang định truy cập
   
   // 1. Kiểm tra đã login chưa
   if (!user) {
-    return <Navigate to="/login" replace />;
+    // Đính kèm vị trí hiện tại (from) và lời nhắn (message) vào thuộc tính state của Navigate
+    return (
+      <Navigate 
+        to="/login" 
+        replace 
+        state={{ 
+          from: location, 
+          message: 'Bạn cần đăng nhập tài khoản để thực hiện đặt vé sự kiện.' 
+        }} 
+      />
+    );
   }
 
   // 2. Kiểm tra role (nếu có yêu cầu)

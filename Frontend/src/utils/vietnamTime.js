@@ -12,7 +12,7 @@ export const toVietnamDate = (value) => {
 export const formatVietnamDateTime = (value, { withSeconds = false } = {}) => {
   const date = toVietnamDate(value);
   if (!date) {
-    return 'Đang cập nhật';
+    return '';
   }
 
   const formatter = new Intl.DateTimeFormat('vi-VN', {
@@ -31,7 +31,7 @@ export const formatVietnamDateTime = (value, { withSeconds = false } = {}) => {
 
 export const formatVietnamDateRange = (startValue, endValue) => {
   if (!startValue || !endValue) {
-    return 'Đang cập nhật lịch diễn ra';
+    return '';
   }
 
   return `${formatVietnamDateTime(startValue)} - ${formatVietnamDateTime(endValue)}`;

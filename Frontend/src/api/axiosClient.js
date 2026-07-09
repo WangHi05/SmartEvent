@@ -1,38 +1,63 @@
 import axios from 'axios';
 
-// 1. Khởi tạo một instance với các cấu hình mặc định
+const getApiBaseUrl = () => {
+    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+
+    if (configuredBaseUrl) {
+        const trimmedUrl = configuredBaseUrl.trim().replace(/\/+$/, '');
+        return trimmedUrl.endsWith('/api') ? trimmedUrl : `${trimmedUrl}/api`;
+    }
+
+    if (import.meta.env.PROD) {
+        return '/api';
+    }
+
+    return 'http://localhost:5013/api';
+};
+
 const axiosClient = axios.create({
-    baseURL: 'http://localhost:5013/api', 
+    baseURL: getApiBaseUrl(),
     headers: {
         'Content-Type': 'application/json',
     },
 });
 
-// 2. REQUEST INTERCEPTOR: Can thiệp TRƯỚC KHI request được gửi đi
+// REQUEST INTERCEPTOR - Phiên bản mạnh hơn
 axiosClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        
+        const token = localStorage.getItem('token') ||
+                     sessionStorage.getItem('token') ||
+                     window.memoryToken || '';
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log(`✅ Gửi token cho: ${config.url}`);
+        } else {
+            console.warn("❌ Không tìm thấy token cho request:", config.url);
         }
+        
         return config;
     },
     (error) => Promise.reject(error)
 );
 
-// 3. RESPONSE INTERCEPTOR: Can thiệp SAU KHI nhận được response
+// RESPONSE INTERCEPTOR
 axiosClient.interceptors.response.use(
-    (response) => response.data,
+    (response) => {
+        return response.data;   // Quan trọng
+    },
     (error) => {
-        if (error.response && error.response.status === 401) {
-            console.warn("Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.");
+        const isAuthEndpoint = ['/users/authenticate', '/users/register', '/users/forgot-password', '/users/reset-password', '/users/external-login']
+            .some((path) => error.config?.url?.includes(path));
+
+        if (error.response?.status === 401 && !isAuthEndpoint) {
+            console.warn('Phiên đăng nhập không hợp lệ hoặc đã hết hạn. Vui lòng đăng nhập lại nếu cần.');
+
             localStorage.removeItem('token');
             localStorage.removeItem('user_info');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('user_info');
-            
-            window.location.href = '/login'; 
+            window.memoryToken = null;
         }
         return Promise.reject(error);
     }
