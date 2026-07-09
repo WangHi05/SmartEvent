@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions; // BỔ SUNG THƯ VIỆN NÀY
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using TicketSystem.Domain.Interfaces;
@@ -8,10 +9,8 @@ using TicketSystem.Infrastructure.Data;
 
 namespace TicketSystem.Infrastructure.Repositories
 {
-    
     /// Generic Repository Implementation
     /// Tuân thủ Repository Pattern và DRY Principle
-    
     public class GenericRepository<T> : IGenericRepository<T> where T : Domain.Common.BaseEntity
     {
         private readonly ApplicationDbContext _context;
@@ -58,9 +57,14 @@ namespace TicketSystem.Infrastructure.Repositories
             return true;
         }
 
-        public async Task<IEnumerable<T>> FindAsync(System.Linq.Expressions.Expression<Func<T, bool>> predicate)
+        public async Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate)
         {
             return await _dbSet.Where(predicate).ToListAsync();
+        }
+
+        public async Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _dbSet.FirstOrDefaultAsync(predicate); 
         }
     }
 }

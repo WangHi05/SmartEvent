@@ -7,6 +7,7 @@ using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
 using TicketSystem.API.Middleware;
 using TicketSystem.API.Hubs;
+using TicketSystem.Application.Strategies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
@@ -28,8 +29,9 @@ builder.Services.AddHangfireServer();
 
 // 1. Đăng ký DbContext và kết nối SQL Server
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"),
-        b => b.MigrationsAssembly("TicketSystem.Infrastructure")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection"), 
+    npgsqlOptions => npgsqlOptions.UseVector())
+);
 
 // Đăng ký IApplicationDbContext trỏ tới cùng một instance của ApplicationDbContext
 // Điều này đảm bảo Request gửi lên dùng chung 1 kết nối Database
@@ -59,11 +61,15 @@ builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 builder.Services.AddScoped<IGateService, GateService>();
+builder.Services.AddScoped<ITicketService, TicketService>();
 
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
 // 4. Đăng ký Database Seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
+builder.Services.AddScoped<IRefundStrategy, PartialRefundStrategy>();
+builder.Services.AddScoped<IRefundStrategy, FullRefundStrategy>();
+builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
 // Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 

@@ -9,37 +9,91 @@ using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
+using OtpNet;
 
+using Microsoft.Extensions.Logging; 
 namespace TicketSystem.Application.Services
 {
-    // ARCHIVED - Moved to CheckInService.cs for new refactored architecture
-    // This file is kept for reference only
-    public class TicketService
+    public class TicketService : ITicketService
     {
         private readonly IGenericRepository<Ticket> _ticketRepository;
         private readonly ITicketTypeRepository _ticketTypeRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly Dictionary<string, IRefundStrategy> _refundStrategies;
-
+        private readonly ILogger<TicketService> _logger;
         public TicketService(
             IGenericRepository<Ticket> ticketRepository,
             ITicketTypeRepository ticketTypeRepository,
             IGenericRepository<AuditLog> auditLogRepository,
             IHttpContextAccessor httpContextAccessor,
-            Dictionary<string, IRefundStrategy> refundStrategies)
+            IEnumerable<IRefundStrategy> refundStrategies,
+            ILogger<TicketService> logger)
         {
             _ticketRepository = ticketRepository;
             _ticketTypeRepository = ticketTypeRepository;
             _auditLogRepository = auditLogRepository;
             _httpContextAccessor = httpContextAccessor;
-            _refundStrategies = refundStrategies;
+            _logger = logger;
+            _refundStrategies = refundStrategies.ToDictionary(
+                strategy => strategy.GetType().Name.Replace("Strategy", ""), 
+                strategy => strategy                                         
+            );
         }
 
-        // 4. Ghi AuditLog
-        // NOTE: Method này đã được moved sang CheckInService.cs trong kiến trúc mới
-        // Code được comment để giữ nguyên tham khảo nhưng không gây lỗi compile
-        
+        public async Task<string?> GetUnusedQrForTestAsync()
+        {
+            var allTickets = await _ticketRepository.GetAllAsync();
+            
+            // 1. Lấy TẤT CẢ vé ACTIVE và CHƯA HẾT HẠN (Sửa để tránh lỗi "Event đã kết thúc")
+            // Dựa vào DB Diagram, ta sử dụng thuộc tính ValidTo để lọc
+            var activeTickets = allTickets
+                .Where(t => t.Status == TicketStatus.ACTIVE && t.ValidTo > DateTime.UtcNow)
+                .ToList();
+
+            if (!activeTickets.Any())
+            {
+                _logger.LogWarning("Load Test: Không tìm thấy vé ACTIVE nào CÒN HẠN SỬ DỤNG trong Database.");
+                return null;
+            }
+
+            _logger.LogInformation($"Load Test: Bắt đầu quét {activeTickets.Count} vé hợp lệ (còn hạn) để tìm SecretKey...");
+
+            // 2. Lọc nhanh (Heuristic filter): Chuỗi Base32 không bao giờ chứa 0, 1, 8, 9 hoặc '-'
+            var potentialTickets = activeTickets.Where(t => 
+                !string.IsNullOrEmpty(t.SecretKey) &&
+                !t.SecretKey.Contains("-") &&
+                !t.SecretKey.Any(c => c == '0' || c == '1' || c == '8' || c == '9')
+            ).ToList();
+
+            _logger.LogInformation($"Load Test: Có {potentialTickets.Count} vé tiềm năng lọt qua bộ lọc sơ bộ.");
+
+            // 3. Quét các vé tiềm năng
+            foreach (var ticket in potentialTickets)
+            {
+                try
+                {
+                    var secretBytes = Base32Encoding.ToBytes(ticket.SecretKey);
+                    
+                    var totp = new Totp(secretBytes);
+                    string currentClientOtp = totp.ComputeTotp(); 
+                    
+                    string generatedQrPayload = $"{ticket.Id}|{currentClientOtp}";
+                    
+                    _logger.LogInformation($"✅ Load Test: Đã tìm thấy vé HỢP LỆ & CÒN HẠN! ID: {ticket.Id}");
+                    return generatedQrPayload;
+                }
+                catch (Exception ex) 
+                {
+                    _logger.LogWarning($"Vé {ticket.Id} tiềm năng nhưng vẫn lỗi OTP: {ex.Message}");
+                    continue; 
+                }
+            }
+
+            _logger.LogError("Load Test: Đã quét toàn bộ vé nhưng KHÔNG CÓ vé nào đúng chuẩn Base32. Vui lòng kiểm tra lại Seed Data.");
+            return null;
+        }
+
         public async Task<CancelTicketResponseDto> CancelTicketAsync(CancelTicketDto request, string performedBy)
         {
             var ticket = await _ticketRepository.GetByIdAsync(request.TicketId);

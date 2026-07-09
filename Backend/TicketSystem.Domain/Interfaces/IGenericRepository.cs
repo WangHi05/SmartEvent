@@ -18,6 +18,7 @@ namespace TicketSystem.Domain.Interfaces
         Task<T> UpdateAsync(T entity);
         Task<bool> DeleteAsync(Guid id);
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
+        Task<T?> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
     }
 
      public interface IUnitOfWork : IDisposable
@@ -25,4 +26,5 @@ namespace TicketSystem.Domain.Interfaces
         IGenericRepository<T> Repository<T>() where T : BaseEntity;
         Task<int> Complete(); // Tương đương SaveChangesAsync
     }
+
 }
