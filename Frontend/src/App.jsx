@@ -43,6 +43,8 @@ import GateControl from './features/admin/checkin/GateControl';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword'; 
 import CheckInLogs from './features/admin/audit-logs/CheckInLogs';
+import KnowledgeManagement from './features/admin/knowledge/KnowledgeManagement';
+
 
 const ROLE_MAP = {
   '0': 'admin',
@@ -151,7 +153,14 @@ function App() {
               path="/settings"
               element={<ProtectedRoute element={<SettingsPage />} requiredRole="Admin" />}
             />
+
+            <Route
+              path="/knowledge-management"
+              element={<ProtectedRoute element={<KnowledgeManagement />} requiredRole="Admin" />}
+            />
           </Route>
+
+          
 
           {/* CUSTOMER ROUTES */}
           <Route path="/customer" element={<CustomerLayout />}>

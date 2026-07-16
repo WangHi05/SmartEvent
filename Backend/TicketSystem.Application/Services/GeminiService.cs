@@ -1,4 +1,5 @@
 using TicketSystem.Application.Interfaces;
+using TicketSystem.Application.Common;
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Net.Http;
@@ -65,6 +66,8 @@ namespace TicketSystem.Application.Services
                 // Gọi Gemini API using model from configuration
                 var requestUrl = $"https://generativelanguage.googleapis.com/v1beta/models/{_model}:generateContent?key={_apiKey}";
                 
+                // Dùng chung rate limiter với AdminChatbotService/GeminiAiService vì cùng chung 1 API key => chung quota
+                await GeminiRateLimiter.ThrottleAsync(cancellationToken);
                 using var response = await _httpClient.PostAsync(requestUrl, content, cancellationToken);
 
                 if (!response.IsSuccessStatusCode)

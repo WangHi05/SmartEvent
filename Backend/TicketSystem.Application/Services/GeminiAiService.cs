@@ -56,6 +56,8 @@ namespace TicketSystem.Application.Services
                 // 3. Gọi model mới nhất dành cho gói Free: gemini-1.5-flash
                var requestUrl = $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}";
                 
+                // Dùng chung rate limiter với AdminChatbotService/GeminiService vì cùng chung 1 API key => chung quota
+                await GeminiRateLimiter.ThrottleAsync();
                 var response = await _httpClient.PostAsync(requestUrl, content);
 
                 if (!response.IsSuccessStatusCode)
@@ -151,6 +153,7 @@ namespace TicketSystem.Application.Services
                 var content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
 
                 var requestUrl = $"https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={_apiKey}";
+                await GeminiRateLimiter.ThrottleAsync();
                 var response = await _httpClient.PostAsync(requestUrl, content);
 
                 if (!response.IsSuccessStatusCode) 

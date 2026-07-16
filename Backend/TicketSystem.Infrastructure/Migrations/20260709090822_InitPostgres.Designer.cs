@@ -13,7 +13,7 @@ using TicketSystem.Infrastructure.Data;
 namespace TicketSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260709074228_InitPostgres")]
+    [Migration("20260709090822_InitPostgres")]
     partial class InitPostgres
     {
         /// <inheritdoc />

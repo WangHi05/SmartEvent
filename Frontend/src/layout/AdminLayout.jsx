@@ -3,6 +3,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import { authService } from '../services/authService';
+import AdminChatbotWidget from '../components/admin/AdminChatbotWidget';
 
 const AdminLayout = ({ sidebarOpen, setSidebarOpen }) => {
   if (!authService.isAuthenticated()) {
@@ -18,6 +19,7 @@ const AdminLayout = ({ sidebarOpen, setSidebarOpen }) => {
           <Outlet /> 
         </main>
       </div>
+      <AdminChatbotWidget />
     </div>
   );
 };

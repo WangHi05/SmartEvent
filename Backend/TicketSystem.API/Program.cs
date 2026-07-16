@@ -8,23 +8,25 @@ using TicketSystem.Domain.Interfaces;
 using TicketSystem.API.Middleware;
 using TicketSystem.API.Hubs;
 using TicketSystem.Application.Strategies;
+using TicketSystem.Infrastructure.AI;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
 using System.Threading.RateLimiting;
 using Hangfire;
+using Hangfire.InMemory; 
 using Hangfire.PostgreSql;
 using Npgsql;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Lấy chuỗi kết nối gốc (có thể là URI postgresql:// hoặc keyword=value)
+// 1. Lấy chuỗi kết nối gốc
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
-// TỰ ĐỘNG NHẬN DIỆN PROVIDER DỰA VÀO CONNECTION STRING
 bool isPostgres = !string.IsNullOrEmpty(rawConnectionString) &&
     (rawConnectionString.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
      rawConnectionString.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) ||
@@ -32,8 +34,6 @@ bool isPostgres = !string.IsNullOrEmpty(rawConnectionString) &&
 
 var databaseProvider = isPostgres ? "PostgreSQL" : "SQLServer";
 
-// TỰ ĐỘNG CONVERT URI (postgresql://user:pass@host/db?sslmode=...) 
-// SANG FORMAT KEYWORD=VALUE MÀ NPGSQL HIỂU ĐƯỢC
 string connectionString = rawConnectionString ?? string.Empty;
 
 if (isPostgres && !string.IsNullOrEmpty(rawConnectionString) &&
@@ -43,7 +43,7 @@ if (isPostgres && !string.IsNullOrEmpty(rawConnectionString) &&
     connectionString = ConvertPostgresUriToKeywordValue(rawConnectionString);
 }
 
-// Hàm chuyển đổi URI Postgres sang định dạng Keyword=Value chuẩn của Npgsql
+// Cấu hình Npgsql Builder để chống Timeout
 static string ConvertPostgresUriToKeywordValue(string uriString)
 {
     var uri = new Uri(uriString);
@@ -61,33 +61,26 @@ static string ConvertPostgresUriToKeywordValue(string uriString)
         Username = username,
         Password = password,
         SslMode = SslMode.Require,
-        TrustServerCertificate = true
+        TrustServerCertificate = true,
+        Timeout = 60,            
+        CommandTimeout = 120,    
+        KeepAlive = 30,          
+        Pooling = true,
+        MaxPoolSize = 100
     };
 
     return builder.ConnectionString;
 }
 
-// 2. CẤU HÌNH HANGFIRE THEO PROVIDER
+// 2. CẤU HÌNH HANGFIRE BẰNG IN-MEMORY STORAGE (FIX TRIỆT ĐỂ LỖI NEON TIMEOUT)
 builder.Services.AddHangfire(configuration =>
 {
     configuration.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
                  .UseSimpleAssemblyNameTypeSerializer()
-                 .UseRecommendedSerializerSettings();
-
-    if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase))
-    {
-        configuration.UsePostgreSqlStorage(options =>
-        {
-            options.UseNpgsqlConnection(connectionString);
-        });
-    }
-    else
-    {
-        configuration.UseSqlServerStorage(connectionString);
-    }
+                 .UseRecommendedSerializerSettings()
+                 .UseInMemoryStorage(); // Giải thoát Database, chuyển toàn bộ Background Job lên RAM
 });
 
-// Thêm Hangfire Server (Bộ máy chạy ngầm)
 builder.Services.AddHangfireServer();
 
 // 3. ĐĂNG KÝ DBCONTEXT THEO PROVIDER
@@ -108,8 +101,6 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     }
 });
 
-// Đăng ký IApplicationDbContext trỏ tới cùng một instance của ApplicationDbContext
-// Điều này đảm bảo Request gửi lên dùng chung 1 kết nối Database
 builder.Services.AddScoped<IApplicationDbContext>(provider => 
     provider.GetRequiredService<ApplicationDbContext>());
 
@@ -118,8 +109,6 @@ builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepositor
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
-
-// 4.1. Đăng ký HttpContextAccessor để lấy IP trong Service
 builder.Services.AddHttpContextAccessor();
 
 // 5. Đăng ký Application Services (DEPENDENCY INVERSION)
@@ -137,31 +126,19 @@ builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 builder.Services.AddScoped<IGateService, GateService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
 
+// FIX DI LỖI RAG CHATBOT BẰNG CÁCH GỌI FULL NAMESPACE
+builder.Services.AddScoped<TicketSystem.Application.Interfaces.IAdminChatbotService, TicketSystem.Infrastructure.AI.AdminChatbotService>();
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
-// 6. Đăng ký Database Seeder
-builder.Services.AddScoped<DatabaseSeeder>();
 
+// 6. Đăng ký Database Seeder & Strategy & HttpClients
+builder.Services.AddScoped<DatabaseSeeder>();
 builder.Services.AddScoped<IRefundStrategy, PartialRefundStrategy>();
 builder.Services.AddScoped<IRefundStrategy, FullRefundStrategy>();
 builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
-// Đăng ký IHttpClientFactory để quản lý kết nối mạng tối ưu
+
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
-
-// HttpClient cho GeminiService (Customer Support Chatbot)
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
-
-// 7. CORS Configuration (cho phép Frontend gọi API)
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowFrontend", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:3000")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
-    });
-});
 
 builder.Services.AddApplicationServices();
 
@@ -172,7 +149,43 @@ builder.Services.AddControllers()
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
     });
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "TicketSystem API", Version = "v1" });
+
+    // Cấu hình UI nhập Token
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = @"Đăng nhập bằng JWT Token. \r\n\r\n 
+                      Nhập 'Bearer' [khoảng trắng] và chuỗi token của bạn vào ô bên dưới.
+                      \r\n\r\nVí dụ: 'Bearer 12345abcdef'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    // Ép Swagger gán token vào Header của mỗi request
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header,
+            },
+            new List<string>()
+        }
+    });
+});
+
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -193,29 +206,16 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 
-// Đăng ký JwtTokenGenerator cho DI
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
-var jwtSecret = builder.Configuration["JwtSettings:Secret"];
-var jwtIssuer = builder.Configuration["JwtSettings:Issuer"];
-var jwtAudience = builder.Configuration["JwtSettings:Audience"];
+var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? "dev-secret-key-change-me-in-production";
+var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "TicketSystem_API";
+var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "TicketSystem_ReactApp";
 
-if (string.IsNullOrWhiteSpace(jwtSecret))
-{
-    jwtSecret = "dev-secret-key-change-me-in-production";
-}
+builder.Configuration["JwtSettings:Secret"] = jwtSecret;
+builder.Configuration["JwtSettings:Issuer"] = jwtIssuer;
+builder.Configuration["JwtSettings:Audience"] = jwtAudience;
 
-if (string.IsNullOrWhiteSpace(jwtIssuer))
-{
-    jwtIssuer = "TicketSystem_API";
-}
-
-if (string.IsNullOrWhiteSpace(jwtAudience))
-{
-    jwtAudience = "TicketSystem_ReactApp";
-}
-
-// ===== CẤU HÌNH JWT AUTHENTICATION =====
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -234,31 +234,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
-
 builder.Services.AddMemoryCache();
-
 builder.Services.AddSignalR();
 
-if (string.IsNullOrWhiteSpace(jwtSecret))
-{
-    jwtSecret = "local-dev-secret-change-me";
-}
-
-if (string.IsNullOrWhiteSpace(jwtIssuer))
-{
-    jwtIssuer = "TicketSystem_API";
-}
-
-if (string.IsNullOrWhiteSpace(jwtAudience))
-{
-    jwtAudience = "TicketSystem_ReactApp";
-}
-
-builder.Configuration["JwtSettings:Secret"] = jwtSecret;
-builder.Configuration["JwtSettings:Issuer"] = jwtIssuer;
-builder.Configuration["JwtSettings:Audience"] = jwtAudience;
-
-// ===== CẤU HÌNH REDIS DISTRIBUTED CACHE (UPSTASH) =====
 var redisConnectionString = builder.Configuration["Redis:ConnectionString"];
 if (!string.IsNullOrWhiteSpace(redisConnectionString))
 {
@@ -273,61 +251,49 @@ else
     builder.Services.AddDistributedMemoryCache();
 }
 
-// ===== CẤU HÌNH CLOUDINARY (LƯU TRỮ HÌNH ẢNH) =====
-// Cấu hình dịch vụ lưu trữ hình ảnh Cloudinary đọc tự động từ Biến môi trường hoặc appsettings
 builder.Services.Configure<TicketSystem.API.CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
-
-// Đăng ký Cloudinary client để inject trực tiếp vào Service/Controller
 builder.Services.AddSingleton(sp =>
 {
     var config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<TicketSystem.API.CloudinarySettings>>().Value;
     var account = new CloudinaryDotNet.Account(config.CloudName, config.ApiKey, config.ApiSecret);
     return new CloudinaryDotNet.Cloudinary(account);
 });
-// ⬇️ THÊM DÒNG NÀY
 builder.Services.AddScoped<TicketSystem.API.Services.UploadService>();
 
-
-// 1. Định nghĩa chính sách CORS (Cho phép Frontend gọi API)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
         policy.WithOrigins(
-                "http://localhost:5173", // Cho phép React chạy thử dưới máy local của Tiến
-                "https://*.vercel.app"   // Cho phép tất cả các domain deploy thử nghiệm của Vercel
+                "http://localhost:5173", 
+                "http://localhost:5174",
+                "http://localhost:5175",
+                "http://localhost:3000",
+                "https://*.vercel.app"   
                )
-              .SetIsOriginAllowedToAllowWildcardSubdomains() // Kích hoạt cho phép wildcard dấu * ở trên
+              .SetIsOriginAllowedToAllowWildcardSubdomains() 
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials(); // Cần thiết nếu hai bạn có dùng Cookie hoặc mã hóa Token
+              .AllowCredentials(); 
     });
 });
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// ⬇️ CHÈN CHÍNH XÁC DÒNG NÀY VÀO ĐÂY
-app.UseCors("AllowFrontend");
-
 app.UseHttpsRedirection();
-
 app.MapHub<GateHub>("/gateHub");
 
 app.UseGlobalExceptionHandler(); 
-
-app.UseCors("AllowFrontend");
-
+app.UseCors("AllowFrontend"); // Đã xóa phần gọi UseCors bị lặp
 app.UseRateLimiter();
-
 app.UseAuthentication(); 
 app.UseAuthorization(); 
-
 app.UseHangfireDashboard("/hangfire");
 
 RecurringJob.AddOrUpdate<EventService>(
@@ -337,62 +303,27 @@ RecurringJob.AddOrUpdate<EventService>(
 
 app.MapControllers();
 
-// ====== TỰ ĐỘNG MIGRATE VÀ SEED DATABASE ======
+// ====== TỰ ĐỘNG MIGRATE VÀ SEED DATABASE (ĐÃ TỐI ƯU THÀNH 1 KHỐI DUY NHẤT) ======
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        var logger = services.GetRequiredService<ILogger<Program>>();
         
-        logger.LogInformation("Checking for pending migrations...");
+        logger.LogInformation("Đang kiểm tra và áp dụng Migrations...");
+        // TĂNG TIMEOUT RIÊNG CHO MIGRATE (5 phút) ĐỂ TRÁNH LỖI NEON SLEEP
+        context.Database.SetCommandTimeout(TimeSpan.FromMinutes(5));
         await context.Database.MigrateAsync();
-        logger.LogInformation("Database migration completed.");
-        
-        var seeder = services.GetRequiredService<DatabaseSeeder>();
-        await seeder.SeedAsync();
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred while migrating or seeding the database.");
-    }
-}
+        logger.LogInformation("Migration hoàn tất.");
 
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<IApplicationDbContext>() as DbContext;
-        
-        if (context != null)
-        {
-            await context.Database.MigrateAsync(); 
-        }
-    }
-    catch (Exception ex)
-    {
-        var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "Có lỗi xảy ra khi tự động migrate database.");
-    }
-}
-
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<ApplicationDbContext>();
-        var logger = services.GetRequiredService<ILogger<AppDbSeeder>>();
-
+        // Chạy Seeder (Chỉ gọi 1 lần)
         var configuration = services.GetRequiredService<IConfiguration>();
         bool shouldSeedData = configuration.GetValue<bool>("DatabaseSettings:SeedMockData", false);
-
-        context.Database.Migrate(); 
         
-        await AppDbSeeder.SeedDataAsync(context, logger, forceSeed: shouldSeedData);
+        var appSeederLogger = services.GetRequiredService<ILogger<AppDbSeeder>>();
+        await AppDbSeeder.SeedDataAsync(context, appSeederLogger, forceSeed: shouldSeedData);
         
         if (shouldSeedData)
         {
@@ -401,8 +332,7 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        var programLogger = services.GetRequiredService<ILogger<Program>>();
-        programLogger.LogError(ex, "Có lỗi xảy ra khi tự động migrate hoặc seed database.");
+        logger.LogError(ex, "Có lỗi nghiêm trọng xảy ra khi tự động migrate hoặc seed database.");
     }
 }
 
