@@ -22,7 +22,7 @@ namespace TicketSystem.Application.Interfaces
         DbSet<CheckInLog> CheckInLogs { get; }
         DbSet<AuditLog> AuditLogs { get; }
         DbSet<SystemSettings> SystemSettings { get; }
-
+        DbSet<SystemKnowledge> SystemKnowledges { get; }
         // Phương thức lưu thay đổi vào DB
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }

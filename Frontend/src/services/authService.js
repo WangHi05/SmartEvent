@@ -17,35 +17,32 @@ const persistAuthState = (token, user, rememberMe) => {
 
 export const authService = {
     login: async (username, password, rememberMe = true) => {
-    const response = await axiosClient.post('/users/authenticate', { 
-        username, 
-        password 
-    });
-    
-    console.log("Dữ liệu Backend trả về:", response);
+        const response = await axiosClient.post('/users/authenticate', { 
+            username, 
+            password 
+        });
+        
 
-    const tokenToSave = response.token || response.Token;
-    const userToSave = response.user || response.User;
+        const tokenToSave = response.token || response.Token;
+        const userToSave = response.user || response.User;
 
-    if (!tokenToSave) {
-        throw new Error("Không nhận được token từ máy chủ!");
-    }
+        if (!tokenToSave) {
+            throw new Error("Không nhận được token từ máy chủ!");
+        }
 
-    persistAuthState(tokenToSave, userToSave, rememberMe);
-    window.memoryToken = tokenToSave;
+        persistAuthState(tokenToSave, userToSave, rememberMe);
+        window.memoryToken = tokenToSave;
 
-    // Cập nhật Zustand Store
-    useAuthStore.getState().setUser(userToSave);
+        // Cập nhật Zustand Store
+        useAuthStore.getState().setUser(userToSave);
 
-    console.log("✅ Token đã lưu thành công:", localStorage.getItem('token') || sessionStorage.getItem('token'));
-
-    // Trả về đúng format mà component Login đang mong đợi
-    return {
-        success: true,
-        user: userToSave,
-        token: tokenToSave
-    };
-},
+        // Trả về đúng format mà component Login đang mong đợi
+        return {
+            success: true,
+            user: userToSave,
+            token: tokenToSave
+        };
+    },
 
     register: async (userData) => {
         const payload = {
@@ -90,6 +87,11 @@ export const authService = {
 
     isAuthenticated: () => {
         return !!localStorage.getItem('token') || !!sessionStorage.getItem('token');
+    },
+
+    // THÊM MỚI: Hàm getToken để các Component khác (như Chatbot) gọi dễ dàng
+    getToken: () => {
+        return localStorage.getItem('token') || sessionStorage.getItem('token') || window.memoryToken;
     },
 
     getCurrentUser: () => {
