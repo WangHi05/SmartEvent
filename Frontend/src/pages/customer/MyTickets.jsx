@@ -87,7 +87,7 @@ const MyTickets = () => {
     const usable = tickets.filter((ticket) => Number(ticket?.status) === 1).length;
     const checkedIn = tickets.filter((ticket) => Number(ticket?.status) === 2 || ticket?.remainingSlots === 0).length;
     return [
-      { label: 'Tổng vé', value: tickets.length.toLocaleString('vi-VN'), hint: 'Số lượng mã vé', icon: QrcodeOutlined, accent: 'bg-green-50 text-green-700' },
+      { label: 'Tổng vé', value: tickets.length.toLocaleString('vi-VN'), hint: 'Số lượng mã vé', icon: QrcodeOutlined, accent: 'bg-orange-50 text-orange-700' },
       { label: 'Có thể dùng', value: usable.toLocaleString('vi-VN'), hint: 'Mã đang hiệu lực', icon: WalletOutlined, accent: 'bg-blue-50 text-blue-700' },
       { label: 'Đã check-in', value: checkedIn.toLocaleString('vi-VN'), hint: 'Vé đã dùng hết', icon: CheckCircleOutlined, accent: 'bg-gray-100 text-gray-700' },
     ];
@@ -166,7 +166,7 @@ const MyTickets = () => {
               icon={<EyeOutlined />}
               disabled={!canUseTicket(record) || record.remainingSlots === 0}
               onClick={() => handleViewQr(record)}
-              className="!rounded-lg !border-green-600 !bg-green-600 hover:!border-green-700 hover:!bg-green-700"
+              className="!rounded-lg !border-orange-600 !bg-orange-600 hover:!border-orange-700 hover:!bg-orange-700"
             >
               Mở vé
             </Button>
@@ -174,7 +174,7 @@ const MyTickets = () => {
             {isReadyToShare && (
               <Tooltip title="Tặng/Gửi vé này cho bạn bè qua Zalo, Messenger...">
                 <Button
-                  className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-green-500 hover:!text-green-700"
+                  className="!rounded-lg !border-gray-300 !text-gray-700 hover:!border-orange-500 hover:!text-orange-700"
                   icon={<ShareAltOutlined />}
                   onClick={() => handleShareTicket(record)}
                   loading={isGeneratingLink}
@@ -249,7 +249,7 @@ const MyTickets = () => {
 
       <Modal
         title={
-          <div className="flex items-center gap-2 text-green-700">
+          <div className="flex items-center gap-2 text-orange-700">
             <ShareAltOutlined /> <span>Chia sẻ vé cho bạn bè</span>
           </div>
         }
@@ -259,7 +259,7 @@ const MyTickets = () => {
           <Button key="close" onClick={() => setShareModalOpen(false)}>
             Đóng
           </Button>,
-          <Button key="copy" type="primary" className="!border-green-600 !bg-green-600" icon={<CopyOutlined />} onClick={handleCopyLink}>
+          <Button key="copy" type="primary" className="!border-orange-600 !bg-orange-600" icon={<CopyOutlined />} onClick={handleCopyLink}>
             Sao chép link
           </Button>
         ]}
@@ -270,7 +270,7 @@ const MyTickets = () => {
             readOnly
             value={shareLink}
             rows={3}
-            className="!bg-gray-50 !font-medium !text-green-700"
+            className="!bg-gray-50 !font-medium !text-orange-700"
           />
         </div>
       </Modal>

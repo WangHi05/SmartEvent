@@ -215,7 +215,7 @@ const BookingPage = () => {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
         <Empty description="Không tìm thấy sự kiện" />
-        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-green-600 !bg-green-600">
+        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-orange-600 !bg-orange-600">
           Quay lại danh sách sự kiện
         </Button>
       </div>
@@ -275,7 +275,7 @@ const BookingPage = () => {
                 </div>
                 <div className="rounded-lg bg-gray-50 p-3.5">
                   <p className="text-xs uppercase tracking-wide text-gray-500">Giá từ</p>
-                  <p className="mt-1.5 text-sm font-semibold text-green-700">{priceSummary.text}</p>
+                  <p className="mt-1.5 text-sm font-semibold text-orange-700">{priceSummary.text}</p>
                 </div>
               </div>
 
@@ -285,7 +285,7 @@ const BookingPage = () => {
                   <span>{formatCapacityLabel(event)}</span>
                 </div>
                 <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                  <div className="h-full rounded-full bg-green-600" style={{ width: `${capacityPercent}%` }} />
+                  <div className="h-full rounded-full bg-orange-600" style={{ width: `${capacityPercent}%` }} />
                 </div>
               </div>
 
@@ -340,7 +340,7 @@ const BookingPage = () => {
                   const saleStatusColor = ticketSaleState === 'active' ? 'green' : ticketSaleState === 'upcoming' ? 'blue' : 'red';
 
                   return (
-                    <div key={ticketType.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:border-green-400 hover:bg-white">
+                    <div key={ticketType.id} className="rounded-lg border border-gray-200 bg-gray-50 p-4 transition hover:border-orange-400 hover:bg-white">
                       <div className="mb-3 flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-semibold text-gray-900">{ticketType.name}</p>
@@ -353,7 +353,7 @@ const BookingPage = () => {
                             </p>
                           </div>
                         </div>
-                        <div className="text-right text-sm font-bold text-green-700">{formatCurrency(ticketType.price)}</div>
+                        <div className="text-right text-sm font-bold text-orange-700">{formatCurrency(ticketType.price)}</div>
                       </div>
 
                       <div className="flex flex-col items-end gap-2">
@@ -403,7 +403,7 @@ const BookingPage = () => {
                 size="large"
                 onClick={handleProceedToCheckout}
                 disabled={isEnded || isFull || getTotalQuantity() === 0}
-                className="!h-11 !rounded-lg !border-green-600 !bg-green-600 !font-semibold hover:!border-green-700 hover:!bg-green-700"
+                className="!h-11 !rounded-lg !border-orange-600 !bg-orange-600 !font-semibold hover:!border-orange-700 hover:!bg-orange-700"
               >
                 Tiếp tục đến thanh toán
               </Button>

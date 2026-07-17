@@ -158,7 +158,7 @@ const PaymentResultPage = () => {
 
               <Divider />
 
-              <div style={{ padding: '20px', backgroundColor: '#f0f5ff', borderRadius: '4px' }}>
+              <div style={{ padding: '20px', backgroundColor: '#fff7ed', borderRadius: '4px' }}>
                 <h4>Thông tin đơn hàng</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
@@ -204,7 +204,7 @@ const PaymentResultPage = () => {
               />
 
               <div style={{ padding: '24px', textAlign: 'center', backgroundColor: '#fafafa', borderRadius: '8px', marginBottom: '24px' }}>
-                <QrcodeOutlined style={{ fontSize: '64px', color: '#1890ff', marginBottom: '16px' }} />
+                <QrcodeOutlined style={{ fontSize: '64px', color: '#f97316', marginBottom: '16px' }} />
                 <div style={{ fontSize: '14px', color: '#666' }}>Đang chờ xác nhận thanh toán QR</div>
               </div>
 
@@ -215,7 +215,7 @@ const PaymentResultPage = () => {
 
               <Divider />
 
-              <div style={{ padding: '20px', backgroundColor: '#f0f5ff', borderRadius: '4px' }}>
+              <div style={{ padding: '20px', backgroundColor: '#fff7ed', borderRadius: '4px' }}>
                 <h4>Thông tin đơn hàng</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>
@@ -257,7 +257,7 @@ const PaymentResultPage = () => {
                 <div style={{ fontSize: '14px', color: '#666' }}>Chờ nhân viên xác nhận</div>
               </div>
 
-              <div style={{ padding: '20px', backgroundColor: '#f0f5ff', borderRadius: '4px', marginBottom: '24px' }}>
+              <div style={{ padding: '20px', backgroundColor: '#fff7ed', borderRadius: '4px', marginBottom: '24px' }}>
                 <h4>Thông tin đơn hàng</h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                   <div>

@@ -31,10 +31,10 @@ export default function ResetPassword() {
     };
 
     return (
-        <div className="min-h-screen flex bg-gradient-to-br from-purple-50 via-white to-orange-50 items-center justify-center p-8">
+        <div className="min-h-screen flex bg-gradient-to-br from-orange-50 via-white to-amber-50 items-center justify-center p-8">
             <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2">Tạo mật khẩu mới</h2>
-                <p className="text-gray-500 mb-6 text-sm">Email: <span className="font-semibold text-purple-600">{emailFromUrl || 'N/A'}</span></p>
+                <p className="text-gray-500 mb-6 text-sm">Email: <span className="font-semibold text-orange-600">{emailFromUrl || 'N/A'}</span></p>
 
                 {error && <p className="text-red-500 text-sm mb-4 bg-red-50 p-3 rounded-lg">{error}</p>}
                 
@@ -49,7 +49,7 @@ export default function ResetPassword() {
                             <label className="block text-gray-700 text-sm font-semibold mb-2">Mã xác nhận (Từ Email)</label>
                             <input
                                 type="text" value={formData.token} onChange={(e) => setFormData({...formData, token: e.target.value})}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
                                 placeholder="Nhập mã 6-8 số/chữ" required
                             />
                         </div>
@@ -57,7 +57,7 @@ export default function ResetPassword() {
                             <label className="block text-gray-700 text-sm font-semibold mb-2">Mật khẩu mới</label>
                             <input
                                 type="password" value={formData.newPassword} onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
                                 placeholder="Tối thiểu 6 ký tự" required minLength={6}
                             />
                         </div>
@@ -65,13 +65,13 @@ export default function ResetPassword() {
                             <label className="block text-gray-700 text-sm font-semibold mb-2">Xác nhận mật khẩu</label>
                             <input
                                 type="password" value={formData.confirmPassword} onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
                                 placeholder="Nhập lại mật khẩu mới" required
                             />
                         </div>
                         <button
                             type="submit" disabled={status === 'loading'}
-                            className="w-full text-white font-semibold py-3 px-6 rounded-xl bg-gradient-to-r from-purple-600 to-orange-500 hover:shadow-lg transition-all"
+                            className="w-full text-white font-semibold py-3 px-6 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 hover:shadow-lg transition-all"
                         >
                             {status === 'loading' ? 'Đang xử lý...' : 'Cập nhật mật khẩu'}
                         </button>

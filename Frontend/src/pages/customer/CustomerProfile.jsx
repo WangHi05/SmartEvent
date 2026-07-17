@@ -89,7 +89,7 @@ const CustomerProfile = () => {
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <Card className="rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="flex items-center gap-4">
-              <Avatar size={64} className="bg-gradient-to-br from-sky-500 to-blue-600 text-xl font-bold text-white">
+              <Avatar size={64} className="bg-gradient-to-br from-orange-500 to-amber-600 text-xl font-bold text-white">
                 {avatarLabel}
               </Avatar>
               <div className="min-w-0">
@@ -97,7 +97,7 @@ const CustomerProfile = () => {
                 <p className="text-sm font-medium text-slate-500">Tài khoản khách hàng</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Tag color={isActive ? 'green' : 'red'}>{isActive ? 'Đang hoạt động' : 'Đã khóa'}</Tag>
-                  <Tag color="blue">{displayValue(role)}</Tag>
+                  <Tag color="orange">{displayValue(role)}</Tag>
                 </div>
               </div>
             </div>
@@ -155,7 +155,7 @@ const CustomerProfile = () => {
               </Form.Item>
 
               <div className="flex flex-wrap gap-3 pt-2">
-                <Button type="primary" htmlType="submit" loading={saving} className="!h-11 !rounded-2xl !border-blue-600 !bg-blue-600 !px-5 !font-semibold">
+                <Button type="primary" htmlType="submit" loading={saving} className="!h-11 !rounded-2xl !border-orange-600 !bg-orange-600 !px-5 !font-semibold">
                   Lưu thay đổi
                 </Button>
                 <Button className="!h-11 !rounded-2xl !px-5" onClick={loadProfile}>

@@ -72,10 +72,10 @@ const NotFound = ({ onBack }) => (
     </div>
 );
 
-/* ─────────────── Status Badge MÀU LẠNH ─────────────── */
+/* ─────────────── Status Badge MÀU NÓNG ─────────────── */
 const StatusBadge = ({ label, type }) => {
     const styles = {
-        active: 'border border-indigo-200 bg-indigo-50 text-indigo-700',
+        active: 'border border-orange-200 bg-orange-50 text-orange-700',
         soldout: 'border border-slate-200 bg-slate-100 text-slate-500',
         upcoming: 'border border-blue-200 bg-blue-50 text-blue-700',
         closed: 'border border-slate-200 bg-slate-100 text-slate-400',
@@ -83,7 +83,7 @@ const StatusBadge = ({ label, type }) => {
     };
 
     const dots = {
-        active: 'bg-indigo-500',
+        active: 'bg-orange-500',
         soldout: 'bg-slate-400',
         upcoming: 'bg-blue-500',
         closed: 'bg-slate-400',
@@ -101,7 +101,7 @@ const StatusBadge = ({ label, type }) => {
 /* ─────────────── Info Card ─────────────── */
 const InfoCard = ({ icon: Icon, label, value, sub }) => (
     <div className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 shadow-inner">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 shadow-inner">
             <Icon size={18} />
         </div>
         <div className="min-w-0">
@@ -114,7 +114,7 @@ const InfoCard = ({ icon: Icon, label, value, sub }) => (
 
 const SectionHeading = ({ children }) => (
     <h2 className="mb-4 flex items-center gap-2.5 text-sm font-extrabold text-slate-800 uppercase tracking-wider">
-        <span className="inline-block h-4 w-[3px] rounded-full bg-indigo-600" />
+        <span className="inline-block h-4 w-[3px] rounded-full bg-orange-600" />
         {children}
     </h2>
 );
@@ -301,11 +301,11 @@ const EventDetail = () => {
 
                             <div className="flex flex-wrap gap-2 text-xs font-bold text-white/90">
                                 <span className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-sm shadow-sm">
-                                    <MapPin size={13} className="text-indigo-300" />
+                                    <MapPin size={13} className="text-orange-300" />
                                     {eventData.location || ''}
                                 </span>
                                 <span className="flex items-center gap-1.5 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 backdrop-blur-sm shadow-sm">
-                                    <CalendarDays size={13} className="text-indigo-300" />
+                                    <CalendarDays size={13} className="text-orange-300" />
                                     {formatDateTime(eventData.startTime)}
                                 </span>
                             </div>
@@ -357,7 +357,7 @@ const EventDetail = () => {
                                                         )}
                                                     </div>
                                                     <p className="shrink-0 text-sm font-black text-slate-900 tracking-tight">
-                                                        {price === 0 ? <span className="text-indigo-600">Miễn phí</span> : `${price.toLocaleString('vi-VN')} ₫`}
+                                                        {price === 0 ? <span className="text-orange-600">Miễn phí</span> : `${price.toLocaleString('vi-VN')} ₫`}
                                                     </p>
                                                 </div>
                                             );
@@ -373,7 +373,7 @@ const EventDetail = () => {
                                 <div>
                                     <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">Giá vé từ</p>
                                     <p className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                                        {isFree ? <span className="text-indigo-600">Miễn phí</span> : displayPrice}
+                                        {isFree ? <span className="text-orange-600">Miễn phí</span> : displayPrice}
                                     </p>
                                 </div>
 
@@ -394,7 +394,7 @@ const EventDetail = () => {
                                     onClick={() => canBuy && navigate(`/tickets/booking/${eventData.slug}/${eventData.id}`)}
                                     className={`flex h-11 w-full items-center justify-center gap-2 rounded-xl text-xs font-bold transition-all shadow-md ${
                                         canBuy
-                                            ? 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-indigo-900/10'
+                                            ? 'bg-orange-600 text-white hover:bg-orange-500 shadow-orange-900/10'
                                             : 'cursor-not-allowed bg-slate-100 text-slate-400 border border-slate-200/60 shadow-none'
                                     }`}
                                 >
@@ -411,9 +411,9 @@ const EventDetail = () => {
                     <section className="mt-6 space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <SectionHeading>Lưu ý khi tham gia</SectionHeading>
                         <ul className="grid gap-3.5 sm:grid-cols-2 text-xs font-bold text-slate-600">
-                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><ClipboardList size={16} className="shrink-0 text-indigo-500" /> <span>Vui lòng đến đúng giờ để check-in cổng an toàn.</span></li>
-                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><Ticket size={16} className="shrink-0 text-indigo-500" /> <span>Xuất trình mã QR kiểm soát (E-ticket) tại cổng soát vé AI.</span></li>
-                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><Smartphone size={16} className="shrink-0 text-indigo-500" /> <span>Quản lý danh sách vé đã mua trực tiếp trong mục "Vé của tôi".</span></li>
+                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><ClipboardList size={16} className="shrink-0 text-orange-500" /> <span>Vui lòng đến đúng giờ để check-in cổng an toàn.</span></li>
+                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><Ticket size={16} className="shrink-0 text-orange-500" /> <span>Xuất trình mã QR kiểm soát (E-ticket) tại cổng soát vé AI.</span></li>
+                            <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><Smartphone size={16} className="shrink-0 text-orange-500" /> <span>Quản lý danh sách vé đã mua trực tiếp trong mục "Vé của tôi".</span></li>
                             <li className="flex gap-3 bg-slate-50/50 border border-slate-100 p-3 rounded-xl"><Ban size={16} className="shrink-0 text-slate-400" /> <span>Vé không hỗ trợ hoàn trả sau khi đã quét mã soát vé thành công.</span></li>
                         </ul>
                     </section>
@@ -436,13 +436,13 @@ const EventDetail = () => {
                                             key={eventId}
                                             type="button"
                                             onClick={() => navigate(eventSlug && eventId ? `/event/${eventSlug}/${eventId}` : `/event/su-kien/${eventId}`)}
-                                            className="group flex w-full gap-4 rounded-xl border border-slate-200 bg-slate-50/40 p-3.5 text-left transition-all hover:border-indigo-400 hover:bg-white shadow-sm"
+                                            className="group flex w-full gap-4 rounded-xl border border-slate-200 bg-slate-50/40 p-3.5 text-left transition-all hover:border-orange-400 hover:bg-white shadow-sm"
                                         >
                                             <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-slate-100 bg-slate-100">
                                                 {eventImage ? <img src={eventImage} alt={eventName} className="h-full w-full object-cover transition-transform group-hover:scale-102" /> : <div className="flex h-full w-full items-center justify-center text-slate-300"><Ticket size={20} /></div>}
                                             </div>
                                             <div className="min-w-0 flex-1 space-y-1">
-                                                <p className="line-clamp-1 text-sm font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">{eventName}</p>
+                                                <p className="line-clamp-1 text-sm font-bold text-slate-800 group-hover:text-orange-600 transition-colors">{eventName}</p>
                                                 <p className="flex items-center gap-1.5 text-xs text-slate-400 font-semibold"><MapPin size={12} /><span className="line-clamp-1">{eventLocation}</span></p>
                                                 <p className="flex items-center gap-1.5 text-[11px] text-slate-400 font-medium"><CalendarDays size={12} />{formatDateTime(eventStartTime)}</p>
                                             </div>

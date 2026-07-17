@@ -114,7 +114,7 @@ const CustomerChangePassword = () => {
           </Form.Item>
 
           <div className="flex flex-wrap gap-3 pt-2">
-            <Button type="primary" htmlType="submit" loading={saving} className="!h-11 !rounded-2xl !border-blue-600 !bg-blue-600 !px-5 !font-semibold">
+            <Button type="primary" htmlType="submit" loading={saving} className="!h-11 !rounded-2xl !border-orange-600 !bg-orange-600 !px-5 !font-semibold">
               Đổi mật khẩu
             </Button>
             <Button className="!h-11 !rounded-2xl !px-5" onClick={() => form.resetFields()}>

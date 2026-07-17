@@ -13,9 +13,9 @@
 		margin: 0;
 		font-family: 'Be Vietnam Pro', system-ui, sans-serif;
 		background:
-			radial-gradient(circle at top left, rgba(37, 99, 235, 0.08), transparent 30%),
-			radial-gradient(circle at top right, rgba(56, 189, 248, 0.08), transparent 28%),
-			linear-gradient(180deg, #f8fafc 0%, #f8fafc 52%, #eef2ff 100%);
+			radial-gradient(circle at top left, rgba(234, 88, 12, 0.08), transparent 30%),
+			radial-gradient(circle at top right, rgba(249, 115, 22, 0.08), transparent 28%),
+			linear-gradient(180deg, #fffaf5 0%, #fffaf5 52%, #fff1e6 100%);
 		color: #0f172a;
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
@@ -26,7 +26,7 @@
 	}
 
 	::selection {
-		background: rgba(37, 99, 235, 0.18);
+		background: rgba(234, 88, 12, 0.18);
 		color: #111827;
 	}
 }
@@ -60,18 +60,18 @@
 
 	.customer-search-shell .ant-input-affix-wrapper {
 		border-radius: 9999px !important;
-		border: 1px solid rgba(255, 255, 255, 0.14) !important;
-		background: rgba(15, 23, 42, 0.55) !important;
-		box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12) !important;
+		border: 1px solid rgba(234, 88, 12, 0.14) !important;
+		background: rgba(255, 255, 255, 0.9) !important;
+		box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06) !important;
 	}
 
 	.customer-search-shell .ant-input {
-		color: #fff !important;
+		color: #0f172a !important;
 		background: transparent !important;
 	}
 
 	.customer-search-shell .ant-input::placeholder {
-		color: rgba(255, 255, 255, 0.55) !important;
+		color: rgba(15, 23, 42, 0.4) !important;
 	}
 
 	.customer-home-hero-carousel .slick-dots {
@@ -111,4 +111,3 @@
 		background: transparent !important;
 	}
 }
-

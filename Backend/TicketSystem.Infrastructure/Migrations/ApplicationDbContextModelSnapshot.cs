@@ -68,7 +68,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AuditLogs");
+                    b.ToTable("AuditLogs", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.CheckInLog", b =>
@@ -137,7 +137,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("TicketId", "CheckinDate");
 
-                    b.ToTable("CheckInLogs");
+                    b.ToTable("CheckInLogs", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.Event", b =>
@@ -202,7 +202,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt");
 
-                    b.ToTable("Events", t =>
+                    b.ToTable("Events", null, t =>
                         {
                             t.HasCheckConstraint("CK_EventTime", "\"StartTime\" < \"EndTime\"");
                         });
@@ -285,7 +285,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("UserId", "OrderStatus");
 
-                    b.ToTable("Orders");
+                    b.ToTable("Orders", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.Payment", b =>
@@ -333,7 +333,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("Payments");
+                    b.ToTable("Payments", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.SystemKnowledge", b =>
@@ -356,7 +356,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("SystemKnowledges");
+                    b.ToTable("SystemKnowledges", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.SystemSettings", b =>
@@ -401,7 +401,7 @@ namespace TicketSystem.Infrastructure.Migrations
                     b.HasIndex("SettingKey")
                         .IsUnique();
 
-                    b.ToTable("SystemSettings");
+                    b.ToTable("SystemSettings", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.Ticket", b =>
@@ -491,7 +491,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("TicketTypeId");
 
-                    b.ToTable("Tickets");
+                    b.ToTable("Tickets", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.TicketType", b =>
@@ -579,7 +579,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasIndex("EventId", "IsActive");
 
-                    b.ToTable("TicketTypes", t =>
+                    b.ToTable("TicketTypes", null, t =>
                         {
                             t.HasCheckConstraint("CK_SaleTime", "\"SaleStartTime\" < \"SaleEndTime\"");
                         });
@@ -643,7 +643,7 @@ namespace TicketSystem.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("TicketSystem.Domain.Entities.CheckInLog", b =>

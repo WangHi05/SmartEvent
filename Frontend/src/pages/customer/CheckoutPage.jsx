@@ -31,7 +31,7 @@ const CheckoutPage = () => {
     return (
       <div className="rounded-xl border border-dashed border-gray-300 bg-white p-10 text-center">
         <Empty description="Không tìm thấy dữ liệu đơn hàng" />
-        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-green-600 !bg-green-600">
+        <Button type="primary" block onClick={() => navigate('/customer/events')} className="mt-4 !h-11 !rounded-lg !border-orange-600 !bg-orange-600">
           Quay lại danh sách sự kiện
         </Button>
       </div>
@@ -154,13 +154,13 @@ const CheckoutPage = () => {
               <Divider />
               <div className="flex items-center justify-between">
                 <span className="text-base font-semibold text-gray-600">Tổng cộng</span>
-                <span className="text-2xl font-bold text-green-700">{formatCurrency(bookingData.totalPrice)}</span>
+                <span className="text-2xl font-bold text-orange-700">{formatCurrency(bookingData.totalPrice)}</span>
               </div>
             </Card>
 
             <Card className="overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
               <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-green-700">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-50 text-orange-700">
                   <SafetyCertificateOutlined className="text-lg" />
                 </div>
                 <div>
@@ -243,7 +243,7 @@ const CheckoutPage = () => {
                   <Card
                     key={option.value}
                     onClick={() => setPaymentMethod(option.value)}
-                    className={`cursor-pointer !rounded-lg border transition ${selected ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-300'}`}
+                    className={`cursor-pointer !rounded-lg border transition ${selected ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'}`}
                     styles={{ body: { padding: 14 } }}
                   >
                     <Radio value={option.value} className="w-full">
@@ -255,7 +255,7 @@ const CheckoutPage = () => {
                           <p className="font-semibold text-gray-900">{option.title}</p>
                           <p className="line-clamp-1 text-xs text-gray-500">{option.description}</p>
                         </div>
-                        {selected && <CheckCircleOutlined className="text-lg text-green-600" />}
+                        {selected && <CheckCircleOutlined className="text-lg text-orange-600" />}
                       </div>
                     </Radio>
                   </Card>
@@ -271,7 +271,7 @@ const CheckoutPage = () => {
               size="large"
               onClick={handlePlaceOrder}
               loading={loading}
-              className="!h-12 !rounded-lg !border-green-600 !bg-green-600 !text-base !font-semibold hover:!border-green-700 hover:!bg-green-700"
+              className="!h-12 !rounded-lg !border-orange-600 !bg-orange-600 !text-base !font-semibold hover:!border-orange-700 hover:!bg-orange-700"
             >
               Thanh toán {formatCurrency(bookingData.totalPrice)}
             </Button>

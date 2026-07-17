@@ -42,8 +42,8 @@ namespace TicketSystem.Infrastructure.AI
         {
             _context = context;
             _logger = logger;
-            var apiKey = configuration["AIConfigs:GeminiApiKey"];
-            var chatModelId = configuration["AIConfigs:ModelId"] ?? "gemini-2.5-flash";
+            var apiKey = configuration["GeminiAI:ApiKey"];
+            var chatModelId = configuration["GeminiAI:Model"] ?? "gemini-2.5-flash";
 
             var embeddingModelId = "gemini-embedding-001";
 

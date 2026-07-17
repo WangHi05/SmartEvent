@@ -60,7 +60,7 @@ export const getEventStatusMeta = (event) => {
   }
 
   if (now >= startValue && now <= endValue) {
-    return { label: 'Đang diễn ra', color: 'indigo', key: 'live' };
+    return { label: 'Đang diễn ra', color: 'orange', key: 'live' };
   }
 
   return { label: 'Đã diễn ra', color: 'default', key: 'ended' };
@@ -204,7 +204,7 @@ export const getEventPriceSummary = (event, ticketTypes) => {
 };
 
 /* ---------------------------------------------------------------------- */
-/* SECTION TITLE — Gọn gàng tông màu Indigo lạnh                           */
+/* SECTION TITLE — Gam màu nóng (Orange)                                  */
 /* ---------------------------------------------------------------------- */
 export const CustomerSectionTitle = ({
   kicker,
@@ -216,7 +216,7 @@ export const CustomerSectionTitle = ({
   <div className={`flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end md:justify-between ${className}`}>
     <div className="max-w-2xl space-y-1">
       {kicker ? (
-        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-indigo-600">
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-orange-600">
           <TrendingUp size={13} />
           {kicker}
         </div>
@@ -245,7 +245,7 @@ export const CustomerMetricCard = ({
   label,
   value,
   hint,
-  accent = 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+  accent = 'bg-orange-50 text-orange-700 border border-orange-100'
 }) => (
   <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
     <div className="flex items-start justify-between gap-3">
@@ -300,27 +300,27 @@ export const CustomerRankingItem = ({
         className
       ].join(' ')}
     >
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-black ${rank === 1 ? 'bg-indigo-600 text-white shadow-sm' : rank === 2 ? 'bg-indigo-50 text-indigo-700 border border-indigo-100' : 'bg-slate-100 text-slate-600'}`}>
+      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-black ${rank === 1 ? 'bg-orange-600 text-white shadow-sm' : rank === 2 ? 'bg-orange-50 text-orange-700 border border-orange-100' : 'bg-slate-100 text-slate-600'}`}>
         #{rank}
       </div>
 
       <div className="h-20 w-full shrink-0 overflow-hidden rounded-xl border border-slate-100 md:h-16 md:w-24" style={imageStyle} />
 
       <div className="min-w-0 flex-1 space-y-1">
-        <h3 className="truncate text-sm font-bold text-slate-800 hover:text-indigo-600 cursor-pointer transition-colors" onClick={onViewDetail}>
+        <h3 className="truncate text-sm font-bold text-slate-800 hover:text-orange-600 cursor-pointer transition-colors" onClick={onViewDetail}>
           {event?.name || 'Sự kiện nổi bật'}
         </h3>
         <p className="text-xs font-semibold text-slate-400">{formatDateRange(event?.startTime, event?.endTime)}</p>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
           <span className="rounded-md bg-slate-100 px-2.5 py-0.5 text-slate-600 border border-slate-200/40">{deriveEventCategory(event)}</span>
           <span className="rounded-md bg-slate-100 px-2.5 py-0.5 text-slate-600 border border-slate-200/40">{formatCapacityLabel(event)}</span>
-          <span className="text-indigo-600 font-extrabold">{priceSummary.text}</span>
+          <span className="text-orange-600 font-extrabold">{priceSummary.text}</span>
         </div>
       </div>
 
       <div className="flex shrink-0 gap-2 md:flex-row items-center">
         <Button
-          className="!h-8 !rounded-lg !border-slate-200 !text-xs !font-bold !text-slate-700 hover:!border-indigo-500 hover:!text-indigo-600 transition-all shadow-none"
+          className="!h-8 !rounded-lg !border-slate-200 !text-xs !font-bold !text-slate-700 hover:!border-orange-500 hover:!text-orange-600 transition-all shadow-none"
           onClick={onViewDetail}
         >
           Chi tiết
@@ -332,7 +332,7 @@ export const CustomerRankingItem = ({
           className={`!h-8 !rounded-lg !text-xs !font-bold shadow-sm transition-all min-w-[90px] ${
             isBtnDisabled 
               ? '!bg-slate-100 !text-slate-400 !border-slate-200' 
-              : '!border-indigo-600 !bg-indigo-600 hover:!bg-indigo-500 hover:!bg-indigo-500 text-white'
+              : '!border-orange-600 !bg-orange-600 hover:!bg-orange-500 hover:!bg-orange-500 text-white'
           }`}
           icon={isBtnDisabled ? null : <ArrowRight size={12} />}
           onClick={onBookTicket}
@@ -346,7 +346,7 @@ export const CustomerRankingItem = ({
 };
 
 /* ---------------------------------------------------------------------- */
-/* EVENT CARD — Khử hoàn toàn màu cam lốm đốm, chuyển sang màu Slate lạnh */
+/* EVENT CARD — Gam màu nóng (Orange)                                     */
 /* ---------------------------------------------------------------------- */
 export const CustomerEventCard = ({
   event,
@@ -373,7 +373,7 @@ export const CustomerEventCard = ({
 
   const statusBadge =
     status.key === 'live'
-      ? { text: 'Đang diễn ra', className: 'bg-indigo-600 text-white font-bold shadow-md shadow-indigo-900/20' }
+      ? { text: 'Đang diễn ra', className: 'bg-orange-600 text-white font-bold shadow-md shadow-orange-900/20' }
       : status.key === 'ended'
         ? { text: 'Đã diễn ra', className: 'bg-slate-500 text-white font-medium' }
         : null;
@@ -382,7 +382,7 @@ export const CustomerEventCard = ({
     <article
       className={[
         'group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white',
-        'transition-all duration-300 hover:shadow-xl hover:border-indigo-300/80',
+        'transition-all duration-300 hover:shadow-xl hover:border-orange-300/80',
         className
       ].join(' ')}
     >
@@ -400,13 +400,13 @@ export const CustomerEventCard = ({
         </span>
 
         <h3  
-          className="line-clamp-2 min-h-[44px] text-sm font-bold leading-snug text-slate-800 hover:text-indigo-600 cursor-pointer transition-colors"
+          className="line-clamp-2 min-h-[44px] text-sm font-bold leading-snug text-slate-800 hover:text-orange-600 cursor-pointer transition-colors"
           onClick={onViewDetail}
         >
           {event?.name || 'Sự kiện nổi bật'}
         </h3>
 
-        <p className="text-sm font-extrabold text-indigo-600 tracking-tight">
+        <p className="text-sm font-extrabold text-orange-600 tracking-tight">
           {priceSummary.text}
         </p>
 
@@ -430,7 +430,7 @@ export const CustomerEventCard = ({
             percent={progress}
             showInfo={false}
             size="small"
-            strokeColor={isSoldOut ? '#64748b' : '#4f46e5'}
+            strokeColor={isSoldOut ? '#64748b' : '#ea580c'}
             trailColor="#f1f5f9"
             strokeWidth={5}
             className="m-0"
@@ -439,7 +439,7 @@ export const CustomerEventCard = ({
 
         <div className="mt-2 grid grid-cols-2 gap-2.5 pt-1">
           <Button
-            className="w-full !h-9 !rounded-xl !text-xs !font-bold !text-slate-700 !border-slate-200 hover:!border-indigo-500 hover:!text-indigo-600 transition-all shadow-none"
+            className="w-full !h-9 !rounded-xl !text-xs !font-bold !text-slate-700 !border-slate-200 hover:!border-orange-500 hover:!text-orange-600 transition-all shadow-none"
             onClick={onViewDetail}
           >
             Chi tiết
@@ -451,7 +451,7 @@ export const CustomerEventCard = ({
             className={`w-full !h-9 !rounded-xl !text-xs !font-bold shadow-sm transition-all ${
               isEnded || isSoldOut 
                 ? '!bg-slate-100 !text-slate-400 !border-slate-200' 
-                : '!bg-indigo-600 !border-indigo-600 hover:!bg-indigo-500 hover:!bg-indigo-500 text-white'
+                : '!bg-orange-600 !border-orange-600 hover:!bg-orange-500 hover:!bg-orange-500 text-white'
             }`}
             onClick={onBookTicket}
             disabled={isEnded || isSoldOut}

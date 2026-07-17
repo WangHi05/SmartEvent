@@ -18,7 +18,7 @@ const ContactPage = () => {
           <div className="grid gap-4 sm:grid-cols-2">
             {/* 🔴 EMAIL: Trả về sắc Đỏ/Cam biểu tượng hộp thư điện tử công nghệ */}
             <div className="rounded-2xl bg-slate-950 p-5 text-white border border-white/5 shadow-inner">
-              <Mail size={20} className="text-rose-400" />
+              <Mail size={20} className="text-orange-400" />
               <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-white/50">Email</p>
               <p className="mt-1 text-base font-black tracking-tight">support@smartevent.vn</p>
             </div>
@@ -31,13 +31,13 @@ const ContactPage = () => {
             </div>
             
             <div className="rounded-2xl bg-slate-50 border border-slate-200/60 p-5 text-slate-800">
-              <MapPin size={20} className="text-indigo-600" />
+              <MapPin size={20} className="text-orange-600" />
               <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Văn phòng</p>
               <p className="mt-1 text-base font-black tracking-tight text-slate-800">Hà Nội, Việt Nam</p>
             </div>
             
             <div className="rounded-2xl bg-slate-50 border border-slate-200/60 p-5 text-slate-800">
-              <Clock3 size={20} className="text-indigo-600" />
+              <Clock3 size={20} className="text-orange-600" />
               <p className="mt-4 text-xs font-bold uppercase tracking-[0.2em] text-slate-400">Giờ hỗ trợ</p>
               <p className="mt-1 text-base font-black tracking-tight text-slate-800">08:00 - 22:00</p>
             </div>
@@ -47,11 +47,11 @@ const ContactPage = () => {
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">SmartEvent hỗ trợ các nhu cầu sau:</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <Ticket size={18} className="text-indigo-600" />
+                <Ticket size={18} className="text-orange-600" />
                 <span className="text-sm font-semibold text-slate-600">Hỗ trợ đặt vé và tra cứu vé</span>
               </div>
               <div className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <ShieldCheck size={18} className="text-blue-600" />
+                <ShieldCheck size={18} className="text-orange-600" />
                 <span className="text-sm font-semibold text-slate-600">Hoàn tiền và chính sách bảo mật</span>
               </div>
             </div>
@@ -60,7 +60,7 @@ const ContactPage = () => {
 
         {/* KHỐI PHẢI: KÊNH KẾT NỐI NHANH - TRẢ VỀ MÀU NGUYÊN BẢN CỦA FACEBOOK, YOUTUBE, ZALO */}
         <div className="rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-xl relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/10 via-transparent to-slate-950/20 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-r from-orange-950/10 via-transparent to-slate-950/20 pointer-events-none" />
           
           <div className="relative z-10 space-y-2">
             <h2 className="text-xl font-black tracking-tight">Kênh kết nối nhanh</h2>
@@ -97,7 +97,7 @@ const ContactPage = () => {
           </div>
 
           <div className="mt-6 rounded-xl bg-white/5 border border-white/10 p-5 relative z-10 backdrop-blur-sm">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-300">Cần hỗ trợ gấp?</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-300">Cần hỗ trợ gấp?</p>
             <p className="mt-2 text-xs text-slate-300 font-normal leading-relaxed">Gọi hotline hoặc gửi email, đội ngũ hỗ trợ sẽ phản hồi sớm nhất trong khung giờ làm việc.</p>
             <Button 
               className="mt-4 !h-10 !rounded-xl !border-white !bg-white !text-xs !font-bold !text-slate-950 hover:!bg-slate-100 transition-all transform hover:scale-[1.01]" 
