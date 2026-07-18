@@ -277,36 +277,53 @@ namespace TicketSystem.Application.Services
             }).ToList();
         }
 
-        // Director versions - filter by CreatedBy on Event
+        // Director versions - Director có quyền xem toàn bộ hệ thống (cao hơn Admin)
         public async Task<AdminOverviewDto> GetDirectorOverviewAsync(string userId)
         {
-            var events = _db.Events.Where(e => e.CreatedBy == userId);
+            var events = _db.Events.AsQueryable(); // bỏ .Where(e => e.CreatedBy == userId)
 
             var totalRevenue = await _db.Payments
-                .Where(p => p.PaymentStatus == PaymentStatus.Completed && events.Any(e => e.Id == p.Order.EventId))
+                .Where(p => p.PaymentStatus == PaymentStatus.Completed)
                 .SumAsync(p => (decimal?)p.Amount) ?? 0m;
 
             var totalTicketsSold = await _db.Orders
-                .Where(o => events.Any(e => e.Id == o.EventId) && o.OrderStatus != OrderStatus.Cancelled)
+                .Where(o => o.OrderStatus != OrderStatus.Cancelled)
                 .SumAsync(o => (int?)o.Quantity) ?? 0;
 
             var totalEvents = await events.CountAsync();
-            var totalOrders = await _db.Orders.CountAsync(o => events.Any(e => e.Id == o.EventId));
-            var totalCustomers = await _db.Orders.Where(o => events.Any(e => e.Id == o.EventId)).Select(o => o.UserId).Distinct().CountAsync();
+            var totalOrders = await _db.Orders.CountAsync();
+            var totalCustomers = await _db.Users.CountAsync(u => u.Role == UserRole.Customer);
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var today = DateOnly.FromDateTime(VietnamTime.Now);
             var totalCheckinsToday = await _db.CheckInLogs
-                .Where(c => c.CheckinDate == today && _db.Tickets.Any(t => t.Id == c.TicketId && events.Any(e => e.Id == t.TicketTypeId)))
+                .Where(c => c.CheckinDate == today)
                 .SumAsync(c => (int?)c.PeopleCount) ?? 0;
 
             var unusedTickets = await _db.Tickets
-                .Where(t => t.RemainingSlots > 0 && events.Any(e => e.Id == t.TicketType.EventId))
+                .Where(t => t.RemainingSlots > 0)
                 .SumAsync(t => (int?)t.RemainingSlots) ?? 0;
 
             var totalCapacity = await events.SumAsync(e => (int?)e.MaxCapacity) ?? 0;
             double fillRate = 0;
             if (totalCapacity > 0)
                 fillRate = (double)totalTicketsSold / totalCapacity * 100.0;
+
+            var now = VietnamTime.Now;
+            var curFrom = now.AddDays(-30);
+            var prevFrom = now.AddDays(-60);
+            var prevTo = curFrom;
+
+            var curRevenue = await _db.Payments
+                .Where(p => p.PaymentStatus == PaymentStatus.Completed && (p.PaidAt ?? p.UpdatedAt ?? p.CreatedAt) >= curFrom && (p.PaidAt ?? p.UpdatedAt ?? p.CreatedAt) <= now)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+            var prevRevenue = await _db.Payments
+                .Where(p => p.PaymentStatus == PaymentStatus.Completed && (p.PaidAt ?? p.UpdatedAt ?? p.CreatedAt) >= prevFrom && (p.PaidAt ?? p.UpdatedAt ?? p.CreatedAt) < prevTo)
+                .SumAsync(p => (decimal?)p.Amount) ?? 0m;
+
+            double revenueGrowthPercent = 0;
+            if (prevRevenue > 0)
+                revenueGrowthPercent = (double)((curRevenue - prevRevenue) / prevRevenue * 100.0m);
 
             return new AdminOverviewDto
             {
@@ -318,21 +335,19 @@ namespace TicketSystem.Application.Services
                 TotalCheckinsToday = totalCheckinsToday,
                 UnusedTickets = unusedTickets,
                 FillRate = Math.Round(fillRate, 2),
-                RevenueGrowthPercent = 0 // For brevity, keep 0; can reuse admin logic with date ranges
+                RevenueGrowthPercent = Math.Round(revenueGrowthPercent, 2)
             };
-        }
+        }       
 
         public async Task<IEnumerable<RevenuePointDto>> GetDirectorRevenueAsync(string userId, string period, DateTime? from, DateTime? to)
         {
-            var events = _db.Events.Where(e => e.CreatedBy == userId);
-            var q = _db.Payments.Where(p => p.PaymentStatus == PaymentStatus.Completed && events.Any(e => e.Id == p.Order.EventId));
+            var q = _db.Payments.Where(p => p.PaymentStatus == PaymentStatus.Completed);
             return await GetRevenueSeriesAsync(q, period, from, to);
         }
 
         public async Task<IEnumerable<TopEventDto>> GetDirectorTopEventsAsync(string userId, int top = 10)
         {
             var events = await _db.Events
-                .Where(e => e.CreatedBy == userId)
                 .Include(e => e.Orders)
                 .ThenInclude(o => o.Payments)
                 .Include(e => e.Orders)
@@ -425,13 +440,12 @@ namespace TicketSystem.Application.Services
         public async Task<ExportSummaryReportDataDto> GetDirectorSummaryReportDataAsync(string userId)
         {
             var events = await _db.Events
-                .Where(e => e.CreatedBy == userId)
-                .Include(e => e.Orders)
-                .ThenInclude(o => o.Payments)
-                .Include(e => e.Orders)
-                .ThenInclude(o => o.Tickets)
-                .ThenInclude(t => t.CheckInLogs)
-                .ToListAsync();
+            .Include(e => e.Orders)
+            .ThenInclude(o => o.Payments)
+            .Include(e => e.Orders)
+            .ThenInclude(o => o.Tickets)
+            .ThenInclude(t => t.CheckInLogs)
+            .ToListAsync();
 
             var lines = new List<EventSummaryLineDto>();
             int stt = 1;

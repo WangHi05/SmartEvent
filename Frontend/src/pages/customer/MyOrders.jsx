@@ -63,7 +63,7 @@ const MyOrders = () => {
     const paid = orders.filter((order) => order.paymentStatusName === 'Completed').length;
     const pending = orders.filter((order) => order.paymentStatusName === 'Pending').length;
     return [
-      { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'bg-green-50 text-green-700' },
+      { label: 'Tổng đơn', value: orders.length.toLocaleString('vi-VN'), hint: 'Đang hiển thị theo bộ lọc', icon: ShoppingCartOutlined, accent: 'bg-orange-50 text-orange-700' },
       { label: 'Đã thanh toán', value: paid.toLocaleString('vi-VN'), hint: 'Paid orders', icon: DollarOutlined, accent: 'bg-blue-50 text-blue-700' },
       { label: 'Đang chờ', value: pending.toLocaleString('vi-VN'), hint: 'Pending orders', icon: CalendarOutlined, accent: 'bg-gray-100 text-gray-700' },
     ];

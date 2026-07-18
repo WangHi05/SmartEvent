@@ -45,7 +45,7 @@ const Register = () => {
                 </div>
 
                 <h2 className="text-2xl font-bold text-gray-900 text-center">Tạo tài khoản mới</h2>
-                <p className="mt-1 text-sm text-gray-500 text-center">Bắt đầu quản lý sự kiện của bạn ngay hôm nay</p>
+                <p className="mt-1 text-sm text-gray-500 text-center">Đăng ký ngay để mua vé và trải nghiệm những sự kiện hấp dẫn</p>
 
                 {error && (
                     <div className="mt-6 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -64,7 +64,7 @@ const Register = () => {
                             name="fullName"
                             value={formData.fullName}
                             onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Nhập họ và tên"
                             required
                         />
@@ -77,7 +77,7 @@ const Register = () => {
                             name="email"
                             value={formData.email}
                             onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="example@email.com"
                             required
                         />
@@ -90,7 +90,7 @@ const Register = () => {
                             name="username"
                             value={formData.username}
                             onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Tối thiểu 3 ký tự"
                             required
                             minLength={3}
@@ -104,7 +104,7 @@ const Register = () => {
                             name="password"
                             value={formData.password}
                             onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Tối thiểu 6 ký tự"
                             required
                             minLength={6}
@@ -114,14 +114,14 @@ const Register = () => {
                     <div className="flex items-start gap-2">
                         <input
                             type="checkbox"
-                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                             required
                         />
                         <label className="text-sm text-gray-600">
                             Tôi đồng ý với{' '}
-                            <a href="#" className="font-medium text-green-700 hover:text-green-800">Điều khoản dịch vụ</a>{' '}
+                            <a href="#" className="font-medium text-orange-600 hover:text-orange-700">Điều khoản dịch vụ</a>{' '}
                             và{' '}
-                            <a href="#" className="font-medium text-green-700 hover:text-green-800">Chính sách bảo mật</a>
+                            <a href="#" className="font-medium text-orange-600 hover:text-orange-700">Chính sách bảo mật</a>
                         </label>
                     </div>
 
@@ -129,7 +129,7 @@ const Register = () => {
                         type="submit"
                         disabled={isLoading}
                         className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors ${
-                            isLoading ? 'cursor-not-allowed bg-gray-400' : 'bg-green-600 hover:bg-green-700'
+                            isLoading ? 'cursor-not-allowed bg-gray-400' : 'bg-orange-600 hover:bg-orange-700'
                         }`}
                     >
                         {isLoading ? (
@@ -147,7 +147,7 @@ const Register = () => {
 
                     <p className="text-center text-sm text-gray-600">
                         Đã có tài khoản?{' '}
-                        <Link to="/login" className="font-semibold text-green-700 hover:text-green-800">
+                        <Link to="/login" className="font-semibold text-orange-600 hover:text-orange-700">
                             Đăng nhập
                         </Link>
                     </p>

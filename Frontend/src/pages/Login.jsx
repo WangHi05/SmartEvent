@@ -119,7 +119,7 @@ export default function Login() {
                 </div>
 
                 <h2 className="text-2xl font-bold text-gray-900 text-center">Chào mừng trở lại</h2>
-                <p className="mt-1 text-sm text-gray-500 text-center">Đăng nhập để tiếp tục quản lý sự kiện của bạn</p>
+                <p className="mt-1 text-sm text-gray-500 text-center">Đăng nhập để tiếp tục mua vé sự kiện yêu thích</p>
 
                 {/* Thanh thông báo nhắc đăng nhập để mua vé khi chuyển hướng từ ProtectedRoute */}
                 {notificationMessage && (
@@ -128,8 +128,8 @@ export default function Login() {
                             message={notificationMessage}
                             type="info"
                             showIcon
-                            icon={<Ticket className="h-5 w-5 text-indigo-500" />}
-                            className="!rounded-xl !border-indigo-100 !bg-indigo-50/70 !text-sm !font-semibold !text-indigo-800 shadow-sm"
+                            icon={<Ticket className="h-5 w-5 text-orange-500" />}
+                            className="!rounded-xl !border-orange-100 !bg-orange-50/70 !text-sm !font-semibold !text-orange-800 shadow-sm"
                         />
                     </div>
                 )}
@@ -146,7 +146,7 @@ export default function Login() {
                         <label className="mb-1.5 block text-sm font-medium text-gray-700">Tên đăng nhập</label>
                         <input
                             type="text" name="username" value={formData.username} onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Nhập tên đăng nhập" required
                         />
                     </div>
@@ -154,7 +154,7 @@ export default function Login() {
                         <label className="mb-1.5 block text-sm font-medium text-gray-700">Mật khẩu</label>
                         <input
                             type="password" name="password" value={formData.password} onChange={handleChange}
-                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-green-500 focus:ring-1 focus:ring-green-500"
+                            className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Nhập mật khẩu" required
                         />
                     </div>
@@ -164,25 +164,25 @@ export default function Login() {
                             <input
                                 type="checkbox" name="rememberMe"
                                 checked={formData.rememberMe} onChange={handleChange}
-                                className="h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                                className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
                             />
                             Ghi nhớ đăng nhập
                         </label>
-                        <button type="button" onClick={() => navigate('/forgot-password')} className="font-medium text-green-700 hover:text-green-800">
+                        <button type="button" onClick={() => navigate('/forgot-password')} className="font-medium text-orange-600 hover:text-orange-700">
                             Quên mật khẩu?
                         </button>
                     </div>
 
                     <button
                         type="submit" disabled={isLoading}
-                        className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors ${isLoading ? 'cursor-not-allowed bg-gray-400' : 'bg-green-600 hover:bg-green-700'}`}
+                        className={`w-full rounded-lg py-2.5 text-sm font-semibold text-white transition-colors ${isLoading ? 'cursor-not-allowed bg-gray-400' : 'bg-orange-600 hover:bg-orange-700'}`}
                     >
                         {isLoading ? 'Đang xử lý...' : 'Đăng nhập'}
                     </button>
 
                     <p className="text-center text-sm text-gray-600">
                         Chưa có tài khoản?{' '}
-                        <Link to="/register" className="font-semibold text-green-700 hover:text-green-800">
+                        <Link to="/register" className="font-semibold text-orange-600 hover:text-orange-700">
                             Đăng ký ngay
                         </Link>
                     </p>

@@ -93,7 +93,7 @@ const HomePage = () => {
         value: liveEvents.toLocaleString('vi-VN'),
         hint: 'Theo thời gian thực',
         icon: Flame,
-        accent: 'bg-indigo-50 text-indigo-700 border border-indigo-100'
+        accent: 'bg-orange-50 text-orange-700 border border-orange-100'
       },
       {
         label: 'Sold-out',
@@ -161,7 +161,7 @@ const HomePage = () => {
               {/* Nội dung căn giữa hoàn hảo nhờ flex items-center */}
               <div className="w-full grid gap-8 px-6 sm:px-12 lg:grid-cols-[1.3fr_0.7fr] lg:px-16 relative z-10 py-6">
                 <div className="max-w-xl space-y-4 bg-slate-950/70 backdrop-blur-md p-6 sm:p-8 rounded-2xl border border-white/15 shadow-2xl text-white">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-500/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-indigo-200 border border-indigo-400/20">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/30 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-orange-200 border border-orange-400/20">
                     <Sparkles size={11} /> {slide.eyebrow}
                   </span>
 
@@ -177,7 +177,7 @@ const HomePage = () => {
                     <Button
                       type="primary"
                       size="large"
-                      className="!h-11 !rounded-xl !border-indigo-600 !bg-indigo-600 !px-6 !text-xs !font-bold hover:!border-indigo-500 hover:!bg-indigo-500 shadow-md transition-all transform hover:scale-[1.01]"
+                      className="!h-11 !rounded-xl !border-orange-600 !bg-orange-600 !px-6 !text-xs !font-bold hover:!border-orange-500 hover:!bg-orange-500 shadow-md transition-all transform hover:scale-[1.01]"
                       onClick={() => navigate('/customer/events')}
                     >
                       {slide.cta}
@@ -196,14 +196,14 @@ const HomePage = () => {
 
                 <div className="hidden rounded-2xl border border-white/15 bg-slate-950/70 backdrop-blur-md p-6 lg:block relative z-10 shadow-2xl h-fit self-center">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-300 mb-3.5 flex items-center gap-2">
-                    <Compass size={13} className="text-indigo-400" /> Danh mục thịnh hành
+                    <Compass size={13} className="text-orange-400" /> Danh mục thịnh hành
                   </p>
                   <div className="space-y-2">
                     {categoryChips.slice(0, 4).map((category) => (
                       <button
                         key={category.value}
                         onClick={() => navigate(`/customer/events?category=${encodeURIComponent(category.label)}`)}
-                        className="block w-full rounded-xl border border-white/5 bg-white/5 px-4 py-2.5 text-left text-xs text-slate-200 transition-all hover:border-indigo-500/50 hover:bg-white/10 hover:text-white font-semibold"
+                        className="block w-full rounded-xl border border-white/5 bg-white/5 px-4 py-2.5 text-left text-xs text-slate-200 transition-all hover:border-orange-500/50 hover:bg-white/10 hover:text-white font-semibold"
                       >
                         {category.label}
                       </button>
@@ -241,12 +241,12 @@ const HomePage = () => {
               <button
                 key={category.value}
                 onClick={() => navigate(`/customer/events?category=${encodeURIComponent(category.label)}`)}
-                className="group flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center transition-all hover:border-indigo-500 hover:bg-white hover:shadow-md"
+                className="group flex flex-col items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4 text-center transition-all hover:border-orange-500 hover:bg-white hover:shadow-md"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 transition-all group-hover:bg-indigo-600 group-hover:text-white shadow-sm">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-orange-50 text-orange-600 transition-all group-hover:bg-orange-600 group-hover:text-white shadow-sm">
                   <Icon size={20} />
                 </div>
-                <p className="text-sm font-semibold text-slate-700 group-hover:text-indigo-600">{category.label}</p>
+                <p className="text-sm font-semibold text-slate-700 group-hover:text-orange-600">{category.label}</p>
               </button>
             );
           })}
@@ -261,7 +261,7 @@ const HomePage = () => {
           action={(
             <Link
               to="/customer/events"
-              className="inline-flex items-center gap-1.5 text-sm font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
+              className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-600 hover:text-orange-700 bg-orange-50 px-3 py-1.5 rounded-lg transition-all"
             >
               Xem tất cả <ArrowRight size={14} />
             </Link>
@@ -295,7 +295,7 @@ const HomePage = () => {
           action={(
             <Link
               to="/customer/events?category=Nhạc sống"
-              className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-bold text-orange-600 hover:underline"
             >
               Xem thêm sự kiện ca nhạc
             </Link>
@@ -331,7 +331,7 @@ const HomePage = () => {
           action={(
             <Link
               to="/customer/events?category=Workshop"
-              className="inline-flex items-center gap-1 text-sm font-bold text-indigo-600 hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-bold text-orange-600 hover:underline"
             >
               Xem thêm trải nghiệm
             </Link>
@@ -380,7 +380,7 @@ const HomePage = () => {
 
       {/* 🚀 BOTTOM CTA CONTAINER */}
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-950/40 via-transparent to-slate-950/50 pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-r from-orange-950/40 via-transparent to-slate-950/50 pointer-events-none"></div>
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between relative z-10">
           <div>
             <h3 className="text-xl font-extrabold text-white tracking-tight">Sẵn sàng cho sự kiện tiếp theo của bạn?</h3>
@@ -391,7 +391,7 @@ const HomePage = () => {
             <Button
               type="primary"
               size="large"
-              className="!h-11 !rounded-xl !border-indigo-600 !bg-indigo-600 !px-6 !font-bold hover:!border-indigo-500 hover:!bg-indigo-500 shadow-md transition-all"
+              className="!h-11 !rounded-xl !border-orange-600 !bg-orange-600 !px-6 !font-bold hover:!border-orange-500 hover:!bg-orange-500 shadow-md transition-all"
               onClick={() => navigate('/customer/events')}
             >
               Khám phá ngay

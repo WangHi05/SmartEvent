@@ -19,6 +19,7 @@ using System.Threading.Tasks;
 using System;
 using System.Linq;
 
+
 namespace TicketSystem.Infrastructure.AI
 {
     public class AdminChatbotService : IAdminChatbotService
@@ -130,6 +131,12 @@ namespace TicketSystem.Infrastructure.AI
                     promptBuilder.AppendLine("2. BẮT BUỘC trình bày dữ liệu dạng BẢNG MARKDOWN nếu kết quả trả về là một danh sách (từ 2 dòng trở lên).");
                     promptBuilder.AppendLine("3. Nếu Admin hỏi thông tin bên ngoài hệ thống (thời tiết, xu hướng), HÃY SỬ DỤNG HÀM TÌM KIẾM WEB.");
                     promptBuilder.AppendLine("4. Khi sử dụng dữ liệu từ Web, BẮT BUỘC phải trích dẫn đường link nguồn ở cuối câu trả lời.");
+                    promptBuilder.AppendLine("5. Nếu cần thêm thông tin, hãy hỏi lại Admin để làm rõ thay vì tự suy diễn.");
+                    promptBuilder.AppendLine("6. QUAN TRỌNG: Khi Admin hỏi về tình trạng lưu lượng/check-in các cổng và bạn phát hiện cổng nào có dấu hiệu quá tải (Status là 'Quá tải' hoặc lưu lượng check-in > 80% sức chứa), bạn PHẢI phân tích và đưa ra đề xuất điều phối.");
+                    promptBuilder.AppendLine("7. CÚ PHÁP PHÁT SINH GIAO DIỆN (GENERATIVE UI): Để đề xuất một kịch bản điều hướng khẩn cấp, bạn PHẢI đính kèm cú pháp bí mật sau vào cuối câu trả lời của mình:");
+                    promptBuilder.AppendLine("   [SUGGEST_ACTION|Tên Cổng Cần Cảnh Báo|Nội dung đề xuất gửi đến nhân viên trực cổng]");
+                    promptBuilder.AppendLine("   Ví dụ: [SUGGEST_ACTION|Cổng chính - Lối vào 1|Cổng chính đang quá tải 85%, yêu cầu nhân viên hướng dẫn khách hàng di chuyển bớt sang Cổng phụ - Lối vào 2].");
+                    promptBuilder.AppendLine("   Chú ý: Tên cổng phải là một trong các cổng chính thức của hệ thống: 'Cổng chính - Lối vào 1', 'Cổng phụ - Lối vào 2', 'Cổng VIP'.");
 
                     if (relevantDocs.Any())
                     {
