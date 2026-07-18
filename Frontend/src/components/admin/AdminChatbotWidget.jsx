@@ -117,7 +117,7 @@ const AdminChatbotWidget = () => {
               <Sparkles size={20} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-sm">AI Analytics</h3>
+              <h3 className="text-white font-bold text-sm">Chatbot SmartEvent</h3>
               <p className="text-orange-100 text-[10px] flex items-center font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse"></span>
                 Agentic RAG Active
