@@ -3,6 +3,7 @@ import { Bot, X, Send, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { authService } from '../../services/authService';
+import { Button, message, notification } from 'antd';
 
 const API_BASE_URL = 'http://localhost:5013';
 
@@ -28,6 +29,87 @@ const AdminChatbotWidget = () => {
       scrollToBottom();
     }
   }, [messages, isOpen]);
+
+  const handleExecuteAction = async (gateName, actionMessage) => {
+    try {
+      const token = authService.getToken(); 
+      const response = await fetch(`${API_BASE_URL}/api/admin/chatbot/execute-action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ gateName: gateName, message: actionMessage }),
+      });
+
+      if (!response.ok) throw new Error("Lỗi khi phát lệnh");
+      
+      notification.success({
+        message: 'Đã phát lệnh thành công!',
+        description: `Lệnh đã được gửi trực tiếp xuống màn hình nhân viên tại ${gateName}.`,
+        placement: 'bottomRight'
+      });
+
+      // Bắn 1 tin nhắn ảo lên màn hình chat để lưu lịch sử cục bộ
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), sender: 'bot', text: `[System Log]: Admin đã nhấn nút gửi lệnh điều phối xuống ${gateName}.` },
+      ]);
+      
+    } catch (error) {
+      message.error("Lỗi: " + error.message);
+    }
+  };
+
+  // THÊM HÀM RENDER ĐỂ CẮT CHUỖI VÀ VẼ NÚT
+  const renderMessageContent = (msg) => {
+    // Regex tìm chuỗi [SUGGEST_ACTION|GateName|Message]
+    const actionRegex = /\[SUGGEST_ACTION\|(.*?)\|(.*?)\]/g;
+    let match;
+    let actionData = null;
+    let cleanText = msg.text;
+
+    while ((match = actionRegex.exec(msg.text)) !== null) {
+      actionData = {
+        gateName: match[1].trim(),
+        actionMessage: match[2].trim()
+      };
+      // Xóa chuỗi [SUGGEST_ACTION...] khỏi text hiển thị
+      cleanText = cleanText.replace(match[0], '');
+    }
+    return (
+      <div className="flex flex-col">
+        {/* Văn bản trả lời của AI */}
+        <ReactMarkdown 
+            remarkPlugins={[remarkGfm]}
+            components={{
+              table: ({node, ...props}) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-gray-200 border" {...props} /></div>,
+              th: ({node, ...props}) => <th className="bg-gray-50 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" {...props} />,
+              td: ({node, ...props}) => <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-600 border-b" {...props} />,
+              p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+              strong: ({node, ...props}) => <strong className="font-semibold text-orange-700" {...props} />,
+            }}
+          >
+            {cleanText}
+        </ReactMarkdown>
+
+        {/* Nút bấm Generative UI */}
+        {actionData && (
+          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-xs font-semibold text-red-800 mb-2">AI ĐỀ XUẤT HÀNH ĐỘNG KHẨN CẤP:</p>
+            <Button 
+              type="primary" 
+              danger 
+              className="w-full shadow-sm"
+              onClick={() => handleExecuteAction(actionData.gateName, actionData.actionMessage)}
+            >
+              Duyệt lệnh: Điều hướng {actionData.gateName}
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -117,7 +199,7 @@ const AdminChatbotWidget = () => {
               <Sparkles size={20} />
             </div>
             <div>
-              <h3 className="text-white font-bold text-sm">AI Analytics</h3>
+              <h3 className="text-white font-bold text-sm">Chatbot SmartEvent</h3>
               <p className="text-orange-100 text-[10px] flex items-center font-medium">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse"></span>
                 Agentic RAG Active
@@ -146,22 +228,7 @@ const AdminChatbotWidget = () => {
                     : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm prose prose-sm prose-orange max-w-none'
                 }`}
               >
-                {/* Sử dụng ReactMarkdown để render bảng biểu, in đậm từ AI */}
-                {msg.sender === 'bot' ? (
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      // Custom CSS cho table do AI sinh ra
-                      table: ({node, ...props}) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-gray-200 border" {...props} /></div>,
-                      th: ({node, ...props}) => <th className="bg-gray-50 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" {...props} />,
-                      td: ({node, ...props}) => <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-600 border-b" {...props} />,
-                      p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
-                      strong: ({node, ...props}) => <strong className="font-semibold text-orange-700" {...props} />,
-                    }}
-                  >
-                    {msg.text}
-                  </ReactMarkdown>
-                ) : (
+                {msg.sender === 'bot' ? renderMessageContent(msg) : (
                   <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
                 )}
               </div>

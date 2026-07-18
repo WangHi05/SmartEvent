@@ -1,6 +1,7 @@
 using TicketSystem.Infrastructure.Data;
 using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Infrastructure.Security;
+using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Application.Services;
 using TicketSystem.Application;
 using TicketSystem.Application.Interfaces;
@@ -111,7 +112,9 @@ builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();
 
+
 // 5. Đăng ký Application Services (DEPENDENCY INVERSION)
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<EventService, EventService>();
 builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
@@ -125,10 +128,13 @@ builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<ITicketShareService, TicketShareService>();
 builder.Services.AddScoped<IGateService, GateService>();
 builder.Services.AddScoped<ITicketService, TicketService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // FIX DI LỖI RAG CHATBOT BẰNG CÁCH GỌI FULL NAMESPACE
 builder.Services.AddScoped<TicketSystem.Application.Interfaces.IAdminChatbotService, TicketSystem.Infrastructure.AI.AdminChatbotService>();
 builder.Services.AddTransient<IRealTimeUpdateService, TicketSystem.API.Services.RealTimeUpdateService>();
+builder.Services.AddScoped<TicketSystem.Application.Interfaces.IGateNotificationService, TicketSystem.API.Services.GateNotificationService>();
+
 
 // 6. Đăng ký Database Seeder & Strategy & HttpClients
 builder.Services.AddScoped<DatabaseSeeder>();
@@ -288,6 +294,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.MapHub<GateHub>("/gateHub");
+app.MapHub<TicketSystem.API.Hubs.GateHub>("/hubs/gate");
 
 app.UseGlobalExceptionHandler(); 
 app.UseCors("AllowFrontend"); // Đã xóa phần gọi UseCors bị lặp
