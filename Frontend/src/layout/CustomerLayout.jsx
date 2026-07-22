@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Avatar, Button, Drawer, Input } from 'antd';
-import { Facebook, ChevronDown, KeyRound, LogOut, Menu, MessageCircle, Search, UserRound, X, Youtube } from 'lucide-react';
+import { Facebook, ChevronDown, ChevronUp, KeyRound, LogOut, Menu, MessageCircle, Search, UserRound, X, Youtube } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
 
 const getDisplayName = (user) => user?.fullName || user?.FullName || user?.username || user?.Username || 'Khách hàng';
@@ -64,6 +64,15 @@ const CustomerLayout = () => {
     ],
     [logout, navigate]
   );
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 400);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   useEffect(() => {
     const handlePointerDown = (event) => {
@@ -226,7 +235,7 @@ const CustomerLayout = () => {
             )}
           </div>
 
-          <div className="flex items-center gap-2 xl:hidden">
+          <div className="ml-auto flex items-center gap-2 xl:hidden">
             {user ? (
               <div className="relative" ref={mobileMenuRef}>
                 <button
@@ -273,7 +282,7 @@ const CustomerLayout = () => {
               allowClear
             />
           </div>
-          <div className="space-y-1">{renderNavLinks(true)}</div>
+          <div className="flex flex-col space-y-2">{renderNavLinks(true)}</div>
           <div className="mt-6 border-t border-gray-200 pt-4">
             {user ? (
               <div className="space-y-2">
@@ -362,6 +371,16 @@ const CustomerLayout = () => {
           <span>Nền tảng đặt vé trực tuyến</span>
         </div>
       </footer>
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Lên đầu trang"
+          className="fixed bottom-24 right-5 z-40 flex h-11 w-11 items-center justify-center rounded-full bg-orange-500 text-white shadow-lg transition hover:bg-orange-600 sm:right-8"
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
     </div>
   );
 };

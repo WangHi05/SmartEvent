@@ -201,6 +201,7 @@ const HelpDeskPage = () => {
           pagination={{ pageSize: 10 }}
           loading={loading}
           locale={{ emptyText: 'Chưa có dữ liệu. Hãy tìm kiếm!' }}
+          scroll={{ x: 900 }}
         />
       </Card>
 

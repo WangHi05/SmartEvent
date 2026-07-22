@@ -1,18 +1,27 @@
 using System;
-using TicketSystem.Domain.Entities;
+using System.Threading.Tasks;
 using TicketSystem.Application.Interfaces;
+using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Strategies
 {
     public class NoRefundStrategy : IRefundStrategy
     {
-        public string StrategyType => "NoRefund";
         public string PolicyName => "Không hoàn tiền";
-        public string PolicyDescription => "Vé khuyến mãi không áp dụng hoàn tiền.";
+        public string PolicyDescription => "Không hoàn tiền trong mọi trường hợp hủy.";
 
-        public decimal CalculateRefundAmount(Ticket ticket, DateTime cancellationTime)
+        public Task<RefundCalculationResult> CalculateRefundAsync(Order order, DateTime cancellationTime)
         {
-            return 0; // Không trả lại đồng nào
+            return Task.FromResult(new RefundCalculationResult
+            {
+                TotalPrice = order.TotalPrice,
+                RefundPercentage = 0,
+                RefundBeforeFee = 0,
+                RefundFeePercent = 0,
+                RefundFeeAmount = 0,
+                FinalRefundAmount = 0,
+                Reason = "No refund policy applied"
+            });
         }
     }
 }

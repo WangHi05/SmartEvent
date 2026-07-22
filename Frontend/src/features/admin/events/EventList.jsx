@@ -181,11 +181,11 @@ const EventList = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
         <Input
           placeholder="Tìm kiếm theo tên hoặc mô tả..."
           prefix={<SearchOutlined />}
-          style={{ width: 300 }}
+          style={{ width: '100%', maxWidth: 300 }}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           allowClear

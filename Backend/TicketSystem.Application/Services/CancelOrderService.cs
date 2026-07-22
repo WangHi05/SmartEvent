@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
+using TicketSystem.Application.Strategies;
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities;
 
@@ -18,11 +19,16 @@ namespace TicketSystem.Application.Services
     {
         private readonly IApplicationDbContext _context;
         private readonly ISettingsService _settingsService;
+        private readonly IRefundStrategyFactory _refundStrategyFactory;
 
-        public CancelOrderService(IApplicationDbContext context, ISettingsService settingsService)
+        public CancelOrderService(
+            IApplicationDbContext context,
+            ISettingsService settingsService,
+            IRefundStrategyFactory refundStrategyFactory)
         {
             _context = context;
             _settingsService = settingsService;
+            _refundStrategyFactory = refundStrategyFactory;
         }
 
         public async Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId)
@@ -127,6 +133,9 @@ namespace TicketSystem.Application.Services
                 order.UpdatedAt = DateTime.UtcNow;
                 order.UpdatedBy = performedBy;
 
+                // Đánh dấu trạng thái hoàn tiền: nếu có tiền cần hoàn -> chờ NV xử lý thủ công
+                order.RefundStatus = refundAmount > 0 ? RefundStatus.PendingRefund : RefundStatus.RefundCompleted;
+
                 // Update all tickets in this order
                 foreach (var ticket in order.Tickets)
                 {
@@ -193,46 +202,18 @@ namespace TicketSystem.Application.Services
             }
 
             var refundPolicy = await _settingsService.GetRefundPolicyAsync();
-            var refundFeePercent = await _settingsService.GetRefundFeePercentAsync();
-            var totalPrice = order.TotalPrice;
-
-            decimal refundPercentage = 0;
-            string refundReason = "";
-
-            // Calculate refund percentage based on policy
-            switch (refundPolicy)
-            {
-                case RefundPolicy.FullRefund:
-                    refundPercentage = 100;
-                    refundReason = "Full refund policy applied";
-                    break;
-
-                case RefundPolicy.NoRefund:
-                    refundPercentage = 0;
-                    refundReason = "No refund policy applied";
-                    break;
-
-                case RefundPolicy.PartialRefund:
-                    var refundPercentages = await GetPartialRefundPercentageAsync(order.Event);
-                    refundPercentage = refundPercentages.Item1;
-                    refundReason = refundPercentages.Item2;
-                    break;
-            }
-
-            // Calculate amounts
-            var refundBeforeFee = (totalPrice * refundPercentage) / 100;
-            var refundFeeAmount = (refundBeforeFee * refundFeePercent) / 100;
-            var finalRefundAmount = refundBeforeFee - refundFeeAmount;
+            var strategy = _refundStrategyFactory.GetStrategy(refundPolicy);
+            var result = await strategy.CalculateRefundAsync(order, VietnamTime.Now);
 
             return new CalculateRefundDto
             {
-                TotalPrice = totalPrice,
-                RefundPercentage = refundPercentage,
-                RefundBeforeFee = refundBeforeFee,
-                RefundFeePercent = refundFeePercent,
-                RefundFeeAmount = refundFeeAmount,
-                FinalRefundAmount = finalRefundAmount,
-                RefundReason = refundReason
+                TotalPrice = result.TotalPrice,
+                RefundPercentage = result.RefundPercentage,
+                RefundBeforeFee = result.RefundBeforeFee,
+                RefundFeePercent = result.RefundFeePercent,
+                RefundFeeAmount = result.RefundFeeAmount,
+                FinalRefundAmount = result.FinalRefundAmount,
+                RefundReason = result.Reason
             };
         }
 
@@ -249,6 +230,48 @@ namespace TicketSystem.Application.Services
                 .CountAsync();
 
             return cancelCount;
+        }
+
+        public async Task<bool> ConfirmRefundCompletedAsync(Guid orderId, string confirmedBy)
+        {
+            var order = await _context.Orders.FirstOrDefaultAsync(o => o.Id == orderId);
+
+            if (order == null)
+            {
+                throw new Exception("Order not found");
+            }
+
+            if (order.OrderStatus != OrderStatus.Cancelled)
+            {
+                throw new Exception("Order is not cancelled");
+            }
+
+            if (order.RefundStatus != RefundStatus.PendingRefund)
+            {
+                throw new Exception("No pending refund for this order");
+            }
+
+            order.RefundStatus = RefundStatus.RefundCompleted;
+            order.RefundConfirmedAt = DateTime.UtcNow;
+            order.RefundConfirmedBy = confirmedBy;
+            order.UpdatedAt = DateTime.UtcNow;
+            order.UpdatedBy = confirmedBy;
+
+            _context.AuditLogs.Add(new AuditLog
+            {
+                Id = Guid.NewGuid(),
+                Action = "ConfirmRefundCompleted",
+                EntityType = "Order",
+                EntityId = order.Id,
+                PerformedBy = confirmedBy,
+                Timestamp = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = confirmedBy,
+                Details = $"Refund of {order.RefundAmount:N0}đ confirmed as completed (manual, outside system)."
+            });
+
+            await _context.SaveChangesAsync();
+            return true;
         }
 
         private CancelValidationDto ValidateCancelConditions(Order order)
@@ -273,12 +296,6 @@ namespace TicketSystem.Application.Services
                     CanCancel = false,
                     ReasonCannotCancel = "Payment status does not allow cancellation"
                 };
-            }
-
-            // 3. Nếu PaymentStatus = Pending, kiểm tra config
-            if (lastPayment?.PaymentStatus == PaymentStatus.Pending)
-            {
-                // Sẽ check async - skip here
             }
 
             // 4. Kiểm tra EventStatus
@@ -334,49 +351,6 @@ namespace TicketSystem.Application.Services
             }
 
             return new CancelValidationDto { CanCancel = true };
-        }
-
-        private async Task<(decimal percentage, string reason)> GetPartialRefundPercentageAsync(Event? evt)
-        {
-            if (evt == null)
-            {
-                return (0, "Event not found");
-            }
-
-            var hoursBeforeEvent = (VietnamTime.ToVietnamTime(evt.StartTime) - VietnamTime.Now).TotalHours;
-
-            var threshold7Days = await _settingsService.GetSettingAsIntAsync(
-                SystemSettings.REFUND_THRESHOLD_7_DAYS, 168);
-            var threshold3Days = await _settingsService.GetSettingAsIntAsync(
-                SystemSettings.REFUND_THRESHOLD_3_DAYS, 72);
-            var threshold1Day = await _settingsService.GetSettingAsIntAsync(
-                SystemSettings.REFUND_THRESHOLD_1_DAY, 24);
-
-            var percent100 = await _settingsService.GetSettingAsDecimalAsync(
-                SystemSettings.REFUND_PERCENT_FULL, 100);
-            var percent75 = await _settingsService.GetSettingAsDecimalAsync(
-                SystemSettings.REFUND_PERCENT_75, 75);
-            var percent50 = await _settingsService.GetSettingAsDecimalAsync(
-                SystemSettings.REFUND_PERCENT_50, 50);
-            var percent0 = await _settingsService.GetSettingAsDecimalAsync(
-                SystemSettings.REFUND_PERCENT_0, 0);
-
-            if (hoursBeforeEvent > threshold7Days)
-            {
-                return (percent100, $"Refund 100% (>7 days before event)");
-            }
-            else if (hoursBeforeEvent > threshold3Days)
-            {
-                return (percent75, $"Refund 75% (3-7 days before event)");
-            }
-            else if (hoursBeforeEvent > threshold1Day)
-            {
-                return (percent50, $"Refund 50% (1-3 days before event)");
-            }
-            else
-            {
-                return (percent0, $"No refund (<24 hours before event)");
-            }
         }
 
         private async Task LogCancelOrderAsync(Guid orderId, Guid userId, decimal refundAmount, string reason, string performedBy)

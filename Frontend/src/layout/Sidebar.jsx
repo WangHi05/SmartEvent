@@ -4,7 +4,7 @@ import { authService } from '../services/authService';
 import useAuthStore from '../store/useAuthStore';
 import { LayoutDashboard, Calendar, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket, Route, History, BrainCircuit } from 'lucide-react';
 
-const Sidebar = ({ sidebarOpen }) => {
+const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();
 
   // Lấy user từ store trước, fallback localStorage/sessionStorage
@@ -83,18 +83,29 @@ const Sidebar = ({ sidebarOpen }) => {
   };
 
   return (
-    <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-200 transition-all duration-300 flex flex-col fixed h-full z-20 shadow-lg md:shadow-none`}>
+  <>
+    {/* Overlay cho mobile */}
+    {sidebarOpen && (
+      <div
+        className="fixed inset-0 bg-black/40 z-20 md:hidden"
+        onClick={() => setSidebarOpen?.(false)}
+      />
+    )}
+
+    <aside className={`${sidebarOpen ? 'w-64 translate-x-0' : 'w-20 -translate-x-full md:translate-x-0'} md:translate-x-0 bg-white border-r border-gray-200 transition-all duration-300 flex flex-col fixed h-full z-30 shadow-lg md:shadow-none`}>
       {/* Logo Area */}
       <div className="h-20 flex items-center justify-center border-b border-gray-100">
-      <img 
-          src="/logo.png" 
-          alt="HostEvent Logo" 
+        <img
+          src="/logo.png"
+          alt="HostEvent Logo"
           className={`object-contain transition-all duration-300 ${
             sidebarOpen ? 'w-8 h-8 mr-2' : 'w-10 h-10'
-          }`} 
+          }`}
         />
         {sidebarOpen ? (
-          <h1 className="text-2xl font-extrabold text-orange-600 tracking-tight">SmartEvent</h1>
+          <h1 className="text-2xl font-extrabold text-orange-600 tracking-tight">
+            SmartEvent
+          </h1>
         ) : (
           <h1 className="text-2xl font-extrabold text-orange-600">HE</h1>
         )}
@@ -103,7 +114,6 @@ const Sidebar = ({ sidebarOpen }) => {
       {/* Menu Navigation */}
       <nav className="flex-1 py-6 px-3 space-y-2 overflow-y-auto">
         {menuItems.map((item) => {
-          // KIỂM TRA QUYỀN: Nếu Role không có trong danh sách, sẽ không render menu này
           if (!item.roles.includes(userRole)) return null;
 
           return (
@@ -112,19 +122,34 @@ const Sidebar = ({ sidebarOpen }) => {
               to={item.path}
               className={({ isActive }) =>
                 `w-full flex items-center p-3 rounded-lg transition-all duration-200 group ${
-                  isActive 
-                    ? 'bg-orange-50 text-orange-600 font-semibold shadow-sm' 
+                  isActive
+                    ? 'bg-orange-50 text-orange-600 font-semibold shadow-sm'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className={`${isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'}`}>
-                    <item.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <div
+                    className={`${
+                      isActive
+                        ? 'text-orange-600'
+                        : 'text-gray-400 group-hover:text-gray-600'
+                    }`}
+                  >
+                    <item.icon
+                      size={22}
+                      strokeWidth={isActive ? 2.5 : 2}
+                    />
                   </div>
-                  
-                  <span className={`ml-3 whitespace-nowrap overflow-hidden transition-all ${sidebarOpen ? 'w-auto opacity-100' : 'w-0 opacity-0'}`}>
+
+                  <span
+                    className={`ml-3 whitespace-nowrap overflow-hidden transition-all ${
+                      sidebarOpen
+                        ? 'w-auto opacity-100'
+                        : 'w-0 opacity-0'
+                    }`}
+                  >
                     {item.label}
                   </span>
                 </>
@@ -136,16 +161,19 @@ const Sidebar = ({ sidebarOpen }) => {
 
       {/* Footer / Logout */}
       <div className="p-4 border-t border-gray-100">
-        <button 
+        <button
           onClick={handleLogout}
           className="w-full flex items-center p-3 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
         >
           <LogOut size={22} />
-          {sidebarOpen && <span className="ml-3 font-medium">Đăng xuất</span>}
+          {sidebarOpen && (
+            <span className="ml-3 font-medium">Đăng xuất</span>
+          )}
         </button>
       </div>
     </aside>
-  );
+  </>
+);
 };
 
 export default Sidebar;

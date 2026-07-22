@@ -3,24 +3,29 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Interfaces
 {
-    
-    /// Interface Strategy Pattern cho các chính sách hoàn tiền khác nhau
-    /// Tuân thủ Open/Closed Principle: Mở rộng bằng cách thêm class mới, không sửa code cũ
-    
+    /// <summary>
+    /// Strategy Pattern cho các chính sách hoàn tiền khác nhau.
+    /// Mở rộng bằng cách thêm class mới (Open/Closed Principle).
+    /// </summary>
     public interface IRefundStrategy
     {
-        
-        /// Tính toán số tiền hoàn lại dựa trên chính sách cụ thể
-        decimal CalculateRefundAmount(Ticket ticket, DateTime cancellationTime);
+        /// <summary>
+        /// Tính toán số tiền hoàn lại dựa trên chính sách cụ thể.
+        /// </summary>
+        Task<RefundCalculationResult> CalculateRefundAsync(Order order, DateTime cancellationTime);
 
-        
-        /// Tên của chính sách (để hiển thị UI hoặc logging)
-        
         string PolicyName { get; }
-
-        
-        /// Mô tả chi tiết chính sách
-        
         string PolicyDescription { get; }
+    }
+
+    public class RefundCalculationResult
+    {
+        public decimal TotalPrice { get; set; }
+        public decimal RefundPercentage { get; set; }
+        public decimal RefundBeforeFee { get; set; }
+        public decimal RefundFeePercent { get; set; }
+        public decimal RefundFeeAmount { get; set; }
+        public decimal FinalRefundAmount { get; set; }
+        public string Reason { get; set; } = string.Empty;
     }
 }

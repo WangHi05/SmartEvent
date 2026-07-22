@@ -304,7 +304,7 @@ const BookingPage = () => {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card className="sticky top-24 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
+          <Card className="lg:sticky lg:top-24 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
             <CustomerSectionTitle
               kicker="Tickets"
               title="Chọn loại vé"

@@ -142,6 +142,7 @@ const KnowledgeManagement = () => {
           loading={loading}
           pagination={{ pageSize: 10, showTotal: (total) => `Tổng cộng ${total} tài liệu` }}
           className="custom-table"
+          scroll={{ x: 700 }}
         />
       </Card>
 

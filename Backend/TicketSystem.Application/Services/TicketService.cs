@@ -166,9 +166,12 @@ namespace TicketSystem.Application.Services
                 strategyKey = "PartialRefund";
             }
 
+            
             // Tính toán số tiền hoàn lại
+            // LƯU Ý: Hàm này hiện không được gọi từ Controller nào (đã kiểm tra),
+            // tạm thời trả về 0 vì IRefundStrategy mới cần Order (không phải Ticket) để tính đúng.
             var cancellationTime = DateTime.UtcNow;
-            var refundAmount = refundStrategy.CalculateRefundAmount(ticket, cancellationTime);
+            decimal refundAmount = 0;
 
             // Cập nhật trạng thái vé
             ticket.Status = TicketStatus.CANCELLED;

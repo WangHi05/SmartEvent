@@ -203,6 +203,24 @@ namespace TicketSystem.API.Controllers
         }
 
         /// <summary>
+        /// NV/Admin xác nhận đã hoàn tiền cho khách (thao tác thủ công ngoài hệ thống)
+        /// </summary>
+        [HttpPost("{orderId:guid}/confirm-refund")]
+        public async Task<IActionResult> ConfirmRefund(Guid orderId)
+        {
+            try
+            {
+                var confirmedBy = User.FindFirst(ClaimTypes.Name)?.Value ?? "Staff";
+                await _cancelOrderService.ConfirmRefundCompletedAsync(orderId, confirmedBy);
+                return Ok(new { message = "Đã xác nhận hoàn tiền thành công" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// Create VNPay payment URL for current user's order
         /// </summary>
         [HttpPost("{orderId:guid}/vnpay-payment-url")]

@@ -189,19 +189,19 @@ const UserList = () => {
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: '16px', display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ margin: 0 }}>Quản lý người dùng</h2>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           Thêm người dùng
         </Button>
       </div>
 
-      <Space style={{ marginBottom: '16px' }}>
+      <Space wrap style={{ marginBottom: '16px' }}>
         <Search
           placeholder="Tìm kiếm username, họ tên, email..."
           allowClear
           enterButton={<SearchOutlined />}
-          style={{ width: 300 }}
+          style={{ width: '100%', maxWidth: 300 }}
           onSearch={(value) => setSearchTerm(value)}
         />
         <Select

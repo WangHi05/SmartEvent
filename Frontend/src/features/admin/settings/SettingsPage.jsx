@@ -85,7 +85,7 @@ const SettingsPage = () => {
 
           <Divider />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
             <Form.Item
               label="* Thời hạn hủy vé tối thiểu (giờ)"
               name="CancelHoursBeforeEvent"

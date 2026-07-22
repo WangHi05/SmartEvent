@@ -46,6 +46,8 @@ public class OrderResponseDto
     public string? ConfirmedBy { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<PaymentResponseDto> Payments { get; set; } = new();
+    public decimal? RefundAmount { get; set; }
+    public int RefundStatus { get; set; }
 }
 
 public class PaymentResponseDto

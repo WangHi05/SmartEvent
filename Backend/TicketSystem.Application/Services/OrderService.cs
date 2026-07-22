@@ -233,10 +233,7 @@ public class OrderService : IOrderService
             throw new Exception("Payment record not found");
         }
 
-        if (latestPayment.PaymentMethod != PaymentMethod.Counter)
-        {
-            throw new Exception("This endpoint is only for Counter payment method");
-        }
+        
 
         if (latestPayment.PaymentStatus != PaymentStatus.Pending)
         {
@@ -250,7 +247,7 @@ public class OrderService : IOrderService
 
         latestPayment.PaymentStatus = PaymentStatus.Completed;
         latestPayment.PaidAt = DateTime.UtcNow;
-        latestPayment.TransactionReference = $"COUNTER-{DateTime.UtcNow:yyyyMMddHHmmss}";
+        latestPayment.TransactionReference = $"MANUAL-{DateTime.UtcNow:yyyyMMddHHmmss}";
         latestPayment.UpdatedAt = DateTime.UtcNow;
         latestPayment.UpdatedBy = confirmedBy;
 
@@ -279,17 +276,17 @@ public class OrderService : IOrderService
         }
 
         _context.AuditLogs.Add(new AuditLog
-        {
-            Id = Guid.NewGuid(),
-            Action = "ConfirmCounterPayment",
-            EntityType = "Order",
-            EntityId = order.Id,
-            PerformedBy = confirmedBy,
-            Timestamp = DateTime.UtcNow,
-            CreatedAt = DateTime.UtcNow,
-            CreatedBy = confirmedBy,
-            Details = $"Counter payment confirmed. PaymentStatus=Completed, OrderStatus=Confirmed"
-        });
+{
+        Id = Guid.NewGuid(),
+        Action = "ManualConfirmPayment",
+        EntityType = "Order",
+        EntityId = order.Id,
+        PerformedBy = confirmedBy,
+        Timestamp = DateTime.UtcNow,
+        CreatedAt = DateTime.UtcNow,
+        CreatedBy = confirmedBy,
+        Details = $"Payment confirmed manually by staff. Original method: {latestPayment.PaymentMethod}. PaymentStatus=Completed, OrderStatus=Confirmed"
+    });
 
         await _context.SaveChangesAsync();
 
@@ -712,6 +709,8 @@ public class OrderService : IOrderService
             PaymentStatusName = GetPaymentStatusName(latestPayment?.PaymentStatus ?? PaymentStatus.Pending),
             ConfirmedAt = order.ConfirmedAt,
             ConfirmedBy = order.ConfirmedBy,
+            RefundAmount = order.RefundAmount,
+            RefundStatus = (int)order.RefundStatus,
             CreatedAt = order.CreatedAt,
             Payments = order.Payments
                 .OrderByDescending(p => p.CreatedAt)

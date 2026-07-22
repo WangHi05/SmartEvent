@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Table, Tag, Empty, Spin, Button, Popconfirm, message, Space, Modal, Input, Tooltip } from 'antd';
+import { Table, Tag, Empty, Spin, Button, message, Space, Modal, Input, Tooltip } from 'antd';
 import axiosClient from '../../api/axiosClient';
 import DynamicTicketCard from '../../components/DynamicTicketCard';
 import {
@@ -18,6 +18,12 @@ const MyTickets = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareLink, setShareLink] = useState('');
   const [isGeneratingLink, setIsGeneratingLink] = useState(false);
+
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState(null);
+  const [refundPreview, setRefundPreview] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   const canUseTicket = (ticket) => Number(ticket?.status) === 1 || Number(ticket?.status) === 2;
 
@@ -93,13 +99,37 @@ const MyTickets = () => {
     ];
   }, [tickets]);
 
-  const handleCancelTicket = async (ticketId) => {
+  const openCancelModal = async (record) => {
+    setCancelTarget(record);
+    setCancelModalOpen(true);
+    setRefundPreview(null);
+    setPreviewLoading(true);
     try {
-      await axiosClient.delete(`/tickets/${ticketId}`);
-      message.success('Hủy vé thành công');
+      const response = await axiosClient.post(`/orders/${record.orderId}/validate-cancel`);
+      setRefundPreview(response.data || response);
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể kiểm tra điều kiện hủy');
+      setRefundPreview({ canCancel: false, reasonCannotCancel: 'Có lỗi xảy ra, vui lòng thử lại' });
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!refundPreview?.canCancel || !cancelTarget) return;
+    setCancelLoading(true);
+    try {
+      await axiosClient.post(`/orders/${cancelTarget.orderId}/cancel`, {
+        reason: 'Khách hàng yêu cầu hủy vé',
+      });
+      message.success('Yêu cầu hủy vé thành công, tiền sẽ được hoàn thủ công sau khi xử lý');
+      setCancelModalOpen(false);
+      setCancelTarget(null);
       fetchMyTickets(false);
     } catch (error) {
       message.error(error.response?.data?.message || 'Không thể hủy vé');
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -158,6 +188,7 @@ const MyTickets = () => {
       key: 'actions',
       render: (_, record) => {
         const isReadyToShare = record.status === 1 && !record.isClaimed;
+        const canRequestCancel = record.status === 1 && record.remainingSlots === record.groupSize && !record.isClaimed;
 
         return (
           <Space>
@@ -188,10 +219,12 @@ const MyTickets = () => {
                <Tag color="purple">Đã tặng bạn bè</Tag>
             )}
 
-            {record.status === 1 && record.remainingSlots === record.groupSize && !record.isClaimed && (
-              <Popconfirm title="Bạn có chắc chắn muốn hủy vé này không?" onConfirm={() => handleCancelTicket(record.id)}>
-                <Button type="text" danger icon={<DeleteOutlined />}></Button>
-              </Popconfirm>
+            {canRequestCancel && (
+              <Tooltip title="Yêu cầu hủy vé và xem trước số tiền được hoàn">
+                <Button danger icon={<DeleteOutlined />} onClick={() => openCancelModal(record)}>
+                  Yêu cầu hủy vé
+                </Button>
+              </Tooltip>
             )}
           </Space>
         );
@@ -273,6 +306,40 @@ const MyTickets = () => {
             className="!bg-gray-50 !font-medium !text-orange-700"
           />
         </div>
+      </Modal>
+
+      <Modal
+        title="Xác nhận hủy vé"
+        open={cancelModalOpen}
+        onCancel={() => setCancelModalOpen(false)}
+        onOk={handleConfirmCancel}
+        okText="Xác nhận hủy"
+        cancelText="Đóng"
+        okButtonProps={{
+          danger: true,
+          loading: cancelLoading,
+          disabled: previewLoading || !refundPreview?.canCancel,
+        }}
+      >
+        {previewLoading ? (
+          <div className="flex justify-center py-6">
+            <Spin />
+          </div>
+        ) : refundPreview?.canCancel ? (
+          <div>
+            <p className="mb-2">
+              Bạn sẽ được hoàn:{' '}
+              <b className="text-orange-600">
+                {Number(refundPreview.estimatedRefundAmount || 0).toLocaleString('vi-VN')}đ
+              </b>
+            </p>
+            <p className="text-sm text-gray-500">
+              Số tiền sẽ được hoàn thủ công (chuyển khoản/tiền mặt tại quầy) sau khi nhân viên xác nhận yêu cầu hủy của bạn.
+            </p>
+          </div>
+        ) : (
+          <p className="text-red-600">{refundPreview?.reasonCannotCancel || 'Không thể hủy vé này'}</p>
+        )}
       </Modal>
     </div>
   );

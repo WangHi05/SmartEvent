@@ -12,10 +12,12 @@ namespace TicketSystem.API.Controllers;
 public class AdminBookingsController : ControllerBase
 {
     private readonly IOrderService _orderService;
+    private readonly ICancelOrderService _cancelOrderService;
 
-    public AdminBookingsController(IOrderService orderService)
+    public AdminBookingsController(IOrderService orderService, ICancelOrderService cancelOrderService)
     {
         _orderService = orderService;
+        _cancelOrderService = cancelOrderService;
     }
 
     [HttpGet]
@@ -76,5 +78,23 @@ public class AdminBookingsController : ControllerBase
         var reason = string.IsNullOrWhiteSpace(request?.Reason) ? "Admin cancelled order" : request.Reason;
         var result = await _orderService.CancelOrderByAdminAsync(orderId, reason, cancelledBy);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// NV/Admin xác nhận đã hoàn tiền cho khách (thao tác thủ công ngoài hệ thống)
+    /// </summary>
+    [HttpPost("{orderId:guid}/confirm-refund")]
+    public async Task<IActionResult> ConfirmRefund(Guid orderId)
+    {
+        try
+        {
+            var confirmedBy = User.Identity?.Name ?? "System";
+            await _cancelOrderService.ConfirmRefundCompletedAsync(orderId, confirmedBy);
+            return Ok(new { success = true, message = "Đã xác nhận hoàn tiền thành công" });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

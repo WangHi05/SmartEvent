@@ -30,5 +30,9 @@ namespace TicketSystem.Domain.Entities
         public string? BuyerName { get; set; }
         public string? BuyerPhone { get; set; }
         public string? BuyerCccd { get; set; }
+
+        public RefundStatus RefundStatus { get; set; } = RefundStatus.NotApplicable;
+        public DateTime? RefundConfirmedAt { get; set; }
+        public string? RefundConfirmedBy { get; set; }
     }
 }

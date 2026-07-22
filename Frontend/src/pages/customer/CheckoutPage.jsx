@@ -171,7 +171,7 @@ const CheckoutPage = () => {
 
               <Form form={form} layout="vertical" requiredMark={false}>
                 <Row gutter={16}>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item
                       name="fullName"
                       label={<span className="font-medium text-gray-700">Họ và tên <span className="text-red-500">*</span></span>}
@@ -180,7 +180,7 @@ const CheckoutPage = () => {
                       <Input size="large" className="!rounded-lg" placeholder="Nhập tên người đi" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item
                       name="phone"
                       label={<span className="font-medium text-gray-700">Số điện thoại <span className="text-red-500">*</span></span>}
@@ -227,7 +227,7 @@ const CheckoutPage = () => {
         </Col>
 
         <Col xs={24} lg={10}>
-          <Card className="sticky top-6 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
+            <Card className="lg:sticky lg:top-6 overflow-hidden !rounded-xl border border-gray-200" styles={{ body: { padding: 24 } }}>
             <h3 className="text-lg font-bold text-gray-900">Phương thức thanh toán</h3>
             <p className="mt-1 text-sm text-gray-500">Chọn phương thức phù hợp với bạn.</p>
 

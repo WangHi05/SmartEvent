@@ -66,6 +66,13 @@ namespace TicketSystem.Domain.Common
         NoRefund = 3         // Không hoàn tiền
     }
 
+    public enum RefundStatus
+    {
+        NotApplicable = 0,  // Không hủy, không liên quan hoàn tiền
+        PendingRefund = 1,  // Đã hủy, đang chờ hoàn tiền thủ công
+        RefundCompleted = 2 // NV đã xác nhận đã hoàn tiền xong
+    }
+
     /// <summary>
     /// Centralized role name constants to avoid littering string literals across the codebase.
     /// Use these values when applying [Authorize] attributes or comparing role claims.

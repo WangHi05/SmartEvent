@@ -163,6 +163,19 @@ const BookingManagementPage = () => {
     }
   };
 
+  const handleConfirmRefund = async (row) => {
+    try {
+      setActionLoading(row.id);
+      await axiosClient.post(`/admin/orders/${row.id}/confirm-refund`);
+      message.success('Đã xác nhận hoàn tiền thành công');
+      await refreshCurrentPage();
+    } catch (error) {
+      message.error(error.response?.data?.message || 'Không thể xác nhận hoàn tiền');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const openCancelModal = (row) => {
     setCancelTarget(row);
     cancelForm.setFieldsValue({ reason: '' });
@@ -215,14 +228,14 @@ const BookingManagementPage = () => {
 
   const renderActionButtons = (row) => {
     const paymentMethod = getPaymentMethod(row);
-    const isPaymentPendingCounter =
-      paymentMethod === PAYMENT_METHOD.Counter && row.paymentStatus === PAYMENT_STATUS.Pending;
+    const isPaymentPending =
+      row.paymentStatus === PAYMENT_STATUS.Pending && row.orderStatus !== ORDER_STATUS.Cancelled;
     const isOnlinePaidPendingOrder =
       (paymentMethod === PAYMENT_METHOD.VNPAY || paymentMethod === PAYMENT_METHOD.QRPayment) &&
       row.paymentStatus === PAYMENT_STATUS.Completed &&
       row.orderStatus === ORDER_STATUS.Pending;
 
-    if (isPaymentPendingCounter) {
+    if (isPaymentPending) {
       return (
         <Space wrap>
           <Button
@@ -259,6 +272,31 @@ const BookingManagementPage = () => {
               Hủy đơn
             </Button>
           )}
+          <Button icon={<EyeOutlined />} onClick={() => openDetail(row.id)}>Xem chi tiết</Button>
+        </Space>
+      );
+    }
+
+    if (row.orderStatus === ORDER_STATUS.Cancelled && row.refundStatus === 1) {
+      return (
+        <Space wrap>
+          <Button
+            type="primary"
+            icon={<CheckCircleOutlined />}
+            loading={actionLoading === row.id}
+            onClick={() => handleConfirmRefund(row)}
+          >
+            Xác nhận đã hoàn ({Number(row.refundAmount || 0).toLocaleString('vi-VN')}đ)
+          </Button>
+          <Button icon={<EyeOutlined />} onClick={() => openDetail(row.id)}>Xem chi tiết</Button>
+        </Space>
+      );
+    }
+
+    if (row.orderStatus === ORDER_STATUS.Cancelled && row.refundStatus === 2) {
+      return (
+        <Space wrap>
+          <Tag color="green">Đã hoàn tiền</Tag>
           <Button icon={<EyeOutlined />} onClick={() => openDetail(row.id)}>Xem chi tiết</Button>
         </Space>
       );
@@ -358,7 +396,7 @@ const BookingManagementPage = () => {
             allowClear
             prefix={<SearchOutlined />}
             placeholder="Tìm theo mã đơn, người mua, sự kiện"
-            style={{ width: 280 }}
+            style={{ width: '100%', maxWidth: 280 }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onPressEnter={() => fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus)}
@@ -412,6 +450,7 @@ const BookingManagementPage = () => {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={580}
+        styles={{ wrapper: { maxWidth: '100vw' } }}
       >
         {selectedOrder && (
           <Descriptions bordered column={1} size="small">
@@ -423,6 +462,10 @@ const BookingManagementPage = () => {
             <Descriptions.Item label="Tổng tiền">{Number(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}₫</Descriptions.Item>
             <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
+            <Descriptions.Item label="Số tiền hoàn">{Number(selectedOrder.refundAmount || 0).toLocaleString('vi-VN')}₫</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái hoàn tiền">
+              {selectedOrder.refundStatus === 1 ? 'Chờ hoàn tiền' : selectedOrder.refundStatus === 2 ? 'Đã hoàn tiền' : 'Không áp dụng'}
+            </Descriptions.Item>
             <Descriptions.Item label="Xác nhận lúc">{selectedOrder.confirmedAt ? formatVietnamDateTime(selectedOrder.confirmedAt, { withSeconds: true }) : '-'}</Descriptions.Item>
             <Descriptions.Item label="Xác nhận bởi">{selectedOrder.confirmedBy || '-'}</Descriptions.Item>
             <Descriptions.Item label="Ngày tạo">{formatVietnamDateTime(selectedOrder.createdAt, { withSeconds: true })}</Descriptions.Item>

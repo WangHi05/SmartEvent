@@ -28,5 +28,10 @@ namespace TicketSystem.Application.Interfaces
         /// Kiểm tra số lần hủy trong tháng hiện tại
         /// </summary>
         Task<int> GetUserCancelCountThisMonthAsync(Guid userId);
+
+        /// <summary>
+        /// NV/Admin xác nhận đã hoàn tiền cho khách (hoàn thủ công ngoài hệ thống)
+        /// </summary>
+        Task<bool> ConfirmRefundCompletedAsync(Guid orderId, string confirmedBy);
     }
 }
