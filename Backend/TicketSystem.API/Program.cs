@@ -23,7 +23,24 @@ using Hangfire.PostgreSql;
 using Npgsql;
 using System.Security.Claims;
 
+// ====== FIX TRIỆT ĐỂ LỖI "inotify instance limit (128) reached" TRÊN RENDER/DOCKER ======
+// WebApplication.CreateBuilder() mặc định bật reloadOnChange cho appsettings.json,
+// dùng FileSystemWatcher (inotify). Container Linux của Render giới hạn inotify rất thấp
+// -> app crash ngay lúc khởi động (Exited with status 139).
+// Set biến môi trường này TRƯỚC khi builder được tạo để tắt hẳn tính năng reload.
+Environment.SetEnvironmentVariable("DOTNET_hostBuilder:reloadConfigOnChange", "false");
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Phòng hờ thêm lần nữa: xóa toàn bộ json config source mặc định (có reloadOnChange = true)
+// và add lại với reloadOnChange = false, đảm bảo 100% không tạo FileSystemWatcher.
+builder.Configuration.Sources.Clear();
+builder.Configuration
+    .SetBasePath(builder.Environment.ContentRootPath)
+    .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddEnvironmentVariables()
+    .AddCommandLine(args);
 
 // 1. Lấy chuỗi kết nối gốc
 var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
