@@ -2,10 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bot, X, Send, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { authService } from '../../services/authService';
 import { Button, message, notification } from 'antd';
-
-const API_BASE_URL = 'http://localhost:5013';
+import axiosClient from '../../api/axiosClient';
 
 const AdminChatbotWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -30,24 +28,35 @@ const AdminChatbotWidget = () => {
     }
   }, [messages, isOpen]);
 
+  // Helper: lấy message lỗi thân thiện từ AxiosError
+  const getErrorMessage = (error) => {
+    if (error.response) {
+      const status = error.response.status;
+      const backendMsg = error.response.data?.message || error.response.data?.Message;
+
+      if (status === 401) return 'Phiên đăng nhập hết hạn.';
+      if (status === 403) return 'Không có quyền truy cập tính năng này.';
+      if (backendMsg) return backendMsg;
+      return `Lỗi Server: ${status}`;
+    }
+    if (error.request) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra đường truyền.';
+    }
+    return error.message || 'Đã xảy ra lỗi không xác định.';
+  };
+
   const handleExecuteAction = async (gateName, actionMessage) => {
     try {
-      const token = authService.getToken(); 
-      const response = await fetch(`${API_BASE_URL}/api/admin/chatbot/execute-action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ gateName: gateName, message: actionMessage }),
+      // axiosClient tự gắn token qua interceptor, không cần lấy thủ công
+      await axiosClient.post('/admin/chatbot/execute-action', {
+        gateName: gateName,
+        message: actionMessage,
       });
 
-      if (!response.ok) throw new Error("Lỗi khi phát lệnh");
-      
       notification.success({
         message: 'Đã phát lệnh thành công!',
         description: `Lệnh đã được gửi trực tiếp xuống màn hình nhân viên tại ${gateName}.`,
-        placement: 'bottomRight'
+        placement: 'bottomRight',
       });
 
       // Bắn 1 tin nhắn ảo lên màn hình chat để lưu lịch sử cục bộ
@@ -55,9 +64,8 @@ const AdminChatbotWidget = () => {
         ...prev,
         { id: crypto.randomUUID(), sender: 'bot', text: `[System Log]: Admin đã nhấn nút gửi lệnh điều phối xuống ${gateName}.` },
       ]);
-      
     } catch (error) {
-      message.error("Lỗi: " + error.message);
+      message.error('Lỗi: ' + getErrorMessage(error));
     }
   };
 
@@ -72,7 +80,7 @@ const AdminChatbotWidget = () => {
     while ((match = actionRegex.exec(msg.text)) !== null) {
       actionData = {
         gateName: match[1].trim(),
-        actionMessage: match[2].trim()
+        actionMessage: match[2].trim(),
       };
       // Xóa chuỗi [SUGGEST_ACTION...] khỏi text hiển thị
       cleanText = cleanText.replace(match[0], '');
@@ -80,26 +88,26 @@ const AdminChatbotWidget = () => {
     return (
       <div className="flex flex-col">
         {/* Văn bản trả lời của AI */}
-        <ReactMarkdown 
-            remarkPlugins={[remarkGfm]}
-            components={{
-              table: ({node, ...props}) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-gray-200 border" {...props} /></div>,
-              th: ({node, ...props}) => <th className="bg-gray-50 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" {...props} />,
-              td: ({node, ...props}) => <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-600 border-b" {...props} />,
-              p: ({node, ...props}) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
-              strong: ({node, ...props}) => <strong className="font-semibold text-orange-700" {...props} />,
-            }}
-          >
-            {cleanText}
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            table: ({ node, ...props }) => <div className="overflow-x-auto my-2"><table className="min-w-full divide-y divide-gray-200 border" {...props} /></div>,
+            th: ({ node, ...props }) => <th className="bg-gray-50 px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b" {...props} />,
+            td: ({ node, ...props }) => <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-600 border-b" {...props} />,
+            p: ({ node, ...props }) => <p className="mb-2 last:mb-0 leading-relaxed" {...props} />,
+            strong: ({ node, ...props }) => <strong className="font-semibold text-orange-700" {...props} />,
+          }}
+        >
+          {cleanText}
         </ReactMarkdown>
 
         {/* Nút bấm Generative UI */}
         {actionData && (
           <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
             <p className="text-xs font-semibold text-red-800 mb-2">AI ĐỀ XUẤT HÀNH ĐỘNG KHẨN CẤP:</p>
-            <Button 
-              type="primary" 
-              danger 
+            <Button
+              type="primary"
+              danger
               className="w-full shadow-sm"
               onClick={() => handleExecuteAction(actionData.gateName, actionData.actionMessage)}
             >
@@ -116,50 +124,28 @@ const AdminChatbotWidget = () => {
     if (!inputValue.trim()) return;
 
     const userMsg = inputValue.trim();
-    
+
     setMessages((prev) => [
       ...prev,
-      // FIX: Dùng crypto.randomUUID() để tạo ID duy nhất, tránh lỗi trùng Key
       { id: crypto.randomUUID(), sender: 'user', text: userMsg },
     ]);
     setInputValue('');
     setIsLoading(true);
 
     try {
-      // CLEAN CODE: Gọi authService để lấy Token
-      const token = authService.getToken(); 
-      
-      if (!token) {
-        throw new Error("Không tìm thấy phiên đăng nhập Admin!");
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/chatbot/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
-        },
-        body: JSON.stringify({ question: userMsg }),
+      // axiosClient interceptor đã trả thẳng response.data
+      const data = await axiosClient.post('/admin/chatbot/ask', {
+        question: userMsg,
       });
-
-      if (!response.ok) {
-        if(response.status === 401) throw new Error("Phiên đăng nhập hết hạn.");
-        if(response.status === 403) throw new Error("Không có quyền truy cập tính năng này.");
-        throw new Error(`Lỗi Server: ${response.status}`);
-      }
-
-      const data = await response.json();
 
       setMessages((prev) => [
         ...prev,
-        // FIX: Cập nhật lại cách tạo ID
-        { id: crypto.randomUUID(), sender: 'bot', text: data.answer },
+        { id: crypto.randomUUID(), sender: 'bot', text: data.answer ?? data.Answer },
       ]);
     } catch (error) {
       setMessages((prev) => [
         ...prev,
-        // FIX: Cập nhật lại cách tạo ID
-        { id: crypto.randomUUID(), sender: 'bot', text: `❌ Lỗi: ${error.message}` },
+        { id: crypto.randomUUID(), sender: 'bot', text: `❌ Lỗi: ${getErrorMessage(error)}` },
       ]);
     } finally {
       setIsLoading(false);
@@ -177,7 +163,7 @@ const AdminChatbotWidget = () => {
           <Bot size={28} />
           {/* Chấm xanh online */}
           <span className="absolute top-1 right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></span>
-          
+
           {/* Tooltip khi hover */}
           <span className="absolute -top-10 right-0 bg-gray-800 text-white text-xs px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none shadow-lg">
             Trợ lý AI SmartEvent
@@ -186,7 +172,7 @@ const AdminChatbotWidget = () => {
       )}
 
       {/* Cửa sổ Chat */}
-      <div 
+      <div
         className={`absolute bottom-0 right-0 w-[380px] sm:w-[450px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden transition-all duration-300 origin-bottom-right ${
           isOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-0 opacity-0 translate-y-10 pointer-events-none'
         }`}
@@ -206,7 +192,7 @@ const AdminChatbotWidget = () => {
               </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={() => setIsOpen(false)}
             className="text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors"
           >
@@ -234,7 +220,7 @@ const AdminChatbotWidget = () => {
               </div>
             </div>
           ))}
-          
+
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm flex space-x-1.5 items-center">
@@ -270,7 +256,6 @@ const AdminChatbotWidget = () => {
             <span className="text-[9px] text-gray-400 font-medium">Dữ liệu được truy xuất Real-time từ hệ thống.</span>
           </div>
         </div>
-
       </div>
     </div>
   );
