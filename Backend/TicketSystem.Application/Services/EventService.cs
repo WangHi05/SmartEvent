@@ -204,6 +204,8 @@ namespace TicketSystem.Application.Services
                 Details = $"Created event: {eventEntity.Name}"
             });
 
+            await _context.SaveChangesAsync();
+
             return MapToResponseDto(eventEntity);
         }
 
@@ -218,8 +220,10 @@ namespace TicketSystem.Application.Services
 
             // Cập nhật các trường nếu có giá trị mới
             if (!string.IsNullOrEmpty(dto.Name))
+            {
                 eventEntity.Name = dto.Name;
                 eventEntity.Slug = GenerateSlug(dto.Name);
+            }
 
             if (dto.Description != null)
                 eventEntity.Description = dto.Description;
@@ -260,6 +264,8 @@ namespace TicketSystem.Application.Services
                 Details = $"Updated event: {eventEntity.Name}. Status: {oldStatus} -> {eventEntity.Status}"
             });
 
+            await _context.SaveChangesAsync();
+
             return MapToResponseDto(eventEntity);
         }
 
@@ -290,6 +296,8 @@ namespace TicketSystem.Application.Services
                 Details = $"Deleted event: {eventEntity.Name}"
             });
 
+            await _context.SaveChangesAsync();
+
             return true;
         }
 
@@ -314,6 +322,8 @@ namespace TicketSystem.Application.Services
                 PerformedBy = "System", // Hoặc lấy user ID từ HttpContext
                 Details = $"Updated event status to: {newStatus}"
             });
+
+            await _context.SaveChangesAsync();
 
             return true;
         }
@@ -363,6 +373,7 @@ namespace TicketSystem.Application.Services
                 EndTime = eventEntity.EndTime,
                 MaxCapacity = eventEntity.MaxCapacity,
                 CurrentOccupancy = eventEntity.CurrentOccupancy,
+                BasePrice = 0,
                 CancellationDeadlineHours = eventEntity.CancellationDeadlineHours,
                 IsFull = eventEntity.IsFull(),
                 Status = (int)eventEntity.Status,

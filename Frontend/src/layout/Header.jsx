@@ -2,7 +2,6 @@ import React from 'react';
 import useAuthStore from '../store/useAuthStore';
 
 const Header = ({ sidebarOpen, setSidebarOpen }) => {
-  // HOÀN TOÀN GIỮ NGUYÊN 100% LOGIC CŨ ĐỂ KHÔNG BỊ LỖI HỆ THỐNG
   const user = useAuthStore((state) => state.user);
 
   const fullName = user?.fullName || user?.FullName || user?.username || 'Khách';
@@ -61,7 +60,6 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
           </div>
         </div>
 
-        {/* Thanh tìm kiếm của em để ở đây... */}
       </div>
 
       {/* KHU VỰC PHẢI: Thông báo và Profile User (GIỮ NGUYÊN NGUYÊN BẢN) */}

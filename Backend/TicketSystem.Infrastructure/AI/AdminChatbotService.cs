@@ -61,6 +61,7 @@ namespace TicketSystem.Infrastructure.AI
             // 4. Đăng ký Plugins
             builder.Plugins.AddFromObject(new SystemDataPlugin(_context), pluginName: "SystemData");
             builder.Plugins.AddFromObject(new ExternalDataPlugin(), pluginName: "ExternalData");
+            builder.Plugins.AddFromObject(new AuditPlugin(_context), pluginName: "AuditTools");
 
             _kernel = builder.Build();
             _chatCompletion = _kernel.GetRequiredService<IChatCompletionService>();
@@ -132,8 +133,9 @@ namespace TicketSystem.Infrastructure.AI
                     promptBuilder.AppendLine("3. Nếu Admin hỏi thông tin bên ngoài hệ thống (thời tiết, xu hướng), HÃY SỬ DỤNG HÀM TÌM KIẾM WEB.");
                     promptBuilder.AppendLine("4. Khi sử dụng dữ liệu từ Web, BẮT BUỘC phải trích dẫn đường link nguồn ở cuối câu trả lời.");
                     promptBuilder.AppendLine("5. Nếu cần thêm thông tin, hãy hỏi lại Admin để làm rõ thay vì tự suy diễn.");
-                    promptBuilder.AppendLine("6. QUAN TRỌNG: Khi Admin hỏi về tình trạng lưu lượng/check-in các cổng và bạn phát hiện cổng nào có dấu hiệu quá tải (Status là 'Quá tải' hoặc lưu lượng check-in > 80% sức chứa), bạn PHẢI phân tích và đưa ra đề xuất điều phối.");
-                    promptBuilder.AppendLine("7. CÚ PHÁP PHÁT SINH GIAO DIỆN (GENERATIVE UI): Để đề xuất một kịch bản điều hướng khẩn cấp, bạn PHẢI đính kèm cú pháp bí mật sau vào cuối câu trả lời của mình:");
+                    promptBuilder.AppendLine("6. TÍNH NĂNG ĐIỀU PHỐI (HUMAN-IN-THE-LOOP): Nếu Admin hỏi về tình hình các cổng, và bạn phát hiện dữ liệu có sự 'Ùn tắc' hoặc 'Quá tải' (Sức chứa > 80%), bạn PHẢI đưa ra đề xuất điều hướng khách.");
+                    promptBuilder.AppendLine("7. ĐỂ TẠO NÚT BẤM ĐIỀU HƯỚNG TRÊN GIAO DIỆN REACT, hãy chèn chính xác chuỗi sau vào cuối câu trả lời của bạn: [SUGGEST_ACTION|Tên Cổng|Nội dung đề xuất]");
+                    promptBuilder.AppendLine("8. TÍNH NĂNG ĐIỀU TRA (AUDIT): Nếu Admin yêu cầu kiểm tra lịch sử, truy vết nhân viên gian lận, hoặc xem tình hình check-in, hãy gọi hàm [investigate_checkin_logs]. Sau khi có dữ liệu, hãy tóm tắt ngắn gọn và cảnh báo nếu có dấu hiệu bất thường (ví dụ: quá nhiều lỗi quét mã tại một cổng).");
                     promptBuilder.AppendLine("   [SUGGEST_ACTION|Tên Cổng Cần Cảnh Báo|Nội dung đề xuất gửi đến nhân viên trực cổng]");
                     promptBuilder.AppendLine("   Ví dụ: [SUGGEST_ACTION|Cổng chính - Lối vào 1|Cổng chính đang quá tải 85%, yêu cầu nhân viên hướng dẫn khách hàng di chuyển bớt sang Cổng phụ - Lối vào 2].");
                     promptBuilder.AppendLine("   Chú ý: Tên cổng phải là một trong các cổng chính thức của hệ thống: 'Cổng chính - Lối vào 1', 'Cổng phụ - Lối vào 2', 'Cổng VIP'.");

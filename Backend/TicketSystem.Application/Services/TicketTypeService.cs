@@ -20,15 +20,18 @@ namespace TicketSystem.Application.Services
         private readonly ITicketTypeRepository _ticketTypeRepository;
         private readonly IGenericRepository<Event> _eventRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
+        private readonly IApplicationDbContext _context;
 
         public TicketTypeService(
             ITicketTypeRepository ticketTypeRepository,
             IGenericRepository<Event> eventRepository,
-            IGenericRepository<AuditLog> auditLogRepository)
+            IGenericRepository<AuditLog> auditLogRepository,
+            IApplicationDbContext context)
         {
             _ticketTypeRepository = ticketTypeRepository;
             _eventRepository = eventRepository;
             _auditLogRepository = auditLogRepository;
+            _context = context;
         }
 
         // Lấy danh sách TicketType của một Event
@@ -142,6 +145,8 @@ namespace TicketSystem.Application.Services
                 PerformedBy = createdBy,
                 Timestamp = DateTime.UtcNow
             });
+            
+            await _context.SaveChangesAsync(); 
 
             return MapToDto(created);
         }
@@ -243,6 +248,8 @@ namespace TicketSystem.Application.Services
                 Timestamp = DateTime.UtcNow
             });
 
+            await _context.SaveChangesAsync();
+
             return MapToDto(updated);
         }
 
@@ -274,6 +281,7 @@ namespace TicketSystem.Application.Services
                     PerformedBy = deletedBy,
                     Timestamp = DateTime.UtcNow
                 });
+                await _context.SaveChangesAsync();
             }
 
             return result;
@@ -306,6 +314,8 @@ namespace TicketSystem.Application.Services
                 Timestamp = DateTime.UtcNow
             });
 
+            await _context.SaveChangesAsync();
+
             return true;
         }
 
@@ -336,6 +346,8 @@ namespace TicketSystem.Application.Services
                 Timestamp = DateTime.UtcNow
             });
 
+            await _context.SaveChangesAsync();
+            
             return true;
         }
 
