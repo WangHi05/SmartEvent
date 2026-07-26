@@ -64,17 +64,17 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const menuItems = [
     { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'manager'] },
     { path: '/director/dashboard', label: 'Dashboard Giám đốc', icon: LayoutDashboard, roles: ['director'] },
-    { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] },
-    { path: '/tickets', label: 'Vé & Soát vé', icon: Ticket, roles: ['admin', 'manager', 'staff'] },
+    { path: '/events', label: 'Quản lý sự kiện', icon: Calendar, roles: ['admin', 'manager'] }, //
+    { path: '/tickets', label: 'Vé & Soát vé', icon: Ticket, roles: ['admin', 'manager'] }, //
     { path: '/bookings', label: 'Quản lý đặt vé', icon: ClipboardList, roles: ['admin', 'manager', 'staff'] },
     { path: '/checkin', label: 'Soát vé (Quét QR)', icon: ScanLine, roles: ['admin', 'manager', 'staff'] },
     { path: '/gateAD', label: 'Kiểm soát cổng', icon: Route, roles: ['admin', 'manager'] },
     { path: '/checkinHD', label: 'Help Desk', icon: Headset, roles: ['admin', 'manager', 'staff'] },
-    { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] },
+    { path: '/users', label: 'Người dùng', icon: Users, roles: ['admin'] }, //
     { path: '/audit-logs', label: 'Theo dõi hoạt động', icon: FileText, roles: ['admin', 'manager'] },
     { path: '/checkinlogs', label: 'Lịch sử Check-in', icon: History, roles: ['admin', 'manager'] },
-    { path: '/knowledge-management', label: 'Tri thức AI', icon: BrainCircuit, roles: ['admin'] },
-    { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] },
+    { path: '/knowledge-management', label: 'Tri thức AI', icon: BrainCircuit, roles: ['admin'] }, //
+    { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] }, //
   ];
 
   // Hàm xử lý đăng xuất

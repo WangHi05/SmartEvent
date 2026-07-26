@@ -271,7 +271,7 @@ const GateControl = () => {
               className="bg-indigo-500 hover:bg-indigo-400 border-none w-full h-10 font-semibold"
               icon={<ThunderboltOutlined />}
             >
-              Quét AI & Tạo kịch bản
+              Phân tích dữ liệu từ các cổng
             </Button>
           </div>
 
