@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.SemanticKernel;
-using TicketSystem.Infrastructure.Data;
+using TicketSystem.Application.Interfaces;
 
 namespace TicketSystem.Infrastructure.AI.Plugins
 {
@@ -15,9 +15,9 @@ namespace TicketSystem.Infrastructure.AI.Plugins
     /// </summary>
     public class AuditPlugin
     {
-        private readonly ApplicationDbContext _context;
+        private readonly IApplicationDbContext _context;
 
-        public AuditPlugin(ApplicationDbContext context)
+        public AuditPlugin(IApplicationDbContext context)
         {
             _context = context;
         }
@@ -27,7 +27,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
         public async Task<string> InvestigateCheckInLogsAsync(
             [Description("Tên hoặc ID của cổng cần điều tra (Ví dụ: 'Cổng chính - Lối vào 1'). Nếu không cần lọc theo cổng, truyền chuỗi rỗng ''")] string gateName = "",
             [Description("Tên nhân viên soát vé cần điều tra. Nếu không cần, truyền chuỗi rỗng ''")] string staffName = "",
-            [Description("Trạng thái soát vé: 'Success' hoặc 'Error'. Truyền rỗng nếu lấy tất cả.")] string status = "",
+            [Description("Trạng thái soát vé: 'Success' hoặc 'Failed'. Truyền rỗng nếu lấy tất cả.")] string status = "",
             [Description("Số lượng bản ghi tối đa cần lấy, ưu tiên các bản ghi mới nhất. Mặc định là 10.")] int limit = 10)
         {
             try
@@ -37,12 +37,12 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                 // 1. Áp dụng các bộ lọc điều tra do AI quyết định
                 if (!string.IsNullOrWhiteSpace(gateName))
                 {
-                    query = query.Where(l => l.GateName.Contains(gateName));
+                    query = query.Where(l => l.GateName != null && l.GateName.Contains(gateName));
                 }
 
                 if (!string.IsNullOrWhiteSpace(staffName))
                 {
-                    query = query.Where(l => l.ScannedBy != null && l.ScannedBy.Contains(staffName));
+                    query = query.Where(l => l.StaffId != null && l.StaffId.Contains(staffName));
                 }
 
                 if (!string.IsNullOrWhiteSpace(status))
@@ -52,16 +52,16 @@ namespace TicketSystem.Infrastructure.AI.Plugins
 
                 // 2. Lấy dữ liệu mới nhất
                 var logs = await query
-                    .OrderByDescending(l => l.Timestamp)
+                    .OrderByDescending(l => l.CheckedAt)
                     .Take(limit)
-                    .Select(l => new 
+                    .Select(l => new
                     {
-                        Time = l.Timestamp.ToString("dd/MM/yyyy HH:mm:ss"),
+                        Time = l.CheckedAt.ToString("dd/MM/yyyy HH:mm:ss"),
                         Gate = l.GateName,
-                        Staff = l.ScannedBy,
+                        Staff = l.StaffId,
                         Status = l.CheckInResult,
                         People = l.PeopleCount,
-                        Message = l.ErrorMessage ?? "Thành công"
+                        Message = l.FailureReason ?? "Thành công"
                     })
                     .ToListAsync();
 
