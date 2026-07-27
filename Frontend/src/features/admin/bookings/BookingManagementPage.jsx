@@ -71,6 +71,8 @@ const BookingManagementPage = () => {
   const [orders, setOrders] = useState([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(FILTER_VALUE.ALL);
+  const [eventFilter, setEventFilter] = useState(undefined);
+  const [eventOptions, setEventOptions] = useState([]);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [detailOpen, setDetailOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -90,12 +92,24 @@ const BookingManagementPage = () => {
     return undefined;
   }, [statusFilter]);
 
+  const fetchEventOptions = async () => {
+    try {
+      const response = await axiosClient.get('/events/dropdown');
+      const data = response.data || response;
+      setEventOptions(Array.isArray(data) ? data : []);
+    } catch (error) {
+      // Không chặn luồng chính nếu lấy danh sách sự kiện lỗi
+      console.error('Không thể tải danh sách sự kiện cho bộ lọc', error);
+    }
+  };
+
   const fetchOrders = async (
     page = 1,
     pageSize = 10,
     searchTerm = search,
     paymentStatus = currentPaymentStatus,
     orderStatus = currentOrderStatus,
+    eventId = eventFilter,
   ) => {
     setLoading(true);
     try {
@@ -106,6 +120,7 @@ const BookingManagementPage = () => {
           search: searchTerm,
           paymentStatus,
           orderStatus,
+          eventId,
         },
       });
 
@@ -134,7 +149,7 @@ const BookingManagementPage = () => {
   };
 
   const refreshCurrentPage = async () => {
-    await fetchOrders(pagination.current, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus);
+    await fetchOrders(pagination.current, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus, eventFilter);
   };
 
   const handleConfirmPayment = async (row) => {
@@ -322,6 +337,7 @@ const BookingManagementPage = () => {
 
   useEffect(() => {
     fetchOrders();
+    fetchEventOptions();
   }, []);
 
   const columns = [
@@ -399,7 +415,20 @@ const BookingManagementPage = () => {
             style={{ width: '100%', maxWidth: 280 }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onPressEnter={() => fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus)}
+            onPressEnter={() => fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus, eventFilter)}
+          />
+          <Select
+            placeholder="Lọc theo sự kiện"
+            style={{ width: 220 }}
+            allowClear
+            showSearch
+            value={eventFilter}
+            optionFilterProp="label"
+            onChange={(value) => {
+              setEventFilter(value);
+              fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus, value);
+            }}
+            options={eventOptions.map((ev) => ({ value: ev.id, label: ev.name }))}
           />
           <Select
             placeholder="Lọc trạng thái"
@@ -419,7 +448,7 @@ const BookingManagementPage = () => {
                   : value === FILTER_VALUE.ORDER_CANCELLED
                     ? ORDER_STATUS.Cancelled
                     : undefined;
-              fetchOrders(1, pagination.pageSize, search, paymentStatus, orderStatus);
+              fetchOrders(1, pagination.pageSize, search, paymentStatus, orderStatus, eventFilter);
             }}
             options={[
               { value: FILTER_VALUE.ALL, label: 'Tất cả' },
@@ -429,7 +458,7 @@ const BookingManagementPage = () => {
               { value: FILTER_VALUE.ORDER_CANCELLED, label: 'Đã hủy' },
             ]}
           />
-          <Button type="primary" onClick={() => fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus)}>
+          <Button type="primary" onClick={() => fetchOrders(1, pagination.pageSize, search, currentPaymentStatus, currentOrderStatus, eventFilter)}>
             Tìm kiếm
           </Button>
         </Space>
@@ -442,7 +471,7 @@ const BookingManagementPage = () => {
         loading={loading}
         scroll={{ x: 1400 }}
         pagination={{ ...pagination, showSizeChanger: true }}
-        onChange={(p) => fetchOrders(p.current, p.pageSize, search, currentPaymentStatus, currentOrderStatus)}
+        onChange={(p) => fetchOrders(p.current, p.pageSize, search, currentPaymentStatus, currentOrderStatus, eventFilter)}
       />
 
       <Drawer

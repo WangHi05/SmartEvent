@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Button, Modal, Form, Input, Space, Popconfirm, message, Typography, Card } from 'antd';
-import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ReloadOutlined, EditOutlined } from '@ant-design/icons';
 import { BrainCircuit } from 'lucide-react';
 import axiosClient from '../../../api/axiosClient';
 
@@ -13,13 +13,15 @@ const KnowledgeManagement = () => {
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
+  // Chế độ modal: 'add' hoặc 'edit'
+  const [modalMode, setModalMode] = useState('add');
+  const [editingRecord, setEditingRecord] = useState(null);
+
   // Gọi API lấy danh sách tài liệu
   const fetchKnowledge = async () => {
     setLoading(true);
     try {
-      // Đường dẫn API trùng khớp với Controller vừa viết
       const response = await axiosClient.get('/admin/chatbot/knowledge');
-      // axiosClient đã tự động trả về response.data nhờ Interceptor
       setData(response || []);
     } catch (error) {
       console.error('Lỗi khi lấy dữ liệu:', error);
@@ -33,21 +35,44 @@ const KnowledgeManagement = () => {
     fetchKnowledge();
   }, []);
 
-  // Xử lý Thêm mới (Ingest)
-  const handleAddSubmit = async (values) => {
+  const openAddModal = () => {
+    setModalMode('add');
+    setEditingRecord(null);
+    form.resetFields();
+    setIsModalVisible(true);
+  };
+
+  const openEditModal = (record) => {
+    setModalMode('edit');
+    setEditingRecord(record);
+    form.setFieldsValue({ title: record.title, content: record.content });
+    setIsModalVisible(true);
+  };
+
+  // Xử lý Thêm mới hoặc Cập nhật
+  const handleSubmit = async (values) => {
     setSubmitting(true);
     try {
-      await axiosClient.post('/admin/chatbot/ingest', {
-        title: values.title,
-        content: values.content,
-      });
-      message.success('Đã nạp kiến thức mới cho AI thành công!');
+      if (modalMode === 'edit' && editingRecord) {
+        await axiosClient.put(`/admin/chatbot/knowledge/${editingRecord.id}`, {
+          title: values.title,
+          content: values.content,
+        });
+        message.success('Đã cập nhật tài liệu thành công!');
+      } else {
+        await axiosClient.post('/admin/chatbot/ingest', {
+          title: values.title,
+          content: values.content,
+        });
+        message.success('Đã nạp kiến thức mới cho AI thành công!');
+      }
       setIsModalVisible(false);
       form.resetFields();
-      fetchKnowledge(); // Cập nhật lại bảng
+      setEditingRecord(null);
+      fetchKnowledge();
     } catch (error) {
-      console.error('Lỗi khi nạp kiến thức:', error);
-      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi nạp kiến thức.');
+      console.error('Lỗi khi lưu tri thức:', error);
+      message.error(error.response?.data?.message || 'Có lỗi xảy ra khi lưu.');
     } finally {
       setSubmitting(false);
     }
@@ -86,19 +111,26 @@ const KnowledgeManagement = () => {
     {
       title: 'Thao tác',
       key: 'actions',
-      width: 120,
+      width: 160,
       align: 'center',
       render: (_, record) => (
-        <Popconfirm
-          title="Xác nhận xóa tài liệu?"
-          description="AI sẽ mất đi kiến thức này ngay lập tức. Bạn có chắc không?"
-          onConfirm={() => handleDelete(record.id)}
-          okText="Xóa ngay"
-          cancelText="Hủy"
-          okButtonProps={{ danger: true }}
-        >
-          <Button type="text" danger icon={<DeleteOutlined size={18} className="text-red-500" />} />
-        </Popconfirm>
+        <Space>
+          <Button
+            type="text"
+            icon={<EditOutlined size={18} className="text-blue-500" />}
+            onClick={() => openEditModal(record)}
+          />
+          <Popconfirm
+            title="Xác nhận xóa tài liệu?"
+            description="AI sẽ mất đi kiến thức này ngay lập tức. Bạn có chắc không?"
+            onConfirm={() => handleDelete(record.id)}
+            okText="Xóa ngay"
+            cancelText="Hủy"
+            okButtonProps={{ danger: true }}
+          >
+            <Button type="text" danger icon={<DeleteOutlined size={18} className="text-red-500" />} />
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
@@ -116,9 +148,9 @@ const KnowledgeManagement = () => {
           </Text>
         </div>
         <Space>
-          <Button 
-            icon={<ReloadOutlined size={16} />} 
-            onClick={fetchKnowledge} 
+          <Button
+            icon={<ReloadOutlined size={16} />}
+            onClick={fetchKnowledge}
             loading={loading}
           >
             Làm mới
@@ -127,7 +159,7 @@ const KnowledgeManagement = () => {
             type="primary"
             className="bg-orange-600 hover:bg-orange-700"
             icon={<PlusOutlined size={16} />}
-            onClick={() => setIsModalVisible(true)}
+            onClick={openAddModal}
           >
             Nạp tri thức mới
           </Button>
@@ -150,26 +182,30 @@ const KnowledgeManagement = () => {
         title={
           <div className="flex items-center text-orange-600">
             <BrainCircuit className="mr-2" size={24} />
-            Dạy AI Kiến thức mới
+            {modalMode === 'edit' ? 'Sửa kiến thức đã nạp' : 'Dạy AI Kiến thức mới'}
           </div>
         }
         open={isModalVisible}
         onCancel={() => {
           setIsModalVisible(false);
           form.resetFields();
+          setEditingRecord(null);
         }}
         onOk={() => form.submit()}
         confirmLoading={submitting}
-        okText="Lưu & Huấn luyện (Vectorize)"
+        okText={modalMode === 'edit' ? 'Lưu thay đổi (Vectorize lại)' : 'Lưu & Huấn luyện (Vectorize)'}
         cancelText="Hủy"
         okButtonProps={{ className: 'bg-orange-600 hover:bg-orange-700' }}
         width={700}
       >
         <div className="bg-orange-50 p-4 rounded-lg mb-6 border border-orange-100 text-sm text-gray-700">
           <strong>💡 Mẹo:</strong> Hãy viết nội dung thật rõ ràng, mạch lạc. AI sẽ dựa vào độ dài và từ khóa của bạn để tìm kiếm câu trả lời khi Admin hỏi.
+          {modalMode === 'edit' && (
+            <> <br />Khi lưu, hệ thống sẽ tính lại vector embedding mới cho nội dung này.</>
+          )}
         </div>
-        
-        <Form form={form} layout="vertical" onFinish={handleAddSubmit}>
+
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item
             name="title"
             label="Tiêu đề (Chủ đề tài liệu)"
@@ -189,9 +225,9 @@ const KnowledgeManagement = () => {
               { min: 20, message: 'Nội dung quá ngắn, AI sẽ khó hiểu. Hãy viết chi tiết hơn.' }
             ]}
           >
-            <Input.TextArea 
-              rows={8} 
-              placeholder="Nhập toàn bộ nội dung chính sách vào đây. Ví dụ: Khách hàng mua vé VIP sẽ được hoàn 100% nếu hủy trước 7 ngày..." 
+            <Input.TextArea
+              rows={8}
+              placeholder="Nhập toàn bộ nội dung chính sách vào đây. Ví dụ: Khách hàng mua vé VIP sẽ được hoàn 100% nếu hủy trước 7 ngày..."
             />
           </Form.Item>
         </Form>

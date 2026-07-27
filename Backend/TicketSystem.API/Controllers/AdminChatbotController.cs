@@ -54,6 +54,20 @@ namespace TicketSystem.API.Controllers
             return Ok(new { Message = "Xóa tài liệu thành công." });
         }
 
+        public class UpdateKnowledgeDto { public string Title { get; set; } = string.Empty; public string Content { get; set; } = string.Empty; }
+
+        [HttpPut("knowledge/{id}")]
+        public async Task<IActionResult> UpdateKnowledge(Guid id, [FromBody] UpdateKnowledgeDto request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Title) || string.IsNullOrWhiteSpace(request.Content))
+                return BadRequest("Tiêu đề và nội dung không được trống.");
+
+            var success = await _chatbotService.UpdateKnowledgeAsync(id, request.Title, request.Content);
+            if (!success) return NotFound(new { Message = "Không tìm thấy tài liệu này trong hệ thống." });
+
+            return Ok(new { Message = "Cập nhật tài liệu thành công." });
+        }
+
         [HttpPost("execute-action")]
         public async Task<IActionResult> ExecuteAction(
             [FromBody] ExecuteActionDto request, 

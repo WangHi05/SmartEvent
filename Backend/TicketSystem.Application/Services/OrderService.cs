@@ -558,7 +558,7 @@ public class OrderService : IOrderService
         };
     }
 
-    public async Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null)
+    public async Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null, Guid? eventId = null)
     {
         var query = _context.Orders
             .Include(o => o.User)
@@ -585,6 +585,11 @@ public class OrderService : IOrderService
         if (orderStatus.HasValue)
         {
             query = query.Where(o => (int)o.OrderStatus == orderStatus.Value);
+        }
+
+        if (eventId.HasValue)
+        {
+            query = query.Where(o => o.EventId == eventId.Value);
         }
 
         var totalCount = await query.CountAsync();

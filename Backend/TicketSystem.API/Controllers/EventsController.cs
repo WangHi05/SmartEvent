@@ -42,6 +42,20 @@ namespace TicketSystem.API.Controllers
             }
         }
 
+        /// <summary>
+        /// Lấy danh sách rút gọn (Id, Name) toàn bộ sự kiện — dùng cho dropdown lọc
+        /// </summary>
+        [HttpGet("dropdown")]
+        public async Task<IActionResult> GetEventsDropdown()
+        {
+            var events = await _context.Events
+                .OrderByDescending(e => e.StartTime)
+                .Select(e => new { id = e.Id, name = e.Name })
+                .ToListAsync();
+
+            return Ok(events);
+        }
+
         /// Lấy thông tin Event theo ID
         [HttpGet("{id}")]
         public async Task<ActionResult<EventResponseDto>> GetEventById(Guid id)

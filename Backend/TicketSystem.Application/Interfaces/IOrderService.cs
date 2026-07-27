@@ -13,6 +13,6 @@ public interface IOrderService
     Task<MyTicketsResponseDto> GetUserTicketsAsync(Guid userId);
     Task<bool> CancelTicketAsync(Guid ticketId, Guid userId);
     Task<PagedOrdersResponseDto> GetUserOrdersAsync(Guid userId, int pageNumber = 1, int pageSize = 10, int? paymentStatus = null);
-    Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null);
+    Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null, Guid? eventId = null);
     Task<OrderResponseDto?> GetOrderDetailAsync(Guid orderId, Guid? userId = null, bool isAdmin = false);
 }

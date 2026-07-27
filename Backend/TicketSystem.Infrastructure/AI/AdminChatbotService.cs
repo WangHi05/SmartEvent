@@ -107,6 +107,23 @@ namespace TicketSystem.Infrastructure.AI
             await _context.SaveChangesAsync(default);
         }
 
+        public async Task<bool> UpdateKnowledgeAsync(Guid id, string title, string content)
+        {
+            var entity = await _context.SystemKnowledges.FindAsync(id);
+            if (entity == null) return false;
+
+            // Tính lại embedding vì nội dung đã thay đổi — bắt buộc để RAG search vẫn chính xác
+            var embeddings = await _textEmbedding.GenerateEmbeddingsAsync(new[] { content });
+            var vector = new Vector(embeddings[0].ToArray());
+
+            entity.Title = title;
+            entity.Content = content;
+            entity.Embedding = vector;
+
+            await _context.SaveChangesAsync(default);
+            return true;
+        }
+
         public async Task<string> AskQuestionAsync(string question)
         {
             // Cơ chế Retry (Exponential Backoff) an toàn của OpenAPI

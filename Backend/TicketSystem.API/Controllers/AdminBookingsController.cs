@@ -26,9 +26,10 @@ public class AdminBookingsController : ControllerBase
         [FromQuery] int pageSize = 10,
         [FromQuery] string? search = null,
         [FromQuery] int? paymentStatus = null,
-        [FromQuery] int? orderStatus = null)
+        [FromQuery] int? orderStatus = null,
+        [FromQuery] Guid? eventId = null)
     {
-        var result = await _orderService.GetAdminOrdersAsync(pageNumber, pageSize, search, paymentStatus, orderStatus);
+        var result = await _orderService.GetAdminOrdersAsync(pageNumber, pageSize, search, paymentStatus, orderStatus, eventId);
         return Ok(result);
     }
 

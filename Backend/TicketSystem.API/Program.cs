@@ -38,7 +38,14 @@ builder.Configuration.Sources.Clear();
 builder.Configuration
     .SetBasePath(builder.Environment.ContentRootPath)
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
-    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false);
+
+if (builder.Environment.IsDevelopment())
+{
+    builder.Configuration.AddUserSecrets<Program>(optional: true, reloadOnChange: false);
+}
+
+builder.Configuration
     .AddEnvironmentVariables()
     .AddCommandLine(args);
 
@@ -231,7 +238,11 @@ builder.Services.AddRateLimiter(options =>
 
 builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
-var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? "dev-secret-key-change-me-in-production";
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrWhiteSpace(jwtSecret))
+{
+    jwtSecret = "dev-secret-key-change-me-in-production-please";
+}
 var jwtIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "TicketSystem_API";
 var jwtAudience = builder.Configuration["JwtSettings:Audience"] ?? "TicketSystem_ReactApp";
 

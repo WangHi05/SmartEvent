@@ -1,11 +1,37 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Space, Tag, Popconfirm, message, Input } from 'antd';
+import { Table, Button, Space, Tag, Popconfirm, message, Input, Select, DatePicker } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 import * as signalR from '@microsoft/signalr';
 import dayjs from 'dayjs';
 import EventForm from './EventForm';
 import { formatVietnamDateTime } from '../../../utils/vietnamTime';
+
+const { RangePicker } = DatePicker;
+
+const EVENT_STATUS = {
+  Draft: 0,
+  Active: 1,
+  Ongoing: 2,
+  Completed: 3,
+  Cancelled: 4,
+};
+
+const statusColorMap = {
+  [EVENT_STATUS.Draft]: 'default',
+  [EVENT_STATUS.Active]: 'blue',
+  [EVENT_STATUS.Ongoing]: 'green',
+  [EVENT_STATUS.Completed]: 'default',
+  [EVENT_STATUS.Cancelled]: 'red',
+};
+
+const statusLabelMap = {
+  [EVENT_STATUS.Draft]: 'Nháp',
+  [EVENT_STATUS.Active]: 'Sắp diễn ra',
+  [EVENT_STATUS.Ongoing]: 'Đang diễn ra',
+  [EVENT_STATUS.Completed]: 'Đã kết thúc',
+  [EVENT_STATUS.Cancelled]: 'Đã hủy',
+};
 
 const EventList = () => {
   const [events, setEvents] = useState([]);
@@ -15,10 +41,12 @@ const EventList = () => {
     pageSize: 10,
     total: 0,
   });
-  
+
   const [searchText, setSearchText] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  
+  const [statusFilter, setStatusFilter] = useState(undefined);
+  const [dateRange, setDateRange] = useState(null);
+
   const [formVisible, setFormVisible] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
@@ -30,15 +58,35 @@ const EventList = () => {
     return () => clearTimeout(handler);
   }, [searchText]);
 
-  const fetchEvents = useCallback(async (page = 1, pageSize = 10, keyword = '', isSilent = false) => {
+  const fetchEvents = useCallback(async (
+    page = 1,
+    pageSize = 10,
+    keyword = '',
+    status = statusFilter,
+    range = dateRange,
+    isSilent = false,
+  ) => {
     if (!isSilent) setLoading(true);
-    
+
     try {
-      const response = await axiosClient.get('/events/search', {
-        params: { pageNumber: page, pageSize: pageSize, keyword: keyword },
-      });
-      
-      const data = response.data || response; 
+      const params = {
+        pageNumber: page,
+        pageSize: pageSize,
+        keyword: keyword,
+      };
+
+      if (status !== undefined && status !== null) {
+        params.status = status;
+      }
+
+      if (range && range[0] && range[1]) {
+        params.fromDate = range[0].startOf('day').toISOString();
+        params.toDate = range[1].endOf('day').toISOString();
+      }
+
+      const response = await axiosClient.get('/events/search', { params });
+
+      const data = response.data || response;
       setEvents(data.items || []);
       setPagination(prev => ({
         ...prev,
@@ -52,14 +100,15 @@ const EventList = () => {
     } finally {
       if (!isSilent) setLoading(false);
     }
-  }, []); 
+  }, [statusFilter, dateRange]);
 
-  // Gọi API lần đầu
+  // Gọi API lần đầu + mỗi khi filter đổi
   useEffect(() => {
-    fetchEvents(1, pagination.pageSize, debouncedSearch);
-  }, [debouncedSearch, fetchEvents]);
+    fetchEvents(1, pagination.pageSize, debouncedSearch, statusFilter, dateRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, statusFilter, dateRange]);
 
-  // CƠ CHẾ SIGNALR: Lắng nghe thay đổi Real-time 
+  // CƠ CHẾ SIGNALR: Lắng nghe thay đổi Real-time
   useEffect(() => {
     const connection = new signalR.HubConnectionBuilder()
       .withUrl("http://localhost:5013/gateHub")
@@ -68,11 +117,10 @@ const EventList = () => {
 
     connection.on("TicketCheckedIn", (data) => {
       console.log("⚡ Nhận dữ liệu Real-time:", data);
-      
-      // Update UI ngay lập tức mà không cần gọi lại API GET
-      setEvents(prevEvents => prevEvents.map(evt => 
-        evt.id === data.eventId 
-          ? { ...evt, currentOccupancy: data.newOccupancy, isFull: data.isFull } 
+
+      setEvents(prevEvents => prevEvents.map(evt =>
+        evt.id === data.eventId
+          ? { ...evt, currentOccupancy: data.newOccupancy, isFull: data.isFull }
           : evt
       ));
     });
@@ -81,7 +129,6 @@ const EventList = () => {
       .then(() => console.log('✅ Đã kết nối SignalR Real-time Dashboard'))
       .catch(err => console.error('❌ Lỗi kết nối SignalR: ', err));
 
-    // Cleanup khi rời khỏi trang
     return () => {
       connection.stop();
     };
@@ -91,7 +138,7 @@ const EventList = () => {
     try {
       await axiosClient.delete(`/events/${id}`);
       message.success('Xóa sự kiện thành công');
-      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch);
+      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange);
     } catch (error) {
       console.error('Error deleting event:', error);
       message.error(error.response?.data?.message || 'Không thể xóa sự kiện');
@@ -109,7 +156,13 @@ const EventList = () => {
   };
 
   const handleTableChange = (newPagination) => {
-    fetchEvents(newPagination.current, newPagination.pageSize, debouncedSearch);
+    fetchEvents(newPagination.current, newPagination.pageSize, debouncedSearch, statusFilter, dateRange);
+  };
+
+  const handleResetFilters = () => {
+    setSearchText('');
+    setStatusFilter(undefined);
+    setDateRange(null);
   };
 
   const columns = [
@@ -143,15 +196,11 @@ const EventList = () => {
     {
       title: 'Trạng thái',
       key: 'status',
-      render: (_, record) => {
-        const now = new Date();
-        const start = new Date(record.startTime);
-        const end = new Date(record.endTime);
-        
-        if (now < start) return <Tag color="blue">Sắp diễn ra</Tag>;
-        if (now >= start && now <= end) return <Tag color="green">Đang diễn ra</Tag>;
-        return <Tag color="gray">Đã kết thúc</Tag>;
-      },
+      render: (_, record) => (
+        <Tag color={statusColorMap[record.status] || 'default'}>
+          {statusLabelMap[record.status] || 'Không xác định'}
+        </Tag>
+      ),
     },
     {
       title: 'Thao tác',
@@ -182,16 +231,41 @@ const EventList = () => {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
-        <Input
-          placeholder="Tìm kiếm theo tên hoặc mô tả..."
-          prefix={<SearchOutlined />}
-          style={{ width: '100%', maxWidth: 300 }}
-          value={searchText}
-          onChange={(e) => setSearchText(e.target.value)}
-          allowClear
-        />
+        <Space wrap>
+          <Input
+            placeholder="Tìm kiếm theo tên hoặc mô tả..."
+            prefix={<SearchOutlined />}
+            style={{ width: '100%', maxWidth: 280 }}
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            allowClear
+          />
+          <Select
+            placeholder="Lọc trạng thái"
+            style={{ width: 170 }}
+            allowClear
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value)}
+            options={[
+              { value: EVENT_STATUS.Draft, label: 'Nháp' },
+              { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
+              { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
+              { value: EVENT_STATUS.Completed, label: 'Đã kết thúc' },
+              { value: EVENT_STATUS.Cancelled, label: 'Đã hủy' },
+            ]}
+          />
+          <RangePicker
+            placeholder={['Từ ngày', 'Đến ngày']}
+            value={dateRange}
+            onChange={(range) => setDateRange(range)}
+            format="DD/MM/YYYY"
+          />
+          {(statusFilter !== undefined || dateRange || searchText) && (
+            <Button onClick={handleResetFilters}>Xóa bộ lọc</Button>
+          )}
+        </Space>
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch)}>
+          <Button icon={<ReloadOutlined />} onClick={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange)}>
             Refresh
           </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
@@ -219,7 +293,7 @@ const EventList = () => {
           setFormVisible(false);
           setSelectedEvent(null);
         }}
-        onSuccess={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch)}
+        onSuccess={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange)}
         eventData={selectedEvent}
       />
     </div>
