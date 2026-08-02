@@ -19,7 +19,7 @@ public class OrderService : IOrderService
 
     public async Task<CreateOrderResponseDto> CreateOrderAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+        var user = await _context.Customers.FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) throw new Exception("User not found");
 
         var eventEntity = await _context.Events.FirstOrDefaultAsync(e => e.Id == createOrderDto.EventId);
@@ -41,7 +41,7 @@ public class OrderService : IOrderService
         var order = new Order
         {
             Id = Guid.NewGuid(),
-            UserId = userId,
+            CustomerId = userId,
             EventId = createOrderDto.EventId,
             TicketTypeId = createOrderDto.TicketTypeId,
             TotalPrice = totalPrice,
@@ -127,7 +127,7 @@ public class OrderService : IOrderService
     public async Task<OrderResponseDto> ConfirmOrderPaymentAsync(Guid orderId, Guid userId, string transactionReference = "")
     {
         var order = await _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -138,7 +138,7 @@ public class OrderService : IOrderService
             throw new Exception("Order not found");
         }
 
-        if (order.UserId != userId)
+        if (order.CustomerId != userId)
         {
             throw new Exception("Unauthorized to confirm this payment");
         }
@@ -158,11 +158,11 @@ public class OrderService : IOrderService
             ? $"TXN-{DateTime.UtcNow:yyyyMMddHHmmss}"
             : transactionReference.Trim();
         latestPayment.UpdatedAt = DateTime.UtcNow;
-        latestPayment.UpdatedBy = order.UserId.ToString();
+        latestPayment.UpdatedBy = order.CustomerId.ToString();
 
         order.OrderStatus = OrderStatus.Confirmed;
         order.UpdatedAt = DateTime.UtcNow;
-        order.UpdatedBy = order.UserId.ToString();
+        order.UpdatedBy = order.CustomerId.ToString();
 
         await _context.SaveChangesAsync();
 
@@ -172,7 +172,7 @@ public class OrderService : IOrderService
     public async Task<OrderResponseDto> ConfirmOrderPaymentBySystemAsync(Guid orderId, string transactionReference = "")
     {
         var order = await _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -212,7 +212,7 @@ public class OrderService : IOrderService
     public async Task<OrderResponseDto> ConfirmCounterPaymentByAdminAsync(Guid orderId, string confirmedBy)
     {
         var order = await _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -296,7 +296,7 @@ public class OrderService : IOrderService
     public async Task<OrderResponseDto> ConfirmOnlineOrderByAdminAsync(Guid orderId, string confirmedBy)
     {
         var order = await _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -394,7 +394,7 @@ public class OrderService : IOrderService
         // Online đã thanh toán: hủy và hoàn theo policy hiện có.
         if (latestPayment.PaymentMethod != PaymentMethod.Counter && latestPayment.PaymentStatus == PaymentStatus.Completed)
         {
-            return await _cancelOrderService.CancelOrderAsync(orderId, order.UserId, reason, cancelledBy);
+            return await _cancelOrderService.CancelOrderAsync(orderId, order.CustomerId, reason, cancelledBy);
         }
 
         // Counter hoặc chưa thanh toán: chỉ hủy đơn.
@@ -459,7 +459,7 @@ public class OrderService : IOrderService
         var tickets = await _context.Tickets
             .Include(t => t.Order)
             .ThenInclude(o => o.Payments)
-            .Where(t => t.Order != null && t.Order.UserId == userId)
+            .Where(t => t.Order != null && t.Order.CustomerId == userId)
             .Include(t => t.TicketType)
             .ThenInclude(tt => tt.Event)
             .OrderByDescending(t => t.CreatedAt)
@@ -500,7 +500,7 @@ public class OrderService : IOrderService
             throw new Exception("Ticket not found");
         }
 
-        if (ticket.Order?.UserId != userId)
+        if (ticket.Order?.CustomerId != userId)
         {
             throw new Exception("Unauthorized to cancel this ticket");
         }
@@ -529,11 +529,11 @@ public class OrderService : IOrderService
     public async Task<PagedOrdersResponseDto> GetUserOrdersAsync(Guid userId, int pageNumber = 1, int pageSize = 10, int? paymentStatus = null)
     {
         var query = _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
-            .Where(o => o.UserId == userId)
+            .Where(o => o.CustomerId == userId)
             .AsQueryable();
 
         if (paymentStatus.HasValue)
@@ -561,7 +561,7 @@ public class OrderService : IOrderService
     public async Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null, Guid? eventId = null)
     {
         var query = _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -572,8 +572,8 @@ public class OrderService : IOrderService
             var normalized = search.Trim().ToLower();
             query = query.Where(o =>
                 o.Id.ToString().ToLower().Contains(normalized) ||
-                o.User.Username.ToLower().Contains(normalized) ||
-                o.User.FullName.ToLower().Contains(normalized) ||
+                o.Customer.Username.ToLower().Contains(normalized) ||
+                o.Customer.FullName.ToLower().Contains(normalized) ||
                 o.Event.Name.ToLower().Contains(normalized));
         }
 
@@ -612,7 +612,7 @@ public class OrderService : IOrderService
     public async Task<OrderResponseDto?> GetOrderDetailAsync(Guid orderId, Guid? userId = null, bool isAdmin = false)
     {
         var query = _context.Orders
-            .Include(o => o.User)
+            .Include(o => o.Customer)
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
@@ -621,7 +621,7 @@ public class OrderService : IOrderService
 
         if (!isAdmin && userId.HasValue)
         {
-            query = query.Where(o => o.UserId == userId.Value);
+            query = query.Where(o => o.CustomerId == userId.Value);
         }
 
         var order = await query.FirstOrDefaultAsync();
@@ -699,9 +699,9 @@ public class OrderService : IOrderService
         return new OrderResponseDto
         {
             Id = order.Id,
-            UserId = order.UserId,
-            BuyerName = order.User?.FullName ?? string.Empty,
-            BuyerUsername = order.User?.Username ?? string.Empty,
+            UserId = order.CustomerId,
+            BuyerName = order.Customer?.FullName ?? string.Empty,
+            BuyerUsername = order.Customer?.Username ?? string.Empty,
             EventId = order.EventId,
             EventName = order.Event?.Name ?? string.Empty,
             TotalPrice = order.TotalPrice,

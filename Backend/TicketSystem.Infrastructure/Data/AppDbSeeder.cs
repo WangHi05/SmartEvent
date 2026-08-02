@@ -219,7 +219,7 @@ namespace TicketSystem.Infrastructure.Data
                 var orderFaker = new Faker<Order>("vi")
                     .RuleFor(o => o.Id, f => Guid.NewGuid())
                     .RuleFor(o => o.EventId, evt.Id)
-                    .RuleFor(o => o.UserId, f => f.PickRandom(users).Id)
+                    .RuleFor(o => o.CustomerId, f => f.PickRandom(users).Id)
                     .RuleFor(o => o.TicketTypeId, f => f.PickRandom(eventTicketTypes).Id)
                     .RuleFor(o => o.Quantity, (f, o) => f.Random.Int(1, 4))
                     .RuleFor(o => o.BuyerName, f => f.Name.FullName())

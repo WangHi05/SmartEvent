@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace TicketSystem.Application.DTOs
@@ -15,6 +16,7 @@ namespace TicketSystem.Application.DTOs
         public string? PhoneNumber { get; set; }
         public string Role { get; set; } = string.Empty; // String để dễ serialization
         public bool IsActive { get; set; }
+        public string? AvatarUrl { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -28,6 +30,8 @@ namespace TicketSystem.Application.DTOs
 
         [StringLength(30, ErrorMessage = "Số điện thoại tối đa 30 ký tự")]
         public string? PhoneNumber { get; set; }
+
+        public string? AvatarUrl { get; set; }
     }
 
     public class ChangePasswordDto
@@ -64,6 +68,9 @@ namespace TicketSystem.Application.DTOs
         [Required(ErrorMessage = "Role là bắt buộc")]
         [RegularExpression("Admin|Manager|Staff|Customer|Director", ErrorMessage = "Role phải là Admin, Manager, Staff, Director hoặc Customer")]
         public string Role { get; set; } = string.Empty;
+
+        // Đường dẫn ảnh đã upload từ endpoint upload riêng (nullable, optional)
+        public string? AvatarUrl { get; set; }
     }
 
     
@@ -90,6 +97,9 @@ namespace TicketSystem.Application.DTOs
 
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Password phải ít nhất 6 ký tự")]
         public string? NewPassword { get; set; } // Optional - chỉ update nếu có giá trị
+
+        // Đường dẫn ảnh đã upload từ endpoint upload riêng (nullable, optional)
+        public string? AvatarUrl { get; set; }
     }
 
     

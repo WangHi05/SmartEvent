@@ -56,7 +56,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                 .Select(u => new
                 {
                     u.FullName,
-                    TicketCount = _context.Tickets.Count(t => t.Order != null && t.Order.UserId == u.Id)
+                    TicketCount = _context.Tickets.Count(t => t.Order != null && t.Order.CustomerId == u.Id)
                 })
                 .OrderByDescending(x => x.TicketCount)
                 .Take(limit) // Áp dụng biến limit

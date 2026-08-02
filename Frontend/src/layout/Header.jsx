@@ -5,6 +5,7 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
   const user = useAuthStore((state) => state.user);
 
   const fullName = user?.fullName || user?.FullName || user?.username || 'Khách';
+  const avatarUrl = user?.avatarUrl || user?.AvatarUrl || '';
   const rawRole = (user?.role || user?.Role || '').toString().toLowerCase();
 
   let roleDisplay = '';
@@ -81,8 +82,12 @@ const Header = ({ sidebarOpen, setSidebarOpen }) => {
           </div>
           
           {/* Avatar động */}
-          <div className="w-10 h-10 rounded-full bg-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-md cursor-pointer hover:bg-orange-700 transition-colors">
-            {avatarLetter}
+          <div className="w-10 h-10 rounded-full overflow-hidden bg-orange-600 flex items-center justify-center text-white font-bold text-lg shadow-md cursor-pointer hover:bg-orange-700 transition-colors">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
+            ) : (
+              avatarLetter
+            )}
           </div>
         </div>
         

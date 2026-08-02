@@ -6,16 +6,14 @@ using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Interfaces
 {
-    /// <summary>
-    /// Giao diện đại diện cho Database Context.
-    /// Giúp tầng Application giao tiếp với Database mà không cần biết chi tiết về SQL Server hay Entity Framework.
-    /// </summary>
     public interface IApplicationDbContext
     {
         DbSet<Event> Events { get; }
         DbSet<Ticket> Tickets { get; }
         DbSet<TicketType> TicketTypes { get; }
-        DbSet<User> Users { get; }
+        DbSet<User> Users { get; } // Giữ tạm để không vỡ code cũ chưa kịp sửa — sẽ xóa ở bước dọn dẹp cuối
+        DbSet<Employee> Employees { get; }
+        DbSet<Customer> Customers { get; }
         DbSet<Order> Orders { get; }
         DbSet<Payment> Payments { get; }
         ChangeTracker ChangeTracker { get; }
@@ -23,7 +21,6 @@ namespace TicketSystem.Application.Interfaces
         DbSet<AuditLog> AuditLogs { get; }
         DbSet<SystemSettings> SystemSettings { get; }
         DbSet<SystemKnowledge> SystemKnowledges { get; }
-        // Phương thức lưu thay đổi vào DB
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
     }
 }

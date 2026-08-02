@@ -3,18 +3,20 @@ using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common;
 using TicketSystem.Application.Interfaces;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Pgvector; 
+using Pgvector;
 
 namespace TicketSystem.Infrastructure.Data
 {
-    public class ApplicationDbContext : DbContext, IApplicationDbContext 
+    public class ApplicationDbContext : DbContext, IApplicationDbContext
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
         {
         }
 
-        public DbSet<User> Users { get; set; }
+        public DbSet<User> Users { get; set; } // Bảng cũ — giữ tạm, sẽ xóa sau khi migrate xong toàn bộ
+        public DbSet<Employee> Employees { get; set; }
+        public DbSet<Customer> Customers { get; set; }
         public DbSet<Event> Events { get; set; }
         public DbSet<Domain.Entities.TicketType> TicketTypes { get; set; }
         public DbSet<Ticket> Tickets { get; set; }
@@ -29,7 +31,6 @@ namespace TicketSystem.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Khai báo extension vector cho PostgreSQL để hỗ trợ RAG
             modelBuilder.HasPostgresExtension("vector");
 
             var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
@@ -46,12 +47,43 @@ namespace TicketSystem.Infrastructure.Data
                     }
                 }
             }
+
+            // 0a. Employee Configuration (MỚI)
+            modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.FullName).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.AvatarUrl).HasMaxLength(500).IsRequired();
+                entity.Property(e => e.Position).HasMaxLength(100);
+                entity.Property(e => e.Role).HasConversion<int>();
+                entity.HasIndex(e => e.Username).IsUnique();
+                entity.HasIndex(e => e.Email).IsUnique();
+            });
+
+            // 0b. Customer Configuration (MỚI)
+            modelBuilder.Entity<Customer>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Username).HasMaxLength(50).IsRequired();
+                entity.Property(e => e.Email).HasMaxLength(255).IsRequired();
+                entity.Property(e => e.FullName).HasMaxLength(100).IsRequired();
+                entity.Property(e => e.AvatarUrl).HasMaxLength(500);
+                entity.HasIndex(e => e.Username).IsUnique();
+                entity.HasIndex(e => e.Email).IsUnique();
+
+                entity.HasMany(c => c.Orders)
+                    .WithOne(o => o.Customer)
+                    .HasForeignKey(o => o.CustomerId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // 1. Event Configuration
             modelBuilder.Entity<Event>(entity =>
             {
                 entity.ToTable(t =>
                 {
-                    // Đổi dấu ngoặc vuông sang nháy kép để PostgreSQL hiểu được tên cột
                     t.HasCheckConstraint("CK_EventTime", "\"StartTime\" < \"EndTime\"");
                 });
                 entity.HasKey(e => e.Id);
@@ -66,12 +98,10 @@ namespace TicketSystem.Infrastructure.Data
             {
                 entity.ToTable(t =>
                 {
-                    // Đổi dấu ngoặc vuông sang nháy kép chuẩn PostgreSQL
                     t.HasCheckConstraint("CK_SaleTime", "\"SaleStartTime\" < \"SaleEndTime\"");
                 });
                 entity.HasKey(e => e.Id);
-                
-                // Properties
+
                 entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
                 entity.Property(e => e.Price).HasPrecision(18, 2).IsRequired();
                 entity.Property(e => e.Quantity).IsRequired();
@@ -81,11 +111,9 @@ namespace TicketSystem.Infrastructure.Data
                 entity.Property(e => e.UsageType).HasConversion<int?>();
                 entity.Property(e => e.QRMode).HasConversion<int?>();
                 entity.Property(e => e.PriceMode).HasConversion<int?>();
-                
-                // Deprecated properties kept for backward compatibility
+
                 entity.Property(e => e.AccessType).HasConversion<int>();
-                
-                // Foreign key
+
                 entity.HasOne(e => e.Event)
                     .WithMany(e => e.TicketTypes)
                     .HasForeignKey(e => e.EventId)
@@ -121,7 +149,7 @@ namespace TicketSystem.Infrastructure.Data
                 entity.Property(e => e.FailureReason).HasMaxLength(500);
                 entity.Property(e => e.QRCodeData).HasMaxLength(2000);
                 entity.Property(e => e.GateName).HasMaxLength(100);
-                
+
                 entity.HasOne(e => e.Ticket)
                     .WithMany(t => t.CheckInLogs)
                     .HasForeignKey(e => e.TicketId)
@@ -130,7 +158,7 @@ namespace TicketSystem.Infrastructure.Data
                 entity.HasIndex(e => new { e.TicketId, e.CheckinDate });
             });
 
-            // 5. Order Configuration
+            // 5. Order Configuration (SỬA: User -> Customer)
             modelBuilder.Entity<Order>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -140,9 +168,9 @@ namespace TicketSystem.Infrastructure.Data
                 entity.Property(e => e.RefundAmount).HasPrecision(18, 2);
                 entity.Property(e => e.ConfirmedBy).HasMaxLength(100);
 
-                entity.HasOne(e => e.User)
-                    .WithMany(u => u.Orders)
-                    .HasForeignKey(e => e.UserId)
+                entity.HasOne(e => e.Customer)
+                    .WithMany(c => c.Orders)
+                    .HasForeignKey(e => e.CustomerId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.Event)
@@ -155,10 +183,10 @@ namespace TicketSystem.Infrastructure.Data
                     .HasForeignKey(e => e.TicketTypeId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasIndex(e => new { e.UserId, e.EventId });
+                entity.HasIndex(e => new { e.CustomerId, e.EventId });
                 entity.HasIndex(e => e.CreatedAt);
                 entity.HasIndex(e => e.OrderStatus);
-                entity.HasIndex(e => new { e.UserId, e.OrderStatus });
+                entity.HasIndex(e => new { e.CustomerId, e.OrderStatus });
             });
 
             // 6. Payment Configuration
@@ -199,16 +227,12 @@ namespace TicketSystem.Infrastructure.Data
                 entity.HasIndex(e => e.SettingKey).IsUnique();
             });
 
-            // 9. SystemKnowledge Configuration (Dữ liệu Vector cho AI)
+            // 9. SystemKnowledge Configuration
             modelBuilder.Entity<SystemKnowledge>(entity =>
             {
                 entity.HasKey(e => e.Id);
-                
-                // Cấu hình kiểu dữ liệu vector trong database với 768 chiều (chuẩn của Gemini)
-                entity.Property(e => e.Embedding)
-                      .HasColumnType("vector(768)");
+                entity.Property(e => e.Embedding).HasColumnType("vector(768)");
             });
-            
         }
     }
 }

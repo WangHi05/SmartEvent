@@ -19,7 +19,7 @@ namespace TicketSystem.API.Controllers
 
         /// Upload ảnh (dùng chung cho Event, Avatar, v.v.)
         [HttpPost("image")]
-        [Authorize(Roles = "Admin,Manager")]
+        [Authorize]
         public async Task<IActionResult> UploadImage(IFormFile file)
         {
             try

@@ -4,129 +4,171 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
 using TicketSystem.Application.DTOs;
-using TicketSystem.Application.Services;
+using TicketSystem.Application.Interfaces;
 
 namespace TicketSystem.API.Controllers
 {
-    // Controller quản lý Users - CRUD operations và Authentication
     [ApiController]
     [Route("api/[controller]")]
     public class UsersController : ControllerBase
     {
-        // DEPENDENCY INVERSION: Tiêm Interface IUserService thay vì Class cụ thể
-        private readonly IUserService _userService; 
+        private readonly IAuthService _authService;
+        private readonly IEmployeeService _employeeService;
+        private readonly ICustomerService _customerService;
+        private readonly IOrderService _orderService;
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService, ILogger<UsersController> logger)
+        public UsersController(
+            IAuthService authService,
+            IEmployeeService employeeService,
+            ICustomerService customerService,
+            IOrderService orderService,
+            ILogger<UsersController> logger)
         {
-            _userService = userService;
+            _authService = authService;
+            _employeeService = employeeService;
+            _customerService = customerService;
+            _orderService = orderService;
             _logger = logger;
         }
 
-        // Lấy danh sách Users với phân trang và filter
         [HttpGet]
-        [Authorize(Roles = "Admin,Manager")] // Chỉ Admin và Manager mới xem được danh sách
+        [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult<UserListDto>> GetUsers(
-            [FromQuery] int pageNumber = 1, 
+            [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             [FromQuery] string? searchTerm = null,
             [FromQuery] string? role = null)
         {
-            var result = await _userService.GetUsersAsync(pageNumber, pageSize, searchTerm, role);
+            var result = await _employeeService.GetEmployeesAsync(pageNumber, pageSize, searchTerm, role);
             return Ok(result);
         }
 
-        // Lấy thông tin chi tiết một User theo ID
+        [HttpGet("customers")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<ActionResult<UserListDto>> GetCustomers(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] string? searchTerm = null)
+        {
+            var result = await _customerService.GetCustomersAsync(pageNumber, pageSize, searchTerm);
+            return Ok(result);
+        }
+
         [HttpGet("{id}")]
-        [Authorize] // Yêu cầu phải đăng nhập (Bất kỳ Role nào)
+        [Authorize]
         public async Task<ActionResult<UserResponseDto>> GetUserById(Guid id)
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (user == null) return NotFound(new { message = "Không tìm thấy người dùng" });
-            return Ok(user);
+            var employee = await _employeeService.GetEmployeeByIdAsync(id);
+            if (employee != null) return Ok(employee);
+
+            var customer = await _customerService.GetCustomerByIdAsync(id);
+            if (customer != null) return Ok(customer);
+
+            return NotFound(new { message = "Không tìm thấy người dùng" });
         }
 
         [HttpGet("me")]
         [Authorize(Roles = "Customer")]
         public async Task<ActionResult<UserResponseDto>> GetMe()
         {
-            var user = await _userService.GetCurrentUserAsync();
+            var user = await _customerService.GetCurrentCustomerAsync();
             if (user == null) return NotFound(new { message = "Không tìm thấy thông tin tài khoản" });
-
             return Ok(user);
         }
 
-        // Admin tạo tài khoản mới cho nhân viên
+        /// <summary>
+        /// Admin/Manager xem lịch sử đặt vé + thanh toán của 1 khách hàng cụ thể.
+        /// PagedOrdersResponseDto đã kèm sẵn danh sách Payments trong mỗi Order.
+        /// </summary>
+        [HttpGet("{id}/orders")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<ActionResult<PagedOrdersResponseDto>> GetUserOrders(
+            Guid id,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10)
+        {
+            var result = await _orderService.GetUserOrdersAsync(id, pageNumber, pageSize);
+            return Ok(result);
+        }
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserResponseDto>> CreateUser([FromBody] CreateUserDto dto)
         {
             var currentUser = User.Identity?.Name ?? "System";
-            var result = await _userService.CreateUserAsync(dto, currentUser);
+            var result = await _employeeService.CreateEmployeeAsync(dto, dto.AvatarUrl ?? string.Empty, currentUser);
             return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
-        // Đăng ký tài khoản mới cho Khách hàng/Nhân viên mới (Public API)
         [HttpPost("register")]
-        [AllowAnonymous] // Bất kỳ ai cũng có thể truy cập
+        [AllowAnonymous]
         public async Task<ActionResult<UserResponseDto>> Register([FromBody] CreateUserDto dto)
         {
-            // Fix cứng Role là Staff (hoặc Customer) cho người dùng tự đăng ký
-            dto.Role = "Customer"; 
-            var result = await _userService.CreateUserAsync(dto, "System_Register");
+            var result = await _authService.RegisterCustomerAsync(dto, "System_Register");
             return CreatedAtAction(nameof(GetUserById), new { id = result.Id }, result);
         }
 
-        // Xác thực đăng nhập (Login)
         [HttpPost("authenticate")]
-        [AllowAnonymous] // Bất kỳ ai cũng có thể gọi API này để lấy Token
+        [AllowAnonymous]
         public async Task<ActionResult<AuthResponseDto>> Authenticate([FromBody] LoginDto dto)
         {
-            // Nếu sai mật khẩu hoặc tài khoản khóa, Service sẽ trả về null
-            var result = await _userService.AuthenticateAsync(dto.Username, dto.Password);
+            var result = await _authService.AuthenticateAsync(dto.Username, dto.Password);
             if (result == null)
                 return Unauthorized(new { message = "Username hoặc password không đúng, hoặc tài khoản đã bị khóa!" });
 
             return Ok(result);
         }
 
-        // 1. API QUÊN MẬT KHẨU
         [HttpPost("forgot-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
         {
-            var success = await _userService.ForgotPasswordAsync(dto.Email);
-            if (!success) 
+            var success = await _authService.ForgotPasswordAsync(dto.Email);
+            if (!success)
                 return BadRequest(new { message = "Không tìm thấy email hoặc tài khoản chưa kích hoạt." });
-            
+
             return Ok(new { message = "Email xác nhận đã được gửi." });
         }
 
-        // 2. API ĐẶT LẠI MẬT KHẨU
         [HttpPost("reset-password")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
-            var success = await _userService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
-            if (!success) 
+            var success = await _authService.ResetPasswordAsync(dto.Email, dto.Token, dto.NewPassword);
+            if (!success)
                 return BadRequest(new { message = "Mã xác nhận không đúng hoặc đã hết hạn." });
-            
+
             return Ok(new { message = "Đặt lại mật khẩu thành công." });
         }
 
-        // 3. API SOCIAL LOGIN (GOOGLE / FACEBOOK)
+        /// <summary>
+        /// Admin reset mật khẩu cho nhân viên: sinh mật khẩu mới ngẫu nhiên, trả về 1 lần để Admin gửi thủ công.
+        /// </summary>
+        [HttpPost("{id}/reset-password")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResetEmployeePassword(Guid id)
+        {
+            var currentUser = User.Identity?.Name ?? "System";
+            var newPassword = await _employeeService.ResetPasswordAsync(id, currentUser);
+
+            if (newPassword == null)
+                return NotFound(new { message = "Không tìm thấy nhân viên" });
+
+            return Ok(new { newPassword });
+        }
+
         [HttpPost("external-login")]
         [AllowAnonymous]
         public async Task<ActionResult<AuthResponseDto>> ExternalLogin([FromBody] ExternalLoginDto dto)
         {
-            var result = await _userService.ExternalLoginAsync(dto.Email, dto.Name, dto.Provider, dto.ProviderId);
-            if (result == null) 
+            var result = await _authService.ExternalLoginAsync(dto.Email, dto.Name, dto.Provider, dto.ProviderId);
+            if (result == null)
                 return BadRequest(new { message = "Đăng nhập thất bại." });
-            
+
             return Ok(result);
         }
 
-        // Cập nhật thông tin User
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Manager")]
         public async Task<ActionResult<UserResponseDto>> UpdateUser(Guid id, [FromBody] UpdateUserDto dto)
@@ -134,10 +176,32 @@ namespace TicketSystem.API.Controllers
             if (id != dto.Id) return BadRequest(new { message = "ID không khớp" });
 
             var currentUser = User.Identity?.Name ?? "System";
-            var result = await _userService.UpdateUserAsync(dto, currentUser);
-            
-            if (result == null) return NotFound(new { message = "Không tìm thấy người dùng" });
-            return Ok(result);
+
+            var employeeResult = await _employeeService.UpdateEmployeeAsync(dto, dto.AvatarUrl, currentUser);
+            if (employeeResult != null) return Ok(employeeResult);
+
+            var customerResult = await _customerService.UpdateCustomerByAdminAsync(dto, currentUser);
+            if (customerResult != null) return Ok(customerResult);
+
+            return NotFound(new { message = "Không tìm thấy người dùng" });
+        }
+
+        /// <summary>
+        /// Admin khóa/mở khóa tài khoản (nhân viên hoặc khách hàng) thay vì xóa cứng.
+        /// </summary>
+        [HttpPut("{id}/status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SetUserStatus(Guid id, [FromBody] SetStatusDto dto)
+        {
+            var currentUser = User.Identity?.Name ?? "System";
+
+            if (await _employeeService.SetActiveStatusAsync(id, dto.IsActive, currentUser))
+                return Ok(new { message = dto.IsActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản" });
+
+            if (await _customerService.SetActiveStatusAsync(id, dto.IsActive, currentUser))
+                return Ok(new { message = dto.IsActive ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản" });
+
+            return NotFound(new { message = "Không tìm thấy người dùng" });
         }
 
         [HttpPut("me")]
@@ -147,7 +211,7 @@ namespace TicketSystem.API.Controllers
             try
             {
                 var currentUser = User.Identity?.Name ?? "Customer";
-                var result = await _userService.UpdateCurrentUserAsync(dto, currentUser);
+                var result = await _customerService.UpdateCurrentCustomerAsync(dto, currentUser);
 
                 if (result == null) return NotFound(new { message = "Không tìm thấy thông tin tài khoản" });
                 return Ok(result);
@@ -163,7 +227,7 @@ namespace TicketSystem.API.Controllers
         public async Task<IActionResult> ChangeMyPassword([FromBody] ChangePasswordDto dto)
         {
             var currentUser = User.Identity?.Name ?? "Customer";
-            var result = await _userService.ChangeCurrentUserPasswordAsync(dto, currentUser);
+            var result = await _customerService.ChangeCurrentCustomerPasswordAsync(dto, currentUser);
 
             if (!result.Success)
                 return BadRequest(new { message = result.ErrorMessage ?? "Không thể đổi mật khẩu." });
@@ -171,20 +235,22 @@ namespace TicketSystem.API.Controllers
             return Ok(new { message = "Đổi mật khẩu thành công." });
         }
 
-        // Xóa người dùng (Chỉ Admin)
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult> DeleteUser(Guid id)
         {
             var currentUser = User.Identity?.Name ?? "System";
-            var success = await _userService.DeleteUserAsync(id, currentUser);
-            
-            if (!success) return NotFound(new { message = "Không tìm thấy người dùng" });
-            return NoContent();
+
+            if (await _employeeService.DeleteEmployeeAsync(id, currentUser))
+                return NoContent();
+
+            if (await _customerService.DeleteCustomerAsync(id, currentUser))
+                return NoContent();
+
+            return NotFound(new { message = "Không tìm thấy người dùng" });
         }
     }
 
-    // DTO cho login request (Chứa gọn trong file này hoặc em có thể chuyển sang thư mục DTOs)
     public class LoginDto
     {
         public string Username { get; set; } = string.Empty;
@@ -209,5 +275,10 @@ namespace TicketSystem.API.Controllers
         public string Name { get; set; } = string.Empty;
         public string Provider { get; set; } = string.Empty;
         public string ProviderId { get; set; } = string.Empty;
+    }
+
+    public class SetStatusDto
+    {
+        public bool IsActive { get; set; }
     }
 }

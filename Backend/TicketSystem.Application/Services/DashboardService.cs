@@ -150,7 +150,7 @@ namespace TicketSystem.Application.Services
 
             var totalOrders = await _db.Orders.CountAsync();
             var totalEvents = await _db.Events.CountAsync();
-            var totalCustomers = await _db.Users.CountAsync(u => u.Role == UserRole.Customer);
+            var totalCustomers = await _db.Customers.CountAsync();
 
             var today = DateOnly.FromDateTime(VietnamTime.Now);
             var totalCheckinsToday = await _db.CheckInLogs
@@ -292,7 +292,7 @@ namespace TicketSystem.Application.Services
 
             var totalEvents = await events.CountAsync();
             var totalOrders = await _db.Orders.CountAsync();
-            var totalCustomers = await _db.Users.CountAsync(u => u.Role == UserRole.Customer);
+            var totalCustomers = await _db.Customers.CountAsync();
 
             var today = DateOnly.FromDateTime(VietnamTime.Now);
             var totalCheckinsToday = await _db.CheckInLogs
@@ -386,7 +386,7 @@ namespace TicketSystem.Application.Services
                 .Include(e => e.Orders)
                 .ThenInclude(o => o.Payments)
                 .Include(e => e.Orders)
-                .ThenInclude(o => o.User)
+                .ThenInclude(o => o.Customer)
                 .Include(e => e.Orders)
                 .ThenInclude(o => o.Tickets)
                 .ThenInclude(t => t.TicketType)
@@ -419,7 +419,7 @@ namespace TicketSystem.Application.Services
                     lines.Add(new ExportReportLineDto
                     {
                         STT = stt++,
-                        CustomerName = order.BuyerName ?? order.User?.FullName ?? "Không rõ",
+                        CustomerName = order.BuyerName ?? order.Customer?.FullName ?? "Không rõ",
                         TicketType = ticket.TicketType?.Name ?? "Không xác định",
                         TicketPrice = ticket.TicketType?.Price ?? 0,
                         PaymentStatus = GetPaymentStatusDisplay(paymentStatus),

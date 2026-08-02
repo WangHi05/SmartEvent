@@ -13,7 +13,8 @@ namespace TicketSystem.API.Services
         }
 
         /// Upload ảnh lên Cloudinary, trả về URL ảnh (https)
-        public async Task<string> UploadImageAsync(IFormFile file)
+        /// folder: thư mục lưu trên Cloudinary, ví dụ "ticketsystem/events" hoặc "ticketsystem/avatars"
+        public async Task<string> UploadImageAsync(IFormFile file, string folder = "ticketsystem/misc")
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File ảnh không hợp lệ.");
@@ -33,7 +34,7 @@ namespace TicketSystem.API.Services
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
-                Folder = "ticketsystem/events", // ảnh sự kiện sẽ lưu trong thư mục này trên Cloudinary
+                Folder = folder,
                 Transformation = new Transformation().Quality("auto").FetchFormat("auto")
             };
 

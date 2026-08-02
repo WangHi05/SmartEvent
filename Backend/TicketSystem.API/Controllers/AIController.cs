@@ -3286,7 +3286,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 .Include(order => order.Event)
                 .Include(order => order.TicketType)
                 .Include(order => order.Payments)
-                .Where(order => order.UserId == userId)
+                .Where(order => order.CustomerId == userId)
                 .OrderByDescending(order => order.CreatedAt)
                 .Take(5)
                 .ToListAsync(cancellationToken);
@@ -3330,7 +3330,7 @@ Hãy trả lời đúng vai trò và đúng response type đã yêu cầu.";
                 .Include(ticket => ticket.TicketType)
                     .ThenInclude(ticketType => ticketType!.Event)
                 .Include(ticket => ticket.Order)
-                .Where(ticket => ticket.Order != null && ticket.Order.UserId == userId)
+                .Where(ticket => ticket.Order != null && ticket.Order.CustomerId == userId)
                 .OrderByDescending(ticket => ticket.CreatedAt)
                 .Take(5)
                 .ToListAsync(cancellationToken);

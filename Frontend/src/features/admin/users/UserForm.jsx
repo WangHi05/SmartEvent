@@ -1,24 +1,26 @@
 import React, { useEffect } from 'react';
 import { Modal, Form, Input, Select, Switch, message } from 'antd';
 import axiosClient from '../../../api/axiosClient';
+import AvatarUpload from './AvatarUpload';
 
-const UserForm = ({ open, user, onClose, onSuccess }) => {
+const UserForm = ({ open, user, type = 'employee', onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const isEdit = !!user;
+  const isEmployee = type === 'employee';
 
   useEffect(() => {
     if (open) {
       if (user) {
-        // Chế độ edit - điền sẵn dữ liệu
         form.setFieldsValue({
           username: user.username,
           fullName: user.fullName,
           email: user.email,
+          phoneNumber: user.phoneNumber,
           role: user.role,
           isActive: user.isActive,
+          avatarUrl: user.avatarUrl,
         });
       } else {
-        // Chế độ create - reset form
         form.resetFields();
       }
     }
@@ -27,40 +29,40 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
   const handleSubmit = async (values) => {
     try {
       if (isEdit) {
-        // Update user
         const updateData = {
           id: user.id,
-          username: user.username,
           fullName: values.fullName,
           email: values.email,
-          role: values.role,
+          phoneNumber: values.phoneNumber,
           isActive: values.isActive,
+          avatarUrl: values.avatarUrl,
         };
-        
-        // Chỉ gửi password nếu có thay đổi
+        if (isEmployee) {
+          updateData.role = values.role;
+        }
         if (values.newPassword) {
           updateData.newPassword = values.newPassword;
         }
         await axiosClient.put(`/users/${user.id}`, updateData);
-        message.success('Cập nhật người dùng thành công');
+        message.success('Cập nhật thành công');
       } else {
-        // Create user
         const createData = {
           username: values.username,
           password: values.password,
           fullName: values.fullName,
           email: values.email,
           role: values.role,
+          avatarUrl: values.avatarUrl,
         };
-
         await axiosClient.post('/users', createData);
-        message.success('Tạo người dùng thành công');
+        message.success('Tạo nhân viên thành công');
       }
 
       form.resetFields();
       onSuccess();
     } catch (error) {
-      const errorMessage = error.response?.data?.message || 
+      const errorMessage =
+        error.response?.data?.message ||
         (isEdit ? 'Không thể cập nhật người dùng' : 'Không thể tạo người dùng');
       message.error(errorMessage);
       console.error('Error saving user:', error);
@@ -74,7 +76,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
 
   return (
     <Modal
-      title={isEdit ? 'Chỉnh sửa người dùng' : 'Thêm người dùng mới'}
+      title={isEdit ? `Chỉnh sửa ${isEmployee ? 'nhân viên' : 'khách hàng'}` : 'Thêm nhân viên mới'}
       open={open}
       onOk={() => form.submit()}
       onCancel={handleCancel}
@@ -82,24 +84,37 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
       cancelText="Hủy"
       width={600}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
         <Form.Item
-          name="username"
-          label="Username"
-          rules={[
-            { required: !isEdit, message: 'Vui lòng nhập username' },
-            { min: 3, max: 50, message: 'Username phải từ 3-50 ký tự' },
-          ]}
-        >
-          <Input 
-            placeholder="Nhập username" 
-            disabled={isEdit} // Không cho sửa username khi edit
-          />
-        </Form.Item>
+        name="avatarUrl"
+        label={<div style={{ width: '100%', textAlign: 'center' }}>Ảnh đại diện</div>}
+        rules={
+          isEmployee && !isEdit
+            ? [{ required: true, message: 'Ảnh đại diện là bắt buộc đối với nhân viên' }]
+            : []
+        }
+      >
+        <AvatarUpload required={isEmployee} />
+      </Form.Item>
+
+        {isEdit && (
+          <Form.Item name="username" label="Username">
+            <Input disabled />
+          </Form.Item>
+        )}
+
+        {!isEdit && (
+          <Form.Item
+            name="username"
+            label="Username"
+            rules={[
+              { required: true, message: 'Vui lòng nhập username' },
+              { min: 3, max: 50, message: 'Username phải từ 3-50 ký tự' },
+            ]}
+          >
+            <Input placeholder="Nhập username" />
+          </Form.Item>
+        )}
 
         {!isEdit && (
           <Form.Item
@@ -118,9 +133,7 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
           <Form.Item
             name="newPassword"
             label="Mật khẩu mới (để trống nếu không đổi)"
-            rules={[
-              { min: 6, message: 'Mật khẩu phải ít nhất 6 ký tự' },
-            ]}
+            rules={[{ min: 6, message: 'Mật khẩu phải ít nhất 6 ký tự' }]}
           >
             <Input.Password placeholder="Nhập mật khẩu mới (nếu muốn đổi)" />
           </Form.Item>
@@ -148,30 +161,28 @@ const UserForm = ({ open, user, onClose, onSuccess }) => {
           <Input placeholder="Nhập địa chỉ email" />
         </Form.Item>
 
-        <Form.Item
-          name="role"
-          label="Vai trò"
-          rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
-        >
-          <Select placeholder="Chọn vai trò">
-            <Select.Option value="Admin">Admin</Select.Option>
-            <Select.Option value="Director">Giám đốc</Select.Option>
-            <Select.Option value="Manager">Manager</Select.Option>
-            <Select.Option value="Staff">Staff</Select.Option>
-            <Select.Option value="Customer">Customer</Select.Option>
-          </Select>
+        <Form.Item name="phoneNumber" label="Số điện thoại">
+          <Input placeholder="Nhập số điện thoại" />
         </Form.Item>
 
-        {isEdit && (
+        {isEmployee && (
           <Form.Item
-            name="isActive"
-            label="Trạng thái"
-            valuePropName="checked"
+            name="role"
+            label="Vai trò"
+            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
           >
-            <Switch 
-              checkedChildren="Hoạt động" 
-              unCheckedChildren="Vô hiệu hóa" 
-            />
+            <Select placeholder="Chọn vai trò">
+              <Select.Option value="Admin">Admin</Select.Option>
+              <Select.Option value="Director">Giám đốc</Select.Option>
+              <Select.Option value="Manager">Manager</Select.Option>
+              <Select.Option value="Staff">Staff</Select.Option>
+            </Select>
+          </Form.Item>
+        )}
+
+        {isEdit && (
+          <Form.Item name="isActive" label="Trạng thái" valuePropName="checked">
+            <Switch checkedChildren="Hoạt động" unCheckedChildren="Vô hiệu hóa" />
           </Form.Item>
         )}
       </Form>

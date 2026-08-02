@@ -105,6 +105,9 @@ namespace TicketSystem.Application.DTOs
         public bool CanCancel { get; set; }
         public string? ReasonCannotCancel { get; set; }
         public decimal EstimatedRefundAmount { get; set; }
+
+        public decimal EstimatedRefundPercentage { get; set; }
+        public string? RefundReason { get; set; }
     }
 
     /// <summary>

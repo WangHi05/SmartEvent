@@ -200,7 +200,7 @@ namespace TicketSystem.Application.Services
                 return null;
             }
 
-            var token = _jwtTokenGenerator.GenerateToken(user);
+            var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Username, user.Email, user.FullName, user.Role.ToString());
 
             // Log successful login
             await LogAuditAsync("Login", "User", user.Id, username, $"User {username} logged in successfully");
@@ -269,7 +269,7 @@ namespace TicketSystem.Application.Services
             }
 
             // 3. Cấp phát JWT Token của hệ thống
-            var token = _jwtTokenGenerator.GenerateToken(user);
+            var token = _jwtTokenGenerator.GenerateToken(user.Id, user.Username, user.Email, user.FullName, user.Role.ToString());
             await LogAuditAsync("Login", "User", user.Id, user.Username, $"Logged in via {provider}");
 
             return new AuthResponseDto

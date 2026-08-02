@@ -45,7 +45,7 @@ namespace TicketSystem.Application.Services
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
 
             if (ticket == null) throw new Exception("Không tìm thấy vé.");
-            if (ticket.Order?.UserId != ownerUserId) throw new Exception("Bạn không phải chủ sở hữu vé này.");
+            if (ticket.Order?.CustomerId != ownerUserId) throw new Exception("Bạn không phải chủ sở hữu vé này.");
             if (ticket.Status != TicketStatus.ACTIVE) throw new Exception("Chỉ vé chưa sử dụng mới được chia sẻ.");
             
             // LƯU Ý: Em cần bổ sung 2 trường IsClaimed (bool) và ShareToken (string?) vào bảng Tickets trong DB

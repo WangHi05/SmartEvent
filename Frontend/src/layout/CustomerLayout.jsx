@@ -4,6 +4,8 @@ import { Avatar, Button, Drawer, Input } from 'antd';
 import { Facebook, ChevronDown, ChevronUp, KeyRound, LogOut, Menu, MessageCircle, Search, UserRound, X, Youtube } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
 
+const getAvatarUrl = (user) => user?.avatarUrl || user?.AvatarUrl || null;
+
 const getDisplayName = (user) => user?.fullName || user?.FullName || user?.username || user?.Username || 'Khách hàng';
 
 const getAvatarLabel = (user) => {
@@ -212,8 +214,12 @@ const CustomerLayout = () => {
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
                 >
-                  <Avatar size={26} className="bg-orange-600 text-white font-bold text-xs">
-                    {getAvatarLabel(user)}
+                  <Avatar
+                    size={26}
+                    src={getAvatarUrl(user) || undefined}
+                    className="bg-orange-600 text-white font-bold text-xs"
+                  >
+                    {!getAvatarUrl(user) && getAvatarLabel(user)}
                   </Avatar>
                   <div className="min-w-0 text-left">
                     <p className="max-w-[9rem] truncate text-xs font-bold text-gray-900">{getDisplayName(user)}</p>
@@ -245,8 +251,12 @@ const CustomerLayout = () => {
                   aria-haspopup="menu"
                   aria-expanded={userMenuOpen}
                 >
-                  <Avatar size={24} className="bg-orange-600 text-white font-bold text-xs">
-                    {getAvatarLabel(user)}
+                  <Avatar
+                    size={24}
+                    src={getAvatarUrl(user) || undefined}
+                    className="bg-orange-600 text-white font-bold text-xs"
+                  >
+                    {!getAvatarUrl(user) && getAvatarLabel(user)}
                   </Avatar>
                   <ChevronDown size={12} className="text-gray-400 transition-transform" />
                 </button>
@@ -335,10 +345,10 @@ const CustomerLayout = () => {
           <div>
             <p className="mb-3 text-sm font-semibold text-white">Hỗ trợ</p>
             <div className="space-y-1.5 text-sm text-gray-400">
-              <p>Hotline: 1900 1234</p>
-              <p>Email: support@smartevent.vn</p>
-              <p>Hoàn vé & chính sách</p>
-            </div>
+            <p>Hotline: 1900 1234</p>
+            <p>Email: support@smartevent.vn</p>
+            <Link to="/customer/policy" className="block hover:text-orange-400">Hoàn vé & chính sách</Link>
+          </div>
           </div>
 
           <div>

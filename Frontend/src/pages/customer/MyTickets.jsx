@@ -327,9 +327,23 @@ const MyTickets = () => {
           </div>
         ) : refundPreview?.canCancel ? (
           <div>
+            {refundPreview.estimatedRefundPercentage === 100 ? (
+              <p className="mb-2 text-gray-700">
+                Vé của bạn hủy trước hơn <b>7 ngày</b> so với ngày diễn ra sự kiện, nên đủ điều kiện{' '}
+                <b className="text-green-600">hoàn tiền 100%</b> theo chính sách.
+              </p>
+            ) : refundPreview.estimatedRefundPercentage === 50 ? (
+              <p className="mb-2 text-gray-700">
+                Vé của bạn hủy trong khoảng <b>3–7 ngày</b> trước sự kiện, nên theo chính sách bạn sẽ được{' '}
+                <b className="text-orange-600">hoàn 50%</b> giá trị vé.
+              </p>
+            ) : (
+              <p className="mb-2 text-gray-700">{refundPreview.refundReason || 'Đơn của bạn thuộc diện được hoàn tiền theo chính sách hiện hành.'}</p>
+            )}
+
             <p className="mb-2">
-              Bạn sẽ được hoàn:{' '}
-              <b className="text-orange-600">
+              Số tiền dự kiến hoàn:{' '}
+              <b className="text-orange-600 text-lg">
                 {Number(refundPreview.estimatedRefundAmount || 0).toLocaleString('vi-VN')}đ
               </b>
             </p>

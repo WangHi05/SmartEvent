@@ -27,6 +27,7 @@ import ContactPage from './pages/customer/ContactPage';
 import GuestTicketPage from './pages/customer/GuestTicketPage';
 import CustomerProfile from './pages/customer/CustomerProfile';
 import CustomerChangePassword from './pages/customer/CustomerChangePassword';
+import PolicyPage from './pages/customer/PolicyPage';
 
 // Import Pages - Admin/Staff
 import DashboardView from './features/dashboard/DashboardView';
@@ -149,10 +150,11 @@ function App() {
               path="/audit-logs"
               element={<ProtectedRoute element={<AuditLogsView />} requiredRole={['Admin', 'Manager']} />}
             />
-            <Route
+            {/* Đã ẩn trang Cấu hình hệ thống — chính sách hoàn tiền giờ hardcode trong code */}
+            {/* <Route
               path="/settings"
               element={<ProtectedRoute element={<SettingsPage />} requiredRole="Admin" />}
-            />
+            /> */}
 
             <Route
               path="/knowledge-management"
@@ -168,6 +170,7 @@ function App() {
             <Route path="home" element={<HomePage />} />
             <Route path="events" element={<EventBrowse />} />
             <Route path="contact" element={<ContactPage />} />
+            <Route path="policy" element={<PolicyPage />} />
             <Route
               path="my-tickets"
               element={<ProtectedRoute element={<MyTickets />} requiredRole="Customer" />}

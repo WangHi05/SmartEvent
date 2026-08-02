@@ -13,10 +13,14 @@ using TicketSystem.Domain.Entities;
 namespace TicketSystem.Application.Services
 {
     /// <summary>
-    /// Service để quản lý hủy đơn hàng và hoàn tiền
+    /// Service để quản lý hủy đơn hàng và hoàn tiền.
+    /// LƯU Ý: Chính sách hoàn tiền được hardcode trong PartialRefundStrategy,
+    /// không còn phụ thuộc vào cấu hình ở trang Cấu hình hệ thống (/settings).
     /// </summary>
     public class CancelOrderService : ICancelOrderService
     {
+        private const int MinimumCancelHours = 72; // Dưới 3 ngày trước sự kiện: không được hủy
+
         private readonly IApplicationDbContext _context;
         private readonly ISettingsService _settingsService;
         private readonly IRefundStrategyFactory _refundStrategyFactory;
@@ -48,8 +52,7 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // Kiểm tra quyền sở hữu
-            if (order.UserId != userId)
+            if (order.CustomerId != userId)
             {
                 return new CancelValidationDto
                 {
@@ -58,14 +61,12 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // Kiểm tra điều kiện hủy
             var validationResult = ValidateCancelConditions(order);
             if (!validationResult.CanCancel)
             {
                 return validationResult;
             }
 
-            // Kiểm tra số lần hủy trong tháng
             var cancelCountThisMonth = await GetUserCancelCountThisMonthAsync(userId);
             var maxCancelPerMonth = await _settingsService.GetMaxCancelPerUserPerMonthAsync();
 
@@ -78,19 +79,19 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // Tính toán hoàn tiền dự kiến
             var refundCalc = await CalculateRefundAsync(orderId);
 
             return new CancelValidationDto
             {
                 CanCancel = true,
-                EstimatedRefundAmount = refundCalc.FinalRefundAmount
+                EstimatedRefundAmount = refundCalc.FinalRefundAmount,
+                EstimatedRefundPercentage = refundCalc.RefundPercentage,
+                RefundReason = refundCalc.RefundReason
             };
         }
 
         public async Task<CancelOrderResponseDto> CancelOrderAsync(Guid orderId, Guid userId, string reason, string performedBy)
         {
-            // Validate cancellation
             var validation = await ValidateCancelAsync(orderId, userId);
             if (!validation.CanCancel)
             {
@@ -122,32 +123,26 @@ namespace TicketSystem.Application.Services
 
             try
             {
-                // Calculate refund
                 var refundCalc = await CalculateRefundAsync(orderId);
                 var refundAmount = refundCalc.FinalRefundAmount;
 
-                // Update order status
                 order.OrderStatus = OrderStatus.Cancelled;
                 order.CancelRequestAt = DateTime.UtcNow;
                 order.RefundAmount = refundAmount;
                 order.UpdatedAt = DateTime.UtcNow;
                 order.UpdatedBy = performedBy;
-
-                // Đánh dấu trạng thái hoàn tiền: nếu có tiền cần hoàn -> chờ NV xử lý thủ công
                 order.RefundStatus = refundAmount > 0 ? RefundStatus.PendingRefund : RefundStatus.RefundCompleted;
 
-                // Update all tickets in this order
                 foreach (var ticket in order.Tickets)
                 {
                     ticket.Status = TicketStatus.CANCELLED;
                     ticket.CancelledAt = DateTime.UtcNow;
                     ticket.CancelReason = reason;
-                    ticket.RefundAmount = refundAmount / order.Tickets.Count; // Distribute refund equally
+                    ticket.RefundAmount = refundAmount / order.Tickets.Count;
                     ticket.UpdatedAt = DateTime.UtcNow;
                     ticket.UpdatedBy = performedBy;
                 }
 
-                // Release seats if configured
                 var autoReleaseSeat = await _settingsService.IsAutoReleaseSeatEnabledAsync();
                 if (autoReleaseSeat && order.TicketType != null)
                 {
@@ -156,7 +151,6 @@ namespace TicketSystem.Application.Services
                     order.TicketType.UpdatedBy = performedBy;
                 }
 
-                // Update payment status to Cancelled if it was not yet processed
                 var lastPayment = order.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
                 if (lastPayment != null && lastPayment.PaymentStatus == PaymentStatus.Pending)
                 {
@@ -165,10 +159,7 @@ namespace TicketSystem.Application.Services
                     lastPayment.UpdatedBy = performedBy;
                 }
 
-                // Save changes
                 await _context.SaveChangesAsync();
-
-                // Log the cancellation
                 await LogCancelOrderAsync(orderId, userId, refundAmount, reason, performedBy);
 
                 return new CancelOrderResponseDto
@@ -201,8 +192,9 @@ namespace TicketSystem.Application.Services
                 throw new Exception("Order not found");
             }
 
-            var refundPolicy = await _settingsService.GetRefundPolicyAsync();
-            var strategy = _refundStrategyFactory.GetStrategy(refundPolicy);
+            // Luôn dùng chính sách hoàn tiền hardcode (PartialRefundStrategy),
+            // KHÔNG đọc RefundPolicy từ SystemSettings nữa.
+            var strategy = _refundStrategyFactory.GetStrategy(RefundPolicy.PartialRefund);
             var result = await strategy.CalculateRefundAsync(order, VietnamTime.Now);
 
             return new CalculateRefundDto
@@ -223,7 +215,7 @@ namespace TicketSystem.Application.Services
             var lastDayOfMonth = firstDayOfMonth.AddMonths(1).AddDays(-1);
 
             var cancelCount = await _context.Orders
-                .Where(o => o.UserId == userId &&
+                .Where(o => o.CustomerId == userId &&
                            o.OrderStatus == OrderStatus.Cancelled &&
                            o.CancelRequestAt >= firstDayOfMonth &&
                            o.CancelRequestAt <= lastDayOfMonth)
@@ -276,7 +268,6 @@ namespace TicketSystem.Application.Services
 
         private CancelValidationDto ValidateCancelConditions(Order order)
         {
-            // 1. Kiểm tra OrderStatus không được Cancelled
             if (order.OrderStatus == OrderStatus.Cancelled)
             {
                 return new CancelValidationDto
@@ -286,7 +277,6 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // 2. Kiểm tra PaymentStatus phải Completed hoặc Pending (nếu config cho phép)
             var lastPayment = order.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
             if (lastPayment?.PaymentStatus != PaymentStatus.Completed &&
                 lastPayment?.PaymentStatus != PaymentStatus.Pending)
@@ -298,7 +288,6 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            // 4. Kiểm tra EventStatus
             if (order.Event != null)
             {
                 if (order.Event.Status == EventStatus.Ongoing)
@@ -328,9 +317,9 @@ namespace TicketSystem.Application.Services
                     };
                 }
 
-                // 5. Kiểm tra thời gian hủy (phải trước event start time)
-                var timeBeforeEvent = VietnamTime.ToVietnamTime(order.Event.StartTime) - VietnamTime.Now;
-                if (timeBeforeEvent.TotalHours < 0)
+                var hoursBeforeEvent = (VietnamTime.ToVietnamTime(order.Event.StartTime) - VietnamTime.Now).TotalHours;
+
+                if (hoursBeforeEvent < 0)
                 {
                     return new CancelValidationDto
                     {
@@ -338,9 +327,18 @@ namespace TicketSystem.Application.Services
                         ReasonCannotCancel = "Event has already started"
                     };
                 }
+
+                // Chặn hủy trong vòng 3 ngày (72 giờ) trước sự kiện — theo chính sách hardcode
+                if (hoursBeforeEvent < MinimumCancelHours)
+                {
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = "Vé của bạn đang trong thời gian không được hủy (dưới 3 ngày trước khi sự kiện diễn ra)"
+                    };
+                }
             }
 
-            // 6. Kiểm tra vé đã check-in hay chưa
             if (order.Tickets != null && order.Tickets.Any(t => t.IsCheckedIn))
             {
                 return new CancelValidationDto

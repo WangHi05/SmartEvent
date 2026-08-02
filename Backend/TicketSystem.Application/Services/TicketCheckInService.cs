@@ -67,7 +67,7 @@ namespace TicketSystem.Application.Services
 
             var ticket = await _context.Tickets
                 .Include(t => t.TicketType).ThenInclude(tt => tt!.Event)
-                .Include(t => t.Order).ThenInclude(order => order!.User)
+                .Include(t => t.Order).ThenInclude(order => order!.Customer)
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
 
             if (ticket == null)
@@ -89,7 +89,7 @@ namespace TicketSystem.Application.Services
             return new TicketLookupResponse
             {
                 IsSuccess = true,
-                CustomerName = ticket.Order?.User?.FullName ?? "Khách vãng lai",
+                CustomerName = ticket.Order?.Customer?.FullName ?? "Khách vãng lai",
                 TicketTypeName = ticket.TicketType?.Name ?? "Vé sự kiện",
                 RemainingSlots = ticket.RemainingSlots
             };
@@ -253,7 +253,7 @@ namespace TicketSystem.Application.Services
                     .Include(t => t.TicketType)
                         .ThenInclude(tt => tt!.Event)
                     .Include(t => t.Order)
-                        .ThenInclude(order => order!.User)
+                        .ThenInclude(order => order!.Customer)
                     .FirstOrDefaultAsync(t => t.Id == ticketId);
 
                 if (ticket == null)
@@ -554,7 +554,7 @@ namespace TicketSystem.Application.Services
                 }
 
                 var successResponse = CheckInResponse.Success(
-                    ticket.Order?.User?.FullName ?? "Khách",
+                    ticket.Order?.Customer?.FullName ?? "Khách",
                     $"Đã check-in {peopleCount} vé. (Đoàn còn lại {ticket.RemainingSlots} chỗ)"
                 );
                 successResponse.TriggerPrintBadge = triggerPrint;

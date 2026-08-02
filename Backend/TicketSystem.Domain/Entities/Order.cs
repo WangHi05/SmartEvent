@@ -6,7 +6,7 @@ namespace TicketSystem.Domain.Entities
 {
     public class Order : BaseEntity
     {
-        public Guid UserId { get; set; }
+        public Guid CustomerId { get; set; }
         public Guid EventId { get; set; }
         public decimal TotalPrice { get; set; }
         public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
@@ -21,7 +21,7 @@ namespace TicketSystem.Domain.Entities
         public string? ConfirmedBy { get; set; }
 
         // Navigation properties
-        public virtual User User { get; set; }
+        public virtual Customer Customer { get; set; }
         public virtual Event Event { get; set; }
         public virtual Domain.Entities.TicketType TicketType { get; set; }
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();

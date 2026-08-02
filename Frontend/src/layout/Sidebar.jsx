@@ -74,7 +74,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
     { path: '/audit-logs', label: 'Theo dõi hoạt động', icon: FileText, roles: ['admin', 'manager'] },
     { path: '/checkinlogs', label: 'Lịch sử Check-in', icon: History, roles: ['admin', 'manager'] },
     { path: '/knowledge-management', label: 'Tri thức AI', icon: BrainCircuit, roles: ['admin'] }, //
-    { path: '/settings', label: 'Cấu hình hệ thống', icon: Settings, roles: ['admin'] }, //
+    
   ];
 
   // Hàm xử lý đăng xuất

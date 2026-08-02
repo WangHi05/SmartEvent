@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Alert, Avatar, Button, Card, Descriptions, Form, Input, Spin, Tag, message } from 'antd';
 import { Mail, Phone, UserRound } from 'lucide-react';
+import AvatarUpload from '../../features/admin/users/AvatarUpload';
+import useAuthStore from '../../store/useAuthStore';
 import { CustomerSectionTitle } from '../../components/customer/CustomerPrimitives';
 import { customerAccountService } from '../../services/customerAccountService';
 
@@ -8,6 +10,8 @@ const displayValue = (value) => (value ? value : 'Chưa cập nhật');
 
 const CustomerProfile = () => {
   const [form] = Form.useForm();
+  const setUser = useAuthStore((state) => state.setUser);
+  const currentUser = useAuthStore((state) => state.user);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -25,6 +29,7 @@ const CustomerProfile = () => {
         fullName: data?.fullName || data?.FullName || '',
         email: data?.email || data?.Email || '',
         phoneNumber: data?.phoneNumber || data?.PhoneNumber || '',
+        avatarUrl: data?.avatarUrl || data?.AvatarUrl || '',
       });
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể tải thông tin tài khoản.');
@@ -46,6 +51,7 @@ const CustomerProfile = () => {
         fullName: values.fullName,
         email: values.email,
         phoneNumber: values.phoneNumber,
+        avatarUrl: values.avatarUrl,
       });
 
       setProfile(updatedProfile);
@@ -53,7 +59,12 @@ const CustomerProfile = () => {
         fullName: updatedProfile?.fullName || '',
         email: updatedProfile?.email || '',
         phoneNumber: updatedProfile?.phoneNumber || '',
+        avatarUrl: updatedProfile?.avatarUrl || '',
       });
+
+      // Đồng bộ lại thông tin user trong store để Header cập nhật avatar/tên ngay lập tức
+      setUser({ ...currentUser, ...updatedProfile });
+
       message.success('Cập nhật hồ sơ thành công.');
     } catch (err) {
       setError(err.response?.data?.message || 'Không thể cập nhật hồ sơ.');
@@ -66,6 +77,7 @@ const CustomerProfile = () => {
   const fullName = profile?.fullName || profile?.FullName || '';
   const email = profile?.email || profile?.Email || '';
   const phoneNumber = profile?.phoneNumber || profile?.PhoneNumber || '';
+  const avatarUrl = profile?.avatarUrl || profile?.AvatarUrl || '';
   const role = profile?.role || profile?.Role || '';
   const isActive = profile?.isActive ?? profile?.IsActive;
 
@@ -89,8 +101,12 @@ const CustomerProfile = () => {
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
           <Card className="rounded-[28px] border border-slate-200 shadow-[0_18px_50px_rgba(15,23,42,0.08)]">
             <div className="flex items-center gap-4">
-              <Avatar size={64} className="bg-gradient-to-br from-orange-500 to-amber-600 text-xl font-bold text-white">
-                {avatarLabel}
+              <Avatar
+                size={64}
+                src={avatarUrl || undefined}
+                className="bg-gradient-to-br from-orange-500 to-amber-600 text-xl font-bold text-white"
+              >
+                {!avatarUrl && avatarLabel}
               </Avatar>
               <div className="min-w-0">
                 <p className="truncate text-lg font-bold text-slate-900">{displayValue(fullName || username)}</p>
@@ -123,6 +139,10 @@ const CustomerProfile = () => {
             </div>
 
             <Form layout="vertical" form={form} onFinish={handleSubmit} requiredMark={false}>
+              <Form.Item name="avatarUrl" label="Ảnh đại diện">
+                <AvatarUpload required={false} />
+              </Form.Item>
+
               <Form.Item
                 label="Họ và tên"
                 name="fullName"
