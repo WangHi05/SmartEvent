@@ -92,8 +92,10 @@ namespace TicketSystem.Infrastructure.AI
 
         public async Task IngestKnowledgeAsync(string title, string content)
         {
-            // Bỏ GeminiRateLimiter vì OpenAI Tier 1 đủ sức tải
-            var embeddings = await _textEmbedding.GenerateEmbeddingsAsync(new[] { content });
+            string textToEmbed = $"Chủ đề: {title}\nNội dung: {content}";
+           
+            var embeddings = await _textEmbedding.GenerateEmbeddingsAsync(new[] { textToEmbed });
+
             var vector = new Vector(embeddings[0].ToArray());
 
             var knowledge = new SystemKnowledge
@@ -112,10 +114,11 @@ namespace TicketSystem.Infrastructure.AI
             var entity = await _context.SystemKnowledges.FindAsync(id);
             if (entity == null) return false;
 
-            // Tính lại embedding vì nội dung đã thay đổi — bắt buộc để RAG search vẫn chính xác
-            var embeddings = await _textEmbedding.GenerateEmbeddingsAsync(new[] { content });
-            var vector = new Vector(embeddings[0].ToArray());
+            string textToEmbed = $"Chủ đề: {title}\nNội dung: {content}";
 
+            // Tính lại embedding vì nội dung đã thay đổi — bắt buộc để RAG search vẫn chính xác
+            var embeddings = await _textEmbedding.GenerateEmbeddingsAsync(new[] { textToEmbed });
+            var vector = new Vector(embeddings[0].ToArray());
             entity.Title = title;
             entity.Content = content;
             entity.Embedding = vector;
@@ -139,14 +142,14 @@ namespace TicketSystem.Infrastructure.AI
 
                     var relevantDocs = await _context.SystemKnowledges
                         .OrderBy(k => k.Embedding.CosineDistance(queryVector))
-                        .Take(2)
+                        .Take(3) // FIX: Tăng lên 3 kết quả để AI có nhiều ngữ cảnh hơn
                         .ToListAsync();
 
                     var promptBuilder = new StringBuilder();
                     promptBuilder.AppendLine("Bạn là trợ lý AI quản lý hệ thống bán vé SmartEvent. Nhiệm vụ của bạn là hỗ trợ Admin.");
                     promptBuilder.AppendLine("Quy tắc BẮT BUỘC:");
-                    promptBuilder.AppendLine("1. KHÔNG tự bịa số liệu. Phải GỌI HÀM (TOOLS) để lấy dữ liệu thống kê, check-in mới nhất.");
-                    promptBuilder.AppendLine("2. BẮT BUỘC trình bày dữ liệu dạng BẢNG MARKDOWN nếu kết quả trả về là một danh sách (từ 2 dòng trở lên).");
+                    promptBuilder.AppendLine("1. ƯU TIÊN HÀNG ĐẦU: Luôn đọc phần 'THÔNG TIN THAM CHIẾU (VECTOR SEARCH)' bên dưới để trả lời các câu hỏi về chính sách, quy định của hệ thống.");
+                    promptBuilder.AppendLine("2. KHÔNG tự bịa số liệu. Phải GỌI HÀM (TOOLS) để lấy dữ liệu thống kê, check-in mới nhất.");
                     promptBuilder.AppendLine("3. Nếu Admin hỏi thông tin bên ngoài hệ thống (thời tiết, xu hướng), HÃY SỬ DỤNG HÀM TÌM KIẾM WEB.");
                     promptBuilder.AppendLine("4. Khi sử dụng dữ liệu từ Web, BẮT BUỘC phải trích dẫn đường link nguồn ở cuối câu trả lời.");
                     promptBuilder.AppendLine("5. Nếu cần thêm thông tin, hãy hỏi lại Admin để làm rõ thay vì tự suy diễn.");
