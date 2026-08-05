@@ -88,6 +88,26 @@ const MyOrders = () => {
       key: 'eventName',
     },
     {
+      title: 'Loại vé',
+      key: 'ticketTypes',
+      render: (_, row) => {
+        const items = row.items && row.items.length > 0 ? row.items : null;
+        if (!items) {
+          // Fallback cho dữ liệu cũ không có items (trước khi có OrderItems)
+          return row.ticketTypeName || '—';
+        }
+        if (items.length === 1) {
+          return `${items[0].ticketTypeName} x${items[0].quantity}`;
+        }
+        return (
+          <span>
+            {items[0].ticketTypeName} x{items[0].quantity}{' '}
+            <Tag color="blue">+{items.length - 1} loại khác</Tag>
+          </span>
+        );
+      },
+    },
+    {
       title: 'Tổng tiền',
       dataIndex: 'totalPrice',
       key: 'totalPrice',
@@ -168,17 +188,51 @@ const MyOrders = () => {
         width={560}
       >
         {selectedOrder && (
-          <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="Người mua">{selectedOrder.buyerName || selectedOrder.buyerUsername}</Descriptions.Item>
-            <Descriptions.Item label="Sự kiện">{selectedOrder.eventName}</Descriptions.Item>
-            <Descriptions.Item label="Loại vé">{selectedOrder.ticketTypeName}</Descriptions.Item>
-            <Descriptions.Item label="Số lượng">{selectedOrder.quantity}</Descriptions.Item>
-            <Descriptions.Item label="Tổng tiền">{formatCurrency(selectedOrder.totalPrice)}</Descriptions.Item>
-            <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
-            <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
-            <Descriptions.Item label="Ngày tạo">{formatVietnamDateTime(selectedOrder.createdAt, { withSeconds: true })}</Descriptions.Item>
-          </Descriptions>
-        )}
+      <>
+        <Descriptions bordered column={1} size="small">
+          <Descriptions.Item label="Người mua">{selectedOrder.buyerName || selectedOrder.buyerUsername}</Descriptions.Item>
+          <Descriptions.Item label="Sự kiện">{selectedOrder.eventName}</Descriptions.Item>
+          <Descriptions.Item label="Tổng tiền">{formatCurrency(selectedOrder.totalPrice)}</Descriptions.Item>
+          <Descriptions.Item label="Trạng thái đơn">{selectedOrder.orderStatusName}</Descriptions.Item>
+          <Descriptions.Item label="Trạng thái thanh toán">{selectedOrder.paymentStatusName}</Descriptions.Item>
+          <Descriptions.Item label="Ngày tạo">{formatVietnamDateTime(selectedOrder.createdAt, { withSeconds: true })}</Descriptions.Item>
+        </Descriptions>
+
+        <div className="mt-4">
+          <p className="mb-2 font-semibold text-gray-700">Chi tiết vé trong đơn</p>
+          {selectedOrder.items && selectedOrder.items.length > 0 ? (
+            <Table
+              size="small"
+              pagination={false}
+              rowKey={(r, idx) => `${r.ticketTypeId}-${idx}`}
+              dataSource={selectedOrder.items}
+              columns={[
+                { title: 'Loại vé', dataIndex: 'ticketTypeName', key: 'ticketTypeName' },
+                { title: 'SL', dataIndex: 'quantity', key: 'quantity', width: 60 },
+                {
+                  title: 'Đơn giá',
+                  dataIndex: 'unitPrice',
+                  key: 'unitPrice',
+                  render: (v) => `${Number(v || 0).toLocaleString('vi-VN')}₫`,
+                },
+                {
+                  title: 'Thành tiền',
+                  dataIndex: 'subtotal',
+                  key: 'subtotal',
+                  render: (v) => `${Number(v || 0).toLocaleString('vi-VN')}₫`,
+                },
+              ]}
+            />
+          ) : (
+            // Fallback cho đơn cũ chưa có OrderItems
+            <Descriptions bordered column={1} size="small">
+              <Descriptions.Item label="Loại vé">{selectedOrder.ticketTypeName}</Descriptions.Item>
+              <Descriptions.Item label="Số lượng">{selectedOrder.quantity}</Descriptions.Item>
+            </Descriptions>
+          )}
+        </div>
+      </>
+    )}
       </Drawer>
     </div>
   );

@@ -23,6 +23,7 @@ namespace TicketSystem.Infrastructure.Data
         public DbSet<CheckInLog> CheckInLogs { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Payment> Payments { get; set; }
         public DbSet<SystemSettings> SystemSettings { get; set; }
         public DbSet<SystemKnowledge> SystemKnowledges { get; set; }
@@ -187,6 +188,27 @@ namespace TicketSystem.Infrastructure.Data
                 entity.HasIndex(e => e.CreatedAt);
                 entity.HasIndex(e => e.OrderStatus);
                 entity.HasIndex(e => new { e.CustomerId, e.OrderStatus });
+            });
+
+            // 5b. OrderItem Configuration (MỚI — hỗ trợ nhiều loại vé trong 1 đơn)
+            modelBuilder.Entity<OrderItem>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.UnitPrice).HasPrecision(18, 2).IsRequired();
+                entity.Property(e => e.Subtotal).HasPrecision(18, 2).IsRequired();
+                entity.Property(e => e.Quantity).IsRequired();
+
+                entity.HasOne(e => e.Order)
+                    .WithMany(o => o.OrderItems)
+                    .HasForeignKey(e => e.OrderId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.TicketType)
+                    .WithMany()
+                    .HasForeignKey(e => e.TicketTypeId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(e => e.OrderId);
             });
 
             // 6. Payment Configuration

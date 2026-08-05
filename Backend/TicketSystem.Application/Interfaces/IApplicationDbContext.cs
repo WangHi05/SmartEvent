@@ -15,6 +15,7 @@ namespace TicketSystem.Application.Interfaces
         DbSet<Employee> Employees { get; }
         DbSet<Customer> Customers { get; }
         DbSet<Order> Orders { get; }
+        DbSet<OrderItem> OrderItems { get; }
         DbSet<Payment> Payments { get; }
         ChangeTracker ChangeTracker { get; }
         DbSet<CheckInLog> CheckInLogs { get; }

@@ -2,11 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TicketSystem.Application.DTOs;
 
-public class CreateOrderDto
+public class CreateOrderItemDto
 {
-    [Required]
-    public Guid EventId { get; set; }
-
     [Required]
     public Guid TicketTypeId { get; set; }
 
@@ -15,11 +12,21 @@ public class CreateOrderDto
     public int Quantity { get; set; }
 
     [Required]
+    public int MemberCount { get; set; } = 1;
+}
+
+public class CreateOrderDto
+{
+    [Required]
+    public Guid EventId { get; set; }
+
+    [Required]
+    [MinLength(1, ErrorMessage = "Đơn hàng phải có ít nhất 1 loại vé")]
+    public List<CreateOrderItemDto> Items { get; set; } = new();
+
+    [Required]
     [Range(1, 3, ErrorMessage = "Invalid payment method")]
     public int PaymentMethod { get; set; } // 1=VNPAY, 2=QRPayment, 3=Counter
-    
-    [Required]
-    public int MemberCount { get; set; } = 1;
 
     public string? BuyerName { get; set; }
     public string? BuyerPhone { get; set; }
@@ -45,9 +52,20 @@ public class OrderResponseDto
     public DateTime? ConfirmedAt { get; set; }
     public string? ConfirmedBy { get; set; }
     public DateTime CreatedAt { get; set; }
+    public List<OrderItemResponseDto> Items { get; set; } = new();
     public List<PaymentResponseDto> Payments { get; set; } = new();
     public decimal? RefundAmount { get; set; }
     public int RefundStatus { get; set; }
+}
+
+public class OrderItemResponseDto
+{
+    public Guid TicketTypeId { get; set; }
+    public string TicketTypeName { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+    public int MemberCount { get; set; }
+    public decimal UnitPrice { get; set; }
+    public decimal Subtotal { get; set; }
 }
 
 public class PaymentResponseDto

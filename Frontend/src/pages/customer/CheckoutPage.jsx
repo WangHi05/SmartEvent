@@ -44,12 +44,13 @@ const CheckoutPage = () => {
 
       setLoading(true);
 
-      const firstSelection = bookingData.selections[0];
       const orderData = {
         eventId: bookingData.eventId,
-        ticketTypeId: firstSelection.ticketTypeId,
-        quantity: firstSelection.quantity,
-        memberCount: firstSelection.memberCount,
+        items: bookingData.selections.map((selection) => ({
+          ticketTypeId: selection.ticketTypeId,
+          quantity: selection.quantity,
+          memberCount: selection.memberCount,
+        })),
         paymentMethod: paymentMethod,
         buyerName: values.fullName,
         buyerPhone: values.phone,

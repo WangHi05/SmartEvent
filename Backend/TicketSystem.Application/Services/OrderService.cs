@@ -19,6 +19,9 @@ public class OrderService : IOrderService
 
     public async Task<CreateOrderResponseDto> CreateOrderAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
     {
+        if (createOrderDto.Items == null || createOrderDto.Items.Count == 0)
+            throw new Exception("Order must contain at least 1 ticket item");
+
         var user = await _context.Customers.FirstOrDefaultAsync(u => u.Id == userId);
         if (user == null) throw new Exception("User not found");
 
@@ -26,26 +29,88 @@ public class OrderService : IOrderService
         if (eventEntity == null) throw new Exception("Event not found");
         if (eventEntity.IsFull()) throw new Exception("Event is at full capacity");
 
-        var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == createOrderDto.TicketTypeId);
-        if (ticketType == null) throw new Exception("Ticket type not found");
-        if (ticketType.RemainingQuantity < createOrderDto.Quantity)
-            throw new Exception($"Only {ticketType.RemainingQuantity} tickets available");
+        var orderId = Guid.NewGuid();
+        var orderItems = new List<OrderItem>();
+        decimal totalPrice = 0;
+        int totalQuantity = 0;
 
-        var totalPrice = ticketType.Price * createOrderDto.Quantity;
-
-        if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
+        foreach (var itemDto in createOrderDto.Items)
         {
-            totalPrice = ticketType.Price * createOrderDto.Quantity * createOrderDto.MemberCount;
+            var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == itemDto.TicketTypeId);
+            if (ticketType == null) throw new Exception($"Ticket type {itemDto.TicketTypeId} not found");
+            if (ticketType.EventId != createOrderDto.EventId) throw new Exception("Ticket type does not belong to this event");
+            if (ticketType.RemainingQuantity < itemDto.Quantity)
+                throw new Exception($"Only {ticketType.RemainingQuantity} tickets available for {ticketType.Name}");
+
+            var itemSubtotal = ticketType.Price * itemDto.Quantity;
+            if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
+            {
+                itemSubtotal = ticketType.Price * itemDto.Quantity * itemDto.MemberCount;
+            }
+
+            totalPrice += itemSubtotal;
+            totalQuantity += itemDto.Quantity;
+
+            orderItems.Add(new OrderItem
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                TicketTypeId = ticketType.Id,
+                Quantity = itemDto.Quantity,
+                MemberCount = itemDto.MemberCount,
+                UnitPrice = ticketType.Price,
+                Subtotal = itemSubtotal,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = createdBy
+            });
+
+            // Sinh vé cho loại vé này
+            var currentQrMode = ticketType.QRMode ?? QRMode.SINGLE_QR;
+            int totalTicketsToGenerate = itemDto.Quantity;
+            int slotsPerTicket = itemDto.MemberCount;
+
+            if (currentQrMode == QRMode.SUB_QR && itemDto.MemberCount > 1)
+            {
+                totalTicketsToGenerate = itemDto.Quantity * itemDto.MemberCount;
+                slotsPerTicket = 1;
+            }
+
+            for (var i = 0; i < totalTicketsToGenerate; i++)
+            {
+                _context.Tickets.Add(new Ticket
+                {
+                    Id = Guid.NewGuid(),
+                    TicketTypeId = ticketType.Id,
+                    OrderId = orderId,
+                    ValidFrom = eventEntity.StartTime,
+                    ValidTo = eventEntity.EndTime,
+                    SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
+                    Status = TicketStatus.ACTIVE,
+                    GroupSize = slotsPerTicket,
+                    RemainingSlots = slotsPerTicket,
+                    IsClaimed = false,
+                    ShareToken = null,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = createdBy
+                });
+            }
+
+            ticketType.RemainingQuantity -= itemDto.Quantity;
+            ticketType.UpdatedAt = DateTime.UtcNow;
+            ticketType.UpdatedBy = createdBy;
         }
+
+        // Item đầu tiên dùng làm dữ liệu tóm tắt (tương thích ngược cho các luồng cũ)
+        var firstItem = orderItems[0];
 
         var order = new Order
         {
-            Id = Guid.NewGuid(),
+            Id = orderId,
             CustomerId = userId,
             EventId = createOrderDto.EventId,
-            TicketTypeId = createOrderDto.TicketTypeId,
+            TicketTypeId = firstItem.TicketTypeId,
+            Quantity = totalQuantity,
             TotalPrice = totalPrice,
-            Quantity = createOrderDto.Quantity,
             OrderStatus = OrderStatus.Pending,
             BuyerName = createOrderDto.BuyerName ?? user.FullName,
             BuyerPhone = createOrderDto.BuyerPhone ?? user.PhoneNumber,
@@ -55,6 +120,11 @@ public class OrderService : IOrderService
         };
 
         _context.Orders.Add(order);
+
+        foreach (var item in orderItems)
+        {
+            _context.OrderItems.Add(item);
+        }
 
         var payment = new Payment
         {
@@ -69,48 +139,6 @@ public class OrderService : IOrderService
         };
 
         _context.Payments.Add(payment);
-        
-        // Đọc cấu hình QrMode từ CSDL (Mặc định là 1 nếu null)
-       var currentQrMode = ticketType.QRMode ?? QRMode.SINGLE_QR;
-        
-        int totalTicketsToGenerate = createOrderDto.Quantity;
-        int slotsPerTicket = createOrderDto.MemberCount;
-
-        // Xử lý Mode 2: Tách vé lẻ cho Đoàn
-        if (currentQrMode == QRMode.SUB_QR && createOrderDto.MemberCount > 1)
-        {
-            totalTicketsToGenerate = createOrderDto.Quantity * createOrderDto.MemberCount;
-            slotsPerTicket = 1; // Mỗi vé lẻ chỉ chứa 1 người
-        }
-
-        for (var i = 0; i < totalTicketsToGenerate; i++)
-        {
-            var ticketId = Guid.NewGuid();
-
-            _context.Tickets.Add(new Ticket
-            {
-                Id = ticketId,
-                TicketTypeId = createOrderDto.TicketTypeId,
-                OrderId = order.Id,
-                ValidFrom = eventEntity.StartTime,
-                ValidTo = eventEntity.EndTime,
-                SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
-                Status = TicketStatus.ACTIVE,
-                
-                GroupSize = slotsPerTicket,
-                RemainingSlots = slotsPerTicket,
-                
-                IsClaimed = false,
-                ShareToken = null,
-                
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = createdBy
-            });
-        }
-
-        ticketType.RemainingQuantity -= createOrderDto.Quantity;
-        ticketType.UpdatedAt = DateTime.UtcNow;
-        ticketType.UpdatedBy = createdBy;
 
         await _context.SaveChangesAsync();
 
@@ -131,6 +159,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
         if (order == null)
@@ -176,6 +205,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
         if (order == null)
@@ -217,6 +247,7 @@ public class OrderService : IOrderService
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
             .Include(o => o.Tickets)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
         if (order == null)
@@ -232,8 +263,6 @@ public class OrderService : IOrderService
         {
             throw new Exception("Payment record not found");
         }
-
-        
 
         if (latestPayment.PaymentStatus != PaymentStatus.Pending)
         {
@@ -257,36 +286,45 @@ public class OrderService : IOrderService
         order.UpdatedAt = DateTime.UtcNow;
         order.UpdatedBy = confirmedBy;
 
-        // Đảm bảo luôn có đủ vé theo số lượng order (fallback nếu thiếu dữ liệu cũ)
-        var missingTickets = Math.Max(0, order.Quantity - order.Tickets.Count);
-        for (var i = 0; i < missingTickets; i++)
+        // Fallback: đảm bảo đủ vé theo từng OrderItem (dữ liệu cũ có thể thiếu tickets)
+        var items = order.OrderItems.Any()
+            ? order.OrderItems.ToList()
+            : new List<OrderItem> { new OrderItem { TicketTypeId = order.TicketTypeId, Quantity = order.Quantity } };
+
+        foreach (var item in items)
         {
-            var ticketId = Guid.NewGuid();
-            _context.Tickets.Add(new Ticket
+            var ticketsForThisType = order.Tickets.Count(t => t.TicketTypeId == item.TicketTypeId);
+            var missing = Math.Max(0, item.Quantity - ticketsForThisType);
+
+            for (var i = 0; i < missing; i++)
             {
-                Id = ticketId,
-                TicketTypeId = order.TicketTypeId,
-                ValidFrom = order.Event.StartTime, 
-                ValidTo = order.Event.EndTime,
-                SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
-                Status = TicketStatus.ACTIVE,
-                CreatedAt = DateTime.UtcNow,
-                CreatedBy = confirmedBy
-            });
+                _context.Tickets.Add(new Ticket
+                {
+                    Id = Guid.NewGuid(),
+                    TicketTypeId = item.TicketTypeId,
+                    OrderId = order.Id,
+                    ValidFrom = order.Event.StartTime,
+                    ValidTo = order.Event.EndTime,
+                    SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
+                    Status = TicketStatus.ACTIVE,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = confirmedBy
+                });
+            }
         }
 
         _context.AuditLogs.Add(new AuditLog
-{
-        Id = Guid.NewGuid(),
-        Action = "ManualConfirmPayment",
-        EntityType = "Order",
-        EntityId = order.Id,
-        PerformedBy = confirmedBy,
-        Timestamp = DateTime.UtcNow,
-        CreatedAt = DateTime.UtcNow,
-        CreatedBy = confirmedBy,
-        Details = $"Payment confirmed manually by staff. Original method: {latestPayment.PaymentMethod}. PaymentStatus=Completed, OrderStatus=Confirmed"
-    });
+        {
+            Id = Guid.NewGuid(),
+            Action = "ManualConfirmPayment",
+            EntityType = "Order",
+            EntityId = order.Id,
+            PerformedBy = confirmedBy,
+            Timestamp = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = confirmedBy,
+            Details = $"Payment confirmed manually by staff. Original method: {latestPayment.PaymentMethod}. PaymentStatus=Completed, OrderStatus=Confirmed"
+        });
 
         await _context.SaveChangesAsync();
 
@@ -300,6 +338,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .FirstOrDefaultAsync(o => o.Id == orderId);
 
         if (order == null)
@@ -391,13 +430,11 @@ public class OrderService : IOrderService
             };
         }
 
-        // Online đã thanh toán: hủy và hoàn theo policy hiện có.
         if (latestPayment.PaymentMethod != PaymentMethod.Counter && latestPayment.PaymentStatus == PaymentStatus.Completed)
         {
             return await _cancelOrderService.CancelOrderAsync(orderId, order.CustomerId, reason, cancelledBy);
         }
 
-        // Counter hoặc chưa thanh toán: chỉ hủy đơn.
         order.OrderStatus = OrderStatus.Cancelled;
         order.CancelRequestAt = DateTime.UtcNow;
         order.RefundAmount = 0;
@@ -422,12 +459,30 @@ public class OrderService : IOrderService
             ticket.UpdatedBy = cancelledBy;
         }
 
-        var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == order.TicketTypeId);
-        if (ticketType != null)
+        // Trả lại số lượng vé cho từng loại vé trong đơn
+        var orderItems = await _context.OrderItems.Where(oi => oi.OrderId == order.Id).ToListAsync();
+        if (orderItems.Any())
         {
-            ticketType.RemainingQuantity += order.Quantity;
-            ticketType.UpdatedAt = DateTime.UtcNow;
-            ticketType.UpdatedBy = cancelledBy;
+            foreach (var item in orderItems)
+            {
+                var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == item.TicketTypeId);
+                if (ticketType != null)
+                {
+                    ticketType.RemainingQuantity += item.Quantity;
+                    ticketType.UpdatedAt = DateTime.UtcNow;
+                    ticketType.UpdatedBy = cancelledBy;
+                }
+            }
+        }
+        else
+        {
+            var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == order.TicketTypeId);
+            if (ticketType != null)
+            {
+                ticketType.RemainingQuantity += order.Quantity;
+                ticketType.UpdatedAt = DateTime.UtcNow;
+                ticketType.UpdatedBy = cancelledBy;
+            }
         }
 
         _context.AuditLogs.Add(new AuditLog
@@ -470,9 +525,7 @@ public class OrderService : IOrderService
             Id = t.Id,
             EventName = t.TicketType?.Event?.Name ?? "Unknown Event",
             TicketTypeName = t.TicketType?.Name ?? "Unknown Type",
-            
-            QrCode = t.SecretKey, 
-            
+            QrCode = t.SecretKey,
             Status = MapTicketUiStatus(t),
             StatusName = GetTicketStatusName(MapTicketUiStatus(t)),
             CreatedAt = t.CreatedAt,
@@ -533,6 +586,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .Where(o => o.CustomerId == userId)
             .AsQueryable();
 
@@ -565,6 +619,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -616,6 +671,7 @@ public class OrderService : IOrderService
             .Include(o => o.Event)
             .Include(o => o.TicketType)
             .Include(o => o.Payments)
+            .Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
             .Where(o => o.Id == orderId)
             .AsQueryable();
 
@@ -643,26 +699,12 @@ public class OrderService : IOrderService
 
     private static int MapTicketUiStatus(Ticket ticket)
     {
-        if (ticket.Status == TicketStatus.REVOKED)
-        {
-            return 4; 
-        }
-
-        if (ticket.Status == TicketStatus.CANCELLED)
-        {
-            return 3;
-        }
-
-        if (ticket.Status == TicketStatus.CHECKED_IN)
-        {
-            return 2;
-        }
+        if (ticket.Status == TicketStatus.REVOKED) return 4;
+        if (ticket.Status == TicketStatus.CANCELLED) return 3;
+        if (ticket.Status == TicketStatus.CHECKED_IN) return 2;
 
         var latestPayment = ticket.Order?.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
-        if (latestPayment?.PaymentStatus == PaymentStatus.Completed)
-        {
-            return 1;
-        }
+        if (latestPayment?.PaymentStatus == PaymentStatus.Completed) return 1;
 
         return 0;
     }
@@ -717,6 +759,17 @@ public class OrderService : IOrderService
             RefundAmount = order.RefundAmount,
             RefundStatus = (int)order.RefundStatus,
             CreatedAt = order.CreatedAt,
+            Items = order.OrderItems
+                .Select(oi => new OrderItemResponseDto
+                {
+                    TicketTypeId = oi.TicketTypeId,
+                    TicketTypeName = oi.TicketType?.Name ?? string.Empty,
+                    Quantity = oi.Quantity,
+                    MemberCount = oi.MemberCount,
+                    UnitPrice = oi.UnitPrice,
+                    Subtotal = oi.Subtotal
+                })
+                .ToList(),
             Payments = order.Payments
                 .OrderByDescending(p => p.CreatedAt)
                 .Select(p => new PaymentResponseDto

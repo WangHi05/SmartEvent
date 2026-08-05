@@ -109,21 +109,22 @@ namespace TicketSystem.Infrastructure.Data
 
             logger.LogInformation("Bắt đầu khởi tạo Mock Data (Có dữ liệu Kiểm soát Cổng) bằng Bogus...");
 
-            // --- BƯỚC 1: TẠO USERS ---
+            // --- BƯỚC 1: TẠO CUSTOMERS ---
+            // Trước đây seed nhầm bằng User.Create (bảng Users) trong khi Order.CustomerId
+            // trỏ tới bảng Customers -> seed lại sẽ vỡ FK. Sửa dùng đúng Customer.Create.
             var dummyPasswordHash = "hashed_password_123";
-            var userFaker = new Faker<User>("vi")
-                .CustomInstantiator(f => User.Create(
+            var userFaker = new Faker<Customer>("vi")
+                .CustomInstantiator(f => Customer.Create(
                     username: f.Internet.UserName(),
                     passwordHash: dummyPasswordHash,
                     fullName: f.Name.FullName(),
                     email: f.Internet.Email(),
-                    role: UserRole.Customer,
                     createdBy: "SystemSeeder"
                 ))
                 .RuleFor(u => u.PhoneNumber, f => f.Phone.PhoneNumber("09########"));
 
             var users = userFaker.Generate(50);
-            await context.Set<User>().AddRangeAsync(users);
+            await context.Set<Customer>().AddRangeAsync(users);
 
             // --- BƯỚC 2: TẠO EVENTS QUÁ KHỨ VÀ TƯƠNG LAI ---
             var eventFaker = new Faker<Event>("vi")

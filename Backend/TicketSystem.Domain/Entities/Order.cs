@@ -10,8 +10,11 @@ namespace TicketSystem.Domain.Entities
         public Guid EventId { get; set; }
         public decimal TotalPrice { get; set; }
         public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
-        public int Quantity { get; set; } // Số vé đặt
-        public Guid TicketTypeId { get; set; } // Loại vé
+
+        // GIỮ LẠI để tương thích ngược (không xóa) — luôn = item đầu tiên trong OrderItems.
+        // Các luồng cũ (HelpDesk, AIController, Seeder...) vẫn đọc đúng 1 loại vé chính của đơn.
+        public int Quantity { get; set; }
+        public Guid TicketTypeId { get; set; }
 
         // Cancel + Refund related fields
         public DateTime? CancelRequestAt { get; set; }
@@ -26,6 +29,11 @@ namespace TicketSystem.Domain.Entities
         public virtual Domain.Entities.TicketType TicketType { get; set; }
         public virtual ICollection<Payment> Payments { get; set; } = new List<Payment>();
         public virtual ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
+
+        /// <summary>
+        /// Chi tiết đầy đủ các loại vé trong đơn (hỗ trợ mua nhiều loại vé cùng lúc).
+        /// </summary>
+        public virtual ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
 
         public string? BuyerName { get; set; }
         public string? BuyerPhone { get; set; }
