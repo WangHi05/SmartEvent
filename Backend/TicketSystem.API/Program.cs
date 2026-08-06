@@ -3,6 +3,8 @@ using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Infrastructure.Security;
 using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Application.Services;
+using TicketSystem.Infrastructure.AI;
+using TicketSystem.Infrastructure;
 using TicketSystem.Application;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Interfaces;
@@ -168,12 +170,14 @@ builder.Services.AddScoped<IRefundStrategy, PartialRefundStrategy>();
 builder.Services.AddScoped<IRefundStrategy, FullRefundStrategy>();
 builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
 
+
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
 // THÊM DÒNG NÀY:
 builder.Services.AddHttpClient<IOpenAiFallbackService, OpenAiFallbackService>();
 builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices(builder.Configuration);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options =>

@@ -48,7 +48,7 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      const uploadedUrl = response.data.url;
+      const uploadedUrl = response.url;
       form.setFieldsValue({ imageUrl: uploadedUrl });
       message.success('Tải ảnh lên thành công!');
     } catch (error) {

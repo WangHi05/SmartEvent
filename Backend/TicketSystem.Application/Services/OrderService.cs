@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
+using Microsoft.Extensions.Configuration;
 using TicketSystem.Domain.Entities;
 
 namespace TicketSystem.Application.Services;
@@ -10,11 +11,19 @@ public class OrderService : IOrderService
 {
     private readonly IApplicationDbContext _context;
     private readonly ICancelOrderService _cancelOrderService;
+    private readonly INotificationService _notificationService;
+    private readonly IConfiguration _configuration;
 
-    public OrderService(IApplicationDbContext context, ICancelOrderService cancelOrderService)
+    public OrderService(
+        IApplicationDbContext context,
+        ICancelOrderService cancelOrderService,
+        INotificationService notificationService,
+        IConfiguration configuration)
     {
         _context = context;
         _cancelOrderService = cancelOrderService;
+        _notificationService = notificationService;
+        _configuration = configuration;
     }
 
     public async Task<CreateOrderResponseDto> CreateOrderAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
@@ -236,6 +245,8 @@ public class OrderService : IOrderService
 
         await _context.SaveChangesAsync();
 
+        await SendTicketConfirmationNotificationAsync(order);
+
         return MapOrderToDto(order);
     }
 
@@ -328,6 +339,8 @@ public class OrderService : IOrderService
 
         await _context.SaveChangesAsync();
 
+        await SendTicketConfirmationNotificationAsync(order);
+
         return MapOrderToDto(order);
     }
 
@@ -396,10 +409,12 @@ public class OrderService : IOrderService
 
         await _context.SaveChangesAsync();
 
+        await SendTicketConfirmationNotificationAsync(order);
+
         return MapOrderToDto(order);
     }
 
-    public async Task<CancelOrderResponseDto> CancelOrderByAdminAsync(Guid orderId, string reason, string cancelledBy)
+    public async Task<CancelOrderResponseDto> CancelOrderByAdminAsync(Guid orderId, string reason, string cancelledBy)  
     {
         var order = await _context.Orders
             .Include(o => o.Payments)
@@ -786,5 +801,35 @@ public class OrderService : IOrderService
                 })
                 .ToList()
         };
+    }
+
+    private async Task SendTicketConfirmationNotificationAsync(Order order)
+    {
+        try
+        {
+            var frontendBaseUrl = _configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+            var ticketLink = $"{frontendBaseUrl}/customer/my-tickets?orderId={order.Id}";
+
+            var dto = new TicketConfirmationDto
+            {
+                CustomerName = order.BuyerName ?? order.Customer?.FullName ?? "Khách hàng",
+                Email = order.Customer?.Email ?? string.Empty,
+                Phone = order.BuyerPhone,
+                OrderId = order.Id,
+                EventName = order.Event?.Name ?? string.Empty,
+                TotalPrice = order.TotalPrice,
+                TicketLink = ticketLink
+            };
+
+            if (!string.IsNullOrWhiteSpace(dto.Email))
+            {
+                await _notificationService.SendTicketConfirmationAsync(dto);
+            }
+        }
+        catch
+        {
+            // Gửi thông báo thất bại không được làm hỏng luồng xác nhận thanh toán,
+            // nên nuốt lỗi ở đây (đã log chi tiết bên trong từng service con rồi).
+        }
     }
 }
