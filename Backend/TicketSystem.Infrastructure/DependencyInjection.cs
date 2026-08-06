@@ -15,6 +15,8 @@ public static class DependencyInjection
         services.AddScoped<IZaloNotificationService, ZaloZnsService>();
         services.AddScoped<INotificationService, NotificationService>();
 
+        services.AddHttpClient<EmailService>();
+
         services.AddHttpClient<ZaloZnsService>();
 
         return services;

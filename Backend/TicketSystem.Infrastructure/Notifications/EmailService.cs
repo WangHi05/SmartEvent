@@ -1,8 +1,7 @@
-using MailKit.Net.Smtp;
-using MailKit.Security;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using MimeKit;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 
@@ -12,48 +11,63 @@ public class EmailService : IEmailService
 {
     private readonly IConfiguration _configuration;
     private readonly ILogger<EmailService> _logger;
+    private readonly HttpClient _httpClient;
 
-    public EmailService(IConfiguration configuration, ILogger<EmailService> logger)
+    private const string BrevoApiUrl = "https://api.brevo.com/v3/smtp/email";
+
+    public EmailService(IConfiguration configuration, ILogger<EmailService> logger, HttpClient httpClient)
     {
         _configuration = configuration;
         _logger = logger;
+        _httpClient = httpClient;
     }
 
     public async Task SendTicketConfirmationEmailAsync(TicketConfirmationDto dto)
     {
         try
         {
-            var host = _configuration["Smtp:Host"];
-            var port = int.Parse(_configuration["Smtp:Port"] ?? "587");
-            var user = _configuration["Smtp:User"];
-            var pass = _configuration["Smtp:Pass"];
-            var from = _configuration["Smtp:From"] ?? user;
+            var apiKey = _configuration["Brevo:ApiKey"];
+            var senderEmail = _configuration["Brevo:SenderEmail"];
+            var senderName = _configuration["Brevo:SenderName"] ?? "SmartEvent";
 
-            if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(user))
+            if (string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(senderEmail))
             {
-                _logger.LogWarning("Smtp chưa được cấu hình, bỏ qua gửi email cho đơn {OrderId}", dto.OrderId);
+                _logger.LogWarning("Brevo chưa được cấu hình, bỏ qua gửi email cho đơn {OrderId}", dto.OrderId);
                 return;
             }
 
-            var message = new MimeMessage();
-            message.From.Add(MailboxAddress.Parse(from));
-            message.To.Add(MailboxAddress.Parse(dto.Email));
-            message.Subject = $"🎉 Đặt vé thành công - {dto.EventName}";
-
             var htmlBody = BuildHtmlBody(dto);
-            message.Body = new TextPart("html") { Text = htmlBody };
 
-            using var client = new SmtpClient();
-            await client.ConnectAsync(host, port, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(user, pass);
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
+            var payload = new
+            {
+                sender = new { name = senderName, email = senderEmail },
+                to = new[] { new { email = dto.Email, name = dto.CustomerName } },
+                subject = $"🎉 Đặt vé thành công - {dto.EventName}",
+                htmlContent = htmlBody
+            };
 
-            _logger.LogInformation("Đã gửi email xác nhận vé cho đơn {OrderId} tới {Email}", dto.OrderId, dto.Email);
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, BrevoApiUrl) { Content = content };
+            request.Headers.Add("api-key", apiKey);
+            request.Headers.Add("accept", "application/json");
+
+            var response = await _httpClient.SendAsync(request);
+            var responseBody = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("Đã gửi email xác nhận vé cho đơn {OrderId} tới {Email}", dto.OrderId, dto.Email);
+            }
+            else
+            {
+                _logger.LogWarning("Gửi email thất bại cho đơn {OrderId}. Status: {Status}. Response: {Response}",
+                    dto.OrderId, response.StatusCode, responseBody);
+            }
         }
         catch (Exception ex)
         {
-            // Không throw ra ngoài — gửi mail thất bại không được làm hỏng luồng xác nhận thanh toán
             _logger.LogError(ex, "Lỗi khi gửi email xác nhận vé cho đơn {OrderId}", dto.OrderId);
         }
     }
