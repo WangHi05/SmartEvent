@@ -171,7 +171,8 @@ builder.Services.AddScoped<IRefundStrategy, NoRefundStrategy>();
 builder.Services.AddHttpClient<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddScoped<IAiAnalysisService, GeminiAiService>();
 builder.Services.AddHttpClient<IGeminiService, GeminiService>();
-
+// THÊM DÒNG NÀY:
+builder.Services.AddHttpClient<IOpenAiFallbackService, OpenAiFallbackService>();
 builder.Services.AddApplicationServices();
 
 builder.Services.AddControllers()

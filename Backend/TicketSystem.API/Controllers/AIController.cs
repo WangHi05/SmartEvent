@@ -124,17 +124,20 @@ namespace TicketSystem.API.Controllers
         };
 
         private readonly IGeminiService _geminiService;
+        private readonly IOpenAiFallbackService _openAiFallbackService; // THÊM
         private readonly IApplicationDbContext _dbContext;
         private readonly ISettingsService _settingsService;
         private readonly ILogger<AIController> _logger;
 
         public AIController(
             IGeminiService geminiService,
+            IOpenAiFallbackService openAiFallbackService, // THÊM
             IApplicationDbContext dbContext,
             ISettingsService settingsService,
             ILogger<AIController> logger)
         {
             _geminiService = geminiService;
+            _openAiFallbackService = openAiFallbackService; // THÊM
             _dbContext = dbContext;
             _settingsService = settingsService;
             _logger = logger;
@@ -257,10 +260,21 @@ namespace TicketSystem.API.Controllers
                 {
                     answer = await _geminiService.GenerateContentAsync(prompt, geminiCts.Token);
                 }
-                catch (Exception ex)
+                catch (Exception geminiEx)
                 {
-                    _logger.LogWarning(ex, "Gemini generation failed, using fallback response for chatbot message.");
-                    answer = BuildFallbackAnswer(profile, contextEvents, structuredData);
+                    _logger.LogWarning(geminiEx, "Gemini generation failed, trying OpenAI fallback for chatbot message.");
+
+                    try
+                    {
+                        using var openAiCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        openAiCts.CancelAfter(TimeSpan.FromSeconds(15));
+                        answer = await _openAiFallbackService.GenerateContentAsync(prompt, openAiCts.Token);
+                    }
+                    catch (Exception openAiEx)
+                    {
+                        _logger.LogWarning(openAiEx, "OpenAI fallback also failed, using static fallback response for chatbot message.");
+                        answer = BuildFallbackAnswer(profile, contextEvents, structuredData);
+                    }
                 }
 
                 var responseDto = new CustomerSupportResponseDto
