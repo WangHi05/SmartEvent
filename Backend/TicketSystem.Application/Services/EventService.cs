@@ -185,6 +185,13 @@ namespace TicketSystem.Application.Services
             if (dto.StartTime >= dto.EndTime)
                 throw new ArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
 
+            var now = VietnamTime.Now;
+            var currentMinute = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, now.Kind);
+            var startTime = VietnamTime.ToVietnamTime(dto.StartTime);
+
+            if (startTime < currentMinute)
+                throw new ArgumentException("Thời gian bắt đầu phải từ thời điểm hiện tại trở đi");
+
             var eventEntity = new Event
             {
                 Name = dto.Name,
@@ -229,6 +236,9 @@ namespace TicketSystem.Application.Services
             if (eventEntity == null)
                 return null;
 
+            var now = VietnamTime.Now;
+            var currentMinute = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, now.Kind);
+
             // Cập nhật các trường nếu có giá trị mới
             if (!string.IsNullOrEmpty(dto.Name))
             {
@@ -246,7 +256,13 @@ namespace TicketSystem.Application.Services
                 eventEntity.ImageUrl = dto.ImageUrl;
 
             if (dto.StartTime.HasValue)
+            {
+                var newStartTime = VietnamTime.ToVietnamTime(dto.StartTime.Value);
+                if (newStartTime < currentMinute && newStartTime != VietnamTime.ToVietnamTime(eventEntity.StartTime))
+                    throw new ArgumentException("Thời gian bắt đầu phải từ thời điểm hiện tại trở đi");
+
                 eventEntity.StartTime = dto.StartTime.Value;
+            }
 
             if (dto.EndTime.HasValue)
                 eventEntity.EndTime = dto.EndTime.Value;

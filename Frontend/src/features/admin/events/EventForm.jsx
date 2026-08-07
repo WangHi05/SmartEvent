@@ -16,6 +16,7 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const isEdit = !!eventData;
+  const originalStartTime = eventData ? dayjs(eventData.startTime) : null;
 
   useEffect(() => {
     if (visible) {
@@ -198,7 +199,30 @@ const EventForm = ({ visible, onClose, onSuccess, eventData = null }) => {
         <Form.Item
           label="Thời gian diễn ra"
           name="timeRange"
-          rules={[{ required: true, message: 'Vui lòng chọn thời gian' }]}
+          rules={[
+            { required: true, message: 'Vui lòng chọn thời gian' },
+            {
+              validator: (_, value) => {
+                if (!value || !value[0]) {
+                  return Promise.resolve();
+                }
+
+                const currentMinute = dayjs().startOf('minute');
+                const startTime = value[0];
+                const isUnchangedOnEdit = isEdit && originalStartTime && startTime.isSame(originalStartTime);
+
+                if (isUnchangedOnEdit) {
+                  return Promise.resolve();
+                }
+
+                if (startTime.isBefore(currentMinute)) {
+                  return Promise.reject(new Error('Thời gian bắt đầu phải từ thời điểm hiện tại trở đi'));
+                }
+
+                return Promise.resolve();
+              },
+            },
+          ]}
         >
           <RangePicker
             showTime

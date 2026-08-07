@@ -66,23 +66,21 @@ const GateControl = () => {
     }));
   };
 
+  const isOngoingEvent = (eventStatus) => {
+    return eventStatus === 2 || eventStatus === 'Ongoing' || eventStatus === 'ongoing';
+  };
+
   // Load danh sách sự kiện khi mở trang
   useEffect(() => {
     const fetchActiveEvents = async () => {
       try {
         const res = await axiosClient.get('/events/search', { params: { pageSize: 50 } });
-        const eventList = normalizeEventList(res);
+        const eventList = normalizeEventList(res).filter((event) => isOngoingEvent(event.status));
 
         setActiveEvents(eventList);
 
         if (eventList.length > 0) {
-          const priorityEvent = eventList.find(e =>
-            e.status === 2 || e.status === 1 ||
-            e.status === 'Ongoing' || e.status === 'Active' ||
-            e.status === 'ongoing' || e.status === 'active'
-          );
-
-          setSelectedEventId(priorityEvent ? priorityEvent.id : eventList[0].id);
+          setSelectedEventId(eventList[0].id);
         } else {
           setSelectedEventId(null);
           setIsLoadingGates(false);
@@ -240,7 +238,7 @@ const GateControl = () => {
               variant="borderless"
               placeholder="Chọn sự kiện..."
               options={activeEvents.map(e => ({ label: e.name, value: e.id }))}
-              notFoundContent="Không có sự kiện diễn ra"
+              notFoundContent="Không có sự kiện đang diễn ra"
             />
           </div>
 
