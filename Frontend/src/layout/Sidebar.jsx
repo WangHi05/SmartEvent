@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 import useAuthStore from '../store/useAuthStore';
-import { LayoutDashboard, Calendar, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket, Route, History, BrainCircuit } from 'lucide-react';
+import { LayoutDashboard, Calendar, Users, Settings, FileText, LogOut, ScanLine, ClipboardList, Headset, Ticket, Route, History, BrainCircuit, Archive } from 'lucide-react';
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
   const navigate = useNavigate();

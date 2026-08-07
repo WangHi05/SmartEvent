@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Space, Tag, Popconfirm, message, Input, Select, DatePicker } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Table, Button, Space, Tag, Popconfirm, message, Input, Select, DatePicker, Tabs } from 'antd';
+import ArchivedEvents from './ArchivedEvents';
+import { PlusOutlined, EditOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined, CheckCircleOutlined } from '@ant-design/icons';  
 import axiosClient from '../../../api/axiosClient';
 import * as signalR from '@microsoft/signalr';
 import dayjs from 'dayjs';
@@ -15,6 +16,8 @@ const EVENT_STATUS = {
   Ongoing: 2,
   Completed: 3,
   Cancelled: 4,
+  PendingApproval: 5,
+  Archived: 6,
 };
 
 const statusColorMap = {
@@ -23,6 +26,8 @@ const statusColorMap = {
   [EVENT_STATUS.Ongoing]: 'green',
   [EVENT_STATUS.Completed]: 'default',
   [EVENT_STATUS.Cancelled]: 'red',
+  [EVENT_STATUS.PendingApproval]: 'gold',
+  [EVENT_STATUS.Archived]: 'purple',
 };
 
 const statusLabelMap = {
@@ -31,6 +36,8 @@ const statusLabelMap = {
   [EVENT_STATUS.Ongoing]: 'Đang diễn ra',
   [EVENT_STATUS.Completed]: 'Đã kết thúc',
   [EVENT_STATUS.Cancelled]: 'Đã hủy',
+  [EVENT_STATUS.PendingApproval]: 'Chờ duyệt',
+  [EVENT_STATUS.Archived]: 'Đã lưu trữ',
 };
 
 const EventList = () => {
@@ -73,6 +80,7 @@ const EventList = () => {
         pageNumber: page,
         pageSize: pageSize,
         keyword: keyword,
+        includeAll: true,
       };
 
       if (status !== undefined && status !== null) {
@@ -145,6 +153,17 @@ const EventList = () => {
     }
   };
 
+  const handleApprove = async (id) => {
+    try {
+      await axiosClient.post(`/events/${id}/approve`);
+      message.success('Đã duyệt sự kiện, giờ khách hàng có thể xem được');
+      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange);
+    } catch (error) {
+      console.error('Error approving event:', error);
+      message.error(error.response?.data?.message || 'Không thể duyệt sự kiện');
+    }
+  };
+
   const handleEdit = (record) => {
     setSelectedEvent(record);
     setFormVisible(true);
@@ -206,30 +225,45 @@ const EventList = () => {
       title: 'Thao tác',
       key: 'actions',
       fixed: 'right',
-      width: 180,
+      width: 260,
       render: (_, record) => (
-        <Space size="small">
+        <Space size="small" wrap>
+          {record.status === EVENT_STATUS.PendingApproval && (
+            <Popconfirm
+              title="Duyệt sự kiện này?"
+              description="Sự kiện sẽ hiển thị cho khách hàng ngay sau khi duyệt."
+              onConfirm={() => handleApprove(record.id)}
+              okText="Duyệt"
+              cancelText="Hủy"
+            >
+              <Button type="link" icon={<CheckCircleOutlined />} style={{ color: '#52c41a' }}>
+                Duyệt
+              </Button>
+            </Popconfirm>
+          )}
           <Button type="link" icon={<EditOutlined />} onClick={() => handleEdit(record)}>
             Sửa
           </Button>
-          <Popconfirm
-            title="Xác nhận xóa sự kiện?"
-            description="Bạn có chắc chắn muốn xóa sự kiện này không?"
-            onConfirm={() => handleDelete(record.id)}
-            okText="Xóa"
-            cancelText="Hủy"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />}>
-              Xóa
-            </Button>
-          </Popconfirm>
+          {record.status === EVENT_STATUS.PendingApproval && (
+            <Popconfirm
+              title="Xác nhận xóa sự kiện?"
+              description="Bạn có chắc chắn muốn xóa sự kiện này không?"
+              onConfirm={() => handleDelete(record.id)}
+              okText="Xóa"
+              cancelText="Hủy"
+            >
+              <Button type="link" danger icon={<DeleteOutlined />}>
+                Xóa
+              </Button>
+            </Popconfirm>
+          )}
         </Space>
       ),
     },
   ];
 
-  return (
-    <div style={{ padding: '24px' }}>
+  const eventManagementContent = (
+    <div>
       <div style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
         <Space wrap>
           <Input
@@ -247,6 +281,7 @@ const EventList = () => {
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
             options={[
+              { value: EVENT_STATUS.PendingApproval, label: 'Chờ duyệt' },
               { value: EVENT_STATUS.Draft, label: 'Nháp' },
               { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
               { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
@@ -295,6 +330,18 @@ const EventList = () => {
         }}
         onSuccess={() => fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange)}
         eventData={selectedEvent}
+      />
+    </div>
+  );
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <Tabs
+        defaultActiveKey="manage"
+        items={[
+          { key: 'manage', label: 'Quản lý sự kiện', children: eventManagementContent },
+          { key: 'archived', label: 'Sự kiện đã lưu trữ', children: <ArchivedEvents /> },
+        ]}
       />
     </div>
   );

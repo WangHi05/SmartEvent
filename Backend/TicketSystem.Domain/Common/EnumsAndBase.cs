@@ -30,11 +30,13 @@ namespace TicketSystem.Domain.Common
 
      public enum EventStatus
     {
-        Draft = 0,      // Đang soạn thảo, chưa hiển thị cho người dùng
-        Active = 1,     // Đã xuất bản, có thể mua vé
-        Ongoing = 2,    // Đang diễn ra
-        Completed = 3,  // Đã kết thúc
-        Cancelled = 4   // Đã hủy
+        Draft = 0,           // Đang soạn thảo, chưa hiển thị cho người dùng
+        Active = 1,          // Đã xuất bản, có thể mua vé
+        Ongoing = 2,         // Đang diễn ra
+        Completed = 3,       // Đã kết thúc
+        Cancelled = 4,       // Đã hủy
+        PendingApproval = 5, // Chờ duyệt, chưa hiển thị cho khách hàng
+        Archived = 6         // Đã lưu trữ / ẩn khỏi khách hàng
     }
 
     public enum PaymentMethod

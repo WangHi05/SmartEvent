@@ -71,6 +71,16 @@ namespace TicketSystem.Application.Services
             {
                 query = query.Where(e => e.Status == request.Status.Value);
             }
+            else if (request.IncludeAll)
+            {
+                // Trang Admin xem "tất cả": vẫn luôn ẩn Archived vì đã có tab riêng cho nó
+                query = query.Where(e => e.Status != EventStatus.Archived);
+            }
+            else
+            {
+                // Khách hàng: ẩn cả sự kiện chờ duyệt và đã lưu trữ
+                query = query.Where(e => e.Status != EventStatus.PendingApproval && e.Status != EventStatus.Archived);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Category) && request.Category != "Tất cả")
             {
@@ -190,7 +200,8 @@ namespace TicketSystem.Application.Services
                 CreatedBy = createdBy
             };
 
-            ApplyScheduleStatus(eventEntity, VietnamTime.Now);
+            // Sự kiện mới tạo luôn ở trạng thái chờ duyệt, chưa hiển thị cho khách hàng
+            eventEntity.Status = EventStatus.PendingApproval;
 
             await _eventRepository.AddAsync(eventEntity);
 
@@ -201,7 +212,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = createdBy,
-                Details = $"Created event: {eventEntity.Name}"
+                Details = $"Created event: {eventEntity.Name} (Trạng thái chờ duyệt)"
             });
 
             await _context.SaveChangesAsync();
@@ -345,7 +356,8 @@ namespace TicketSystem.Application.Services
 
             if (endTime < now)
             {
-                return EventStatus.Completed;
+                // Sự kiện đã kết thúc: tự động chuyển sang lưu trữ, ẩn khỏi khách hàng
+                return EventStatus.Archived;
             }
 
             if (startTime <= now && now <= endTime)
@@ -417,9 +429,13 @@ namespace TicketSystem.Application.Services
         {
             var now = DateTime.UtcNow;
 
-            // Tìm tất cả sự kiện đã qua thời gian EndTime nhưng Status VẪN CHƯA là Completed (3)
+            // Tìm các sự kiện đã qua EndTime nhưng chưa Archived/Cancelled/PendingApproval
+            // (không tự động lưu trữ sự kiện đang chờ duyệt, để admin còn thấy mà xử lý)
             var expiredEvents = await _context.Events
-                .Where(e => e.EndTime < now && e.Status != EventStatus.Completed)
+                .Where(e => e.EndTime < now
+                    && e.Status != EventStatus.Archived
+                    && e.Status != EventStatus.Cancelled
+                    && e.Status != EventStatus.PendingApproval)
                 .ToListAsync();
 
             if (!expiredEvents.Any()) return;
@@ -427,23 +443,161 @@ namespace TicketSystem.Application.Services
             foreach (var evt in expiredEvents)
             {
                 var oldStatus = evt.Status;
-                evt.Status = EventStatus.Completed;
+                evt.Status = EventStatus.Archived;
                 evt.UpdatedAt = now;
                 evt.UpdatedBy = "Hangfire System";
 
                 // Ghi log tự động
                 await LogAuditAsync(new AuditLog
                 {
-                    Action = "AutoUpdateStatus",
+                    Action = "AutoArchive",
                     EntityType = "Event",
                     EntityId = evt.Id,
                     PerformedBy = "System",
-                    Details = $"Hangfire auto-updated status from {oldStatus} to Completed (Event EndTime: {evt.EndTime})"
+                    Details = $"Hangfire tự động lưu trữ sự kiện đã kết thúc. Trạng thái cũ: {oldStatus} (Event EndTime: {evt.EndTime})"
                 });
             }
 
             _context.Events.UpdateRange(expiredEvents);
             await _context.SaveChangesAsync();
+        }
+
+        /// <summary>
+        /// Duyệt sự kiện đang chờ duyệt (PendingApproval) — chuyển sang trạng thái thực tế theo lịch
+        /// </summary>
+        public async Task<EventResponseDto?> ApproveEventAsync(Guid eventId, string approvedBy)
+        {
+            var eventEntity = await _eventRepository.GetByIdAsync(eventId);
+            if (eventEntity == null) return null;
+
+            if (eventEntity.Status != EventStatus.PendingApproval)
+                throw new InvalidOperationException("Chỉ có thể duyệt sự kiện đang ở trạng thái chờ duyệt");
+
+            ApplyScheduleStatus(eventEntity, VietnamTime.Now);
+            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedBy = approvedBy;
+
+            await _eventRepository.UpdateAsync(eventEntity);
+
+            await LogAuditAsync(new AuditLog
+            {
+                Action = "Approve",
+                EntityType = "Event",
+                EntityId = eventEntity.Id,
+                PerformedBy = approvedBy,
+                Details = $"Duyệt sự kiện: {eventEntity.Name}. Trạng thái mới: {eventEntity.Status}"
+            });
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(eventEntity);
+        }
+
+        /// <summary>
+        /// Lưu trữ (ẩn) sự kiện khỏi giao diện khách hàng
+        /// </summary>
+        public async Task<EventResponseDto?> ArchiveEventAsync(Guid eventId, string archivedBy)
+        {
+            var eventEntity = await _eventRepository.GetByIdAsync(eventId);
+            if (eventEntity == null) return null;
+
+            eventEntity.Status = EventStatus.Archived;
+            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedBy = archivedBy;
+
+            await _eventRepository.UpdateAsync(eventEntity);
+
+            await LogAuditAsync(new AuditLog
+            {
+                Action = "Archive",
+                EntityType = "Event",
+                EntityId = eventEntity.Id,
+                PerformedBy = archivedBy,
+                Details = $"Lưu trữ (ẩn) sự kiện: {eventEntity.Name}"
+            });
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(eventEntity);
+        }
+
+        /// <summary>
+        /// Khôi phục sự kiện đã lưu trữ về trạng thái theo lịch thực tế
+        /// </summary>
+        public async Task<EventResponseDto?> UnarchiveEventAsync(Guid eventId, string restoredBy)
+        {
+            var eventEntity = await _eventRepository.GetByIdAsync(eventId);
+            if (eventEntity == null) return null;
+
+            if (eventEntity.Status != EventStatus.Archived)
+                throw new InvalidOperationException("Chỉ có thể khôi phục sự kiện đang ở trạng thái lưu trữ");
+
+            ApplyScheduleStatus(eventEntity, VietnamTime.Now);
+            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedBy = restoredBy;
+
+            await _eventRepository.UpdateAsync(eventEntity);
+
+            await LogAuditAsync(new AuditLog
+            {
+                Action = "Unarchive",
+                EntityType = "Event",
+                EntityId = eventEntity.Id,
+                PerformedBy = restoredBy,
+                Details = $"Khôi phục sự kiện: {eventEntity.Name}. Trạng thái mới: {eventEntity.Status}"
+            });
+
+            await _context.SaveChangesAsync();
+
+            return MapToResponseDto(eventEntity);
+        }
+
+        /// <summary>
+        /// Lấy danh sách sự kiện đã lưu trữ, có phân trang
+        /// </summary>
+        public async Task<PagedResult<EventResponseDto>> GetArchivedEventsAsync(int pageNumber, int pageSize, string? keyword = null)
+        {
+            var query = _context.Events.AsNoTracking()
+                .Where(e => e.Status == EventStatus.Archived);
+
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var normalizedKeyword = keyword.Trim().ToLower();
+                query = query.Where(e => e.Name.ToLower().Contains(normalizedKeyword));
+            }
+
+            var totalCount = await query.CountAsync();
+
+            var items = await query
+                .OrderByDescending(e => e.UpdatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Select(e => new EventResponseDto
+                {
+                    Id = e.Id,
+                    Name = e.Name,
+                    Slug = e.Slug,
+                    Status = (int)e.Status,
+                    Description = e.Description,
+                    Location = e.Location,
+                    ImageUrl = e.ImageUrl,
+                    StartTime = e.StartTime,
+                    EndTime = e.EndTime,
+                    MaxCapacity = e.MaxCapacity,
+                    CurrentOccupancy = e.CurrentOccupancy,
+                    IsFull = e.CurrentOccupancy >= e.MaxCapacity,
+                    CreatedAt = e.CreatedAt,
+                    CreatedBy = e.CreatedBy
+                })
+                .ToListAsync();
+
+            return new PagedResult<EventResponseDto>
+            {
+                Items = items,
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
         }
     }
 }

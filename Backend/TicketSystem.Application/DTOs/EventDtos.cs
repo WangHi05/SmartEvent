@@ -117,6 +117,12 @@ namespace TicketSystem.Application.DTOs
         public DateTime? FromDate { get; set; }
         public DateTime? ToDate { get; set; }
         public EventStatus? Status { get; set; }
-        public string? Category { get; set; } 
+        public string? Category { get; set; }
+
+        /// <summary>
+        /// True = trả về mọi trạng thái kể cả PendingApproval/Archived (dùng cho trang Admin).
+        /// False/null = ẩn PendingApproval và Archived (dùng cho khách hàng).
+        /// </summary>
+        public bool IncludeAll { get; set; } = false;
     }
 }

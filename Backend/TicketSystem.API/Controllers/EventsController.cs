@@ -174,6 +174,100 @@ namespace TicketSystem.API.Controllers
         }
 
         /// <summary>
+        /// Duyệt sự kiện đang chờ duyệt để hiển thị cho khách hàng
+        /// </summary>
+        [HttpPost("{id:guid}/approve")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ApproveEvent(Guid id)
+        {
+            try
+            {
+                var approvedBy = User.Identity?.Name ?? "System";
+                var result = await _eventService.ApproveEventAsync(id, approvedBy);
+
+                if (result == null)
+                    return NotFound(new { message = "Không tìm thấy sự kiện" });
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error approving event {EventId}", id);
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi duyệt sự kiện" });
+            }
+        }
+
+        /// <summary>
+        /// Lưu trữ (ẩn) sự kiện khỏi giao diện khách hàng
+        /// </summary>
+        [HttpPost("{id:guid}/archive")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> ArchiveEvent(Guid id)
+        {
+            try
+            {
+                var archivedBy = User.Identity?.Name ?? "System";
+                var result = await _eventService.ArchiveEventAsync(id, archivedBy);
+
+                if (result == null)
+                    return NotFound(new { message = "Không tìm thấy sự kiện" });
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error archiving event {EventId}", id);
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi lưu trữ sự kiện" });
+            }
+        }
+
+        /// <summary>
+        /// Khôi phục sự kiện đã lưu trữ
+        /// </summary>
+        [HttpPost("{id:guid}/unarchive")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> UnarchiveEvent(Guid id)
+        {
+            try
+            {
+                var restoredBy = User.Identity?.Name ?? "System";
+                var result = await _eventService.UnarchiveEventAsync(id, restoredBy);
+
+                if (result == null)
+                    return NotFound(new { message = "Không tìm thấy sự kiện" });
+
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error unarchiving event {EventId}", id);
+                return StatusCode(500, new { message = "Có lỗi xảy ra khi khôi phục sự kiện" });
+            }
+        }
+
+        /// <summary>
+        /// Lấy danh sách sự kiện đã lưu trữ
+        /// </summary>
+        [HttpGet("archived")]
+        [Authorize(Roles = "Admin,Manager")]
+        public async Task<IActionResult> GetArchivedEvents([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, [FromQuery] string? keyword = null)
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+
+            var result = await _eventService.GetArchivedEventsAsync(pageNumber, pageSize, keyword);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// API dùng một lần (One-time Script): Cập nhật Slug cho các sự kiện cũ
         /// </summary>
         [HttpPost("sync-legacy-slugs")]

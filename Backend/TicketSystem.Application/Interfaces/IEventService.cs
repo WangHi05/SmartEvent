@@ -19,5 +19,13 @@ namespace TicketSystem.Application.Interfaces
         Task<bool> DeleteEventAsync(Guid id, string deletedBy);
 
         Task AutoUpdateCompletedEventsAsync();
+
+        Task<EventResponseDto?> ApproveEventAsync(Guid eventId, string approvedBy);
+
+        Task<EventResponseDto?> ArchiveEventAsync(Guid eventId, string archivedBy);
+
+        Task<EventResponseDto?> UnarchiveEventAsync(Guid eventId, string restoredBy);
+
+        Task<PagedResult<EventResponseDto>> GetArchivedEventsAsync(int pageNumber, int pageSize, string? keyword = null);
     }
 }
