@@ -419,6 +419,30 @@ namespace TicketSystem.Application.Services
                     _cache.Set(processedKey, response, DuplicateRequestWindow);
                     return response;
                 }
+                // Chặn replay: cùng 1 OTP không được dùng để check-in 2 lần,
+                // kể cả khi cache dedupe 30s đã hết hạn.
+                if (!string.IsNullOrEmpty(ticket.LastUsedOtp) && ticket.LastUsedOtp == clientOtp)
+                {
+                    var response = CheckInResponse.Fail("Mã QR này vừa được dùng để check-in. Vui lòng yêu cầu khách làm mới mã.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    });
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
 
                 if (timestamp < VietnamTime.ToVietnamTime(ticket.ValidFrom) || timestamp > VietnamTime.ToVietnamTime(ticket.ValidTo))
                 {
@@ -520,6 +544,8 @@ namespace TicketSystem.Application.Services
                 }
 
                 ticket.RemainingSlots -= peopleCount;
+                ticket.LastUsedOtp = clientOtp;
+                ticket.LastUsedOtpAt = timestamp;
 
                 if (ticket.RemainingSlots == 0)
                 {

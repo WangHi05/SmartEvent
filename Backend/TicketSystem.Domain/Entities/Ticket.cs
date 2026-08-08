@@ -36,6 +36,9 @@ public class Ticket : BaseEntity
     public DateTime ValidFrom { get; set; }
     public DateTime ValidTo { get; set; }
     public bool IsBadgePrinted { get; set; } = false; // Phục vụ Cơ chế 3: In thẻ tham quan
+    // Trong Ticket.cs
+    public string? LastUsedOtp { get; set; }
+    public DateTime? LastUsedOtpAt { get; set; }
     
     // Hỗ trợ vé đoàn (Mode 1 & Mode 2)
     public int GroupSize { get; set; } = 1; // Mặc định là 1 (vé cá nhân)

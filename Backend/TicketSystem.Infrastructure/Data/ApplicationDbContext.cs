@@ -32,6 +32,14 @@ namespace TicketSystem.Infrastructure.Data
         {
             base.OnModelCreating(modelBuilder);
 
+            // pgvector chỉ hoạt động trên PostgreSQL thật (Neon). Khi chạy test bằng Sqlite In-Memory
+            // (CustomWebApplicationFactory), loại bỏ entity SystemKnowledge khỏi model để tránh lỗi
+            // mapping 'vector(768)' — cột này không tồn tại trên Sqlite.
+            if (!Database.IsNpgsql())
+            {
+                modelBuilder.Ignore<SystemKnowledge>();
+            }
+
             modelBuilder.HasPostgresExtension("vector");
 
             var dateTimeConverter = new ValueConverter<DateTime, DateTime>(
@@ -250,11 +258,16 @@ namespace TicketSystem.Infrastructure.Data
             });
 
             // 9. SystemKnowledge Configuration
-            modelBuilder.Entity<SystemKnowledge>(entity =>
+            // Chỉ cấu hình cột vector(768) khi chạy trên Postgres thật (Neon).
+            // Trên Sqlite (test), entity này đã bị Ignore ở đầu hàm nên bỏ qua luôn, tránh bị "hồi sinh" lại model.
+            if (Database.IsNpgsql())
             {
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Embedding).HasColumnType("vector(768)");
-            });
+                modelBuilder.Entity<SystemKnowledge>(entity =>
+                {
+                    entity.HasKey(e => e.Id);
+                    entity.Property(e => e.Embedding).HasColumnType("vector(768)");
+                });
+            }
         }
     }
 }

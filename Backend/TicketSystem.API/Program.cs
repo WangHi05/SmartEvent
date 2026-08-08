@@ -376,6 +376,9 @@ using (var scope = app.Services.CreateScope())
     {
         logger.LogError(ex, "Có lỗi nghiêm trọng xảy ra khi tự động migrate hoặc seed database.");
     }
+    
 }
 
+
 app.Run();
+public partial class Program { }
