@@ -2,6 +2,7 @@ using TicketSystem.Infrastructure.Data;
 using TicketSystem.Infrastructure.Repositories;
 using TicketSystem.Infrastructure.Security;
 using TicketSystem.Infrastructure.Repositories;
+using TicketSystem.Infrastructure.Services;
 using TicketSystem.Application.Services;
 using TicketSystem.Infrastructure.AI;
 using TicketSystem.Infrastructure;
@@ -25,7 +26,6 @@ using Hangfire.PostgreSql;
 using Npgsql;
 using System.Security.Claims;
 
-// ====== FIX TRIỆT ĐỂ LỖI "inotify instance limit (128) reached" TRÊN RENDER/DOCKER ======
 // WebApplication.CreateBuilder() mặc định bật reloadOnChange cho appsettings.json,
 // dùng FileSystemWatcher (inotify). Container Linux của Render giới hạn inotify rất thấp
 // -> app crash ngay lúc khởi động (Exited with status 139).
@@ -137,7 +137,7 @@ builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ITicketTypeRepository, TicketTypeRepository>();
 builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
 builder.Services.AddHttpContextAccessor();
-
+builder.Services.AddScoped<IDatabaseManagementService, DatabaseManagementService>();
 
 // 5. Đăng ký Application Services (DEPENDENCY INVERSION)
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
