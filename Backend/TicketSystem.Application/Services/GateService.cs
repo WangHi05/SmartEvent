@@ -41,7 +41,9 @@ public class GateService : IGateService
         {
             new GateTrafficDto { Id = 1, Name = "Cổng chính - Lối vào 1", Capacity = 5000 },
             new GateTrafficDto { Id = 2, Name = "Cổng phụ - Lối vào 2", Capacity = 2000 },
-            new GateTrafficDto { Id = 3, Name = "Cổng VIP", Capacity = 500 }
+            new GateTrafficDto { Id = 3, Name = "Cổng VIP", Capacity = 500 },
+            // THÊM MỚI: đồng bộ với GateController.GetGateStatus, tránh 2 nơi lệch danh sách cổng
+            new GateTrafficDto { Id = 4, Name = "Quầy Hỗ Trợ (Help Desk)", Capacity = 100 }
         };
 
         // 4. Map dữ liệu quét thực tế từ Database vào danh sách cổng
@@ -60,7 +62,7 @@ public class GateService : IGateService
         var defaultGateNames = gates.Select(g => g.Name).ToList();
         var unknownGates = trafficData.Where(t => !defaultGateNames.Contains(t.GateName) && !string.IsNullOrWhiteSpace(t.GateName)).ToList();
         
-        int nextId = 4;
+        int nextId = 5;
         foreach (var unknownGate in unknownGates)
         {
             gates.Add(new GateTrafficDto

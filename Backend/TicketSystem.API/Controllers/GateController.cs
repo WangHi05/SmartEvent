@@ -36,7 +36,6 @@ namespace TicketSystem.API.Controllers
         }
 
         [HttpGet("status")]
-        // THÊM: Tham số eventId từ Frontend gửi lên
         public async Task<IActionResult> GetGateStatus([FromQuery] Guid? eventId)
         {
             var query = _context.Events.AsQueryable();
@@ -54,32 +53,35 @@ namespace TicketSystem.API.Controllers
 
             if (evt == null)
             {
-                return Ok(new List<object>()); // Trả về mảng rỗng nếu không có sự kiện
+                return Ok(new List<object>());
             }
 
-            // Truy vấn trực tiếp vào Database để lấy số liệu thực tế của sự kiện này
             var gateStats = await _context.CheckInLogs
                 .Where(log => log.EventId == evt.Id)
                 .GroupBy(log => log.GateName)
                 .Select(g => new 
                 {
                     Name = g.Key,
-                     CurrentTraffic = g.Where(x => x.Type == ScanType.Entry && x.CheckInResult == "Success").Sum(x => x.PeopleCount),
+                    CurrentTraffic = g.Where(x => x.Type == ScanType.Entry && x.CheckInResult == "Success").Sum(x => x.PeopleCount),
                     FailedAttempts = g.Count(x => x.CheckInResult == "Failed")
                 })
                 .ToListAsync();
 
-            // Đảm bảo luôn trả về đủ 3 cổng cho UI hiển thị ngay cả khi chưa có ai check-in
-            var defaultGates = new List<string> { "Cổng chính - Lối vào 1", "Cổng phụ - Lối vào 2", "Cổng VIP" };
+            // THÊM MỚI: "Quầy Hỗ Trợ (Help Desk)" - nơi nhân viên Help Desk check-in thủ công
+            // (khớp đúng GateName hardcode trong TicketCheckInService.ManualCheckInAsync)
+            var defaultGates = new List<string> { "Cổng chính - Lối vào 1", "Cổng phụ - Lối vào 2", "Cổng VIP", "Quầy Hỗ Trợ (Help Desk)" };
             
             var result = defaultGates.Select(gateName => {
                 var stat = gateStats.FirstOrDefault(g => g.Name == gateName);
                 
                 // Phân bổ sức chứa (Capacity) tự động dựa vào tên cổng
-                int gateCapacity = gateName.Contains("chính") ? evt.MaxCapacity : 
-                                   gateName.Contains("phụ") ? (int)(evt.MaxCapacity * 0.4) : 
-                                   (int)(evt.MaxCapacity * 0.1);
-                                   
+                // THÊM MỚI: Help Desk là quầy hỗ trợ thủ công, không phải cổng vào chính,
+                // nên gán sức chứa nhỏ và tách riêng khỏi 3 nhánh phân bổ % cũ.
+                int gateCapacity = gateName.Contains("Help Desk") ? 100 :
+                                gateName.Contains("chính") ? evt.MaxCapacity : 
+                                gateName.Contains("phụ") ? (int)(evt.MaxCapacity * 0.4) : 
+                                (int)(evt.MaxCapacity * 0.1);
+                                
                 int currentTraffic = stat?.CurrentTraffic ?? 0;
 
                 return new 

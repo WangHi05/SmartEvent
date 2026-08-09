@@ -14,6 +14,7 @@ namespace TicketSystem.Application.DTOs
         public int RemainingQuantity { get; set; }
         public int MaxPerUser { get; set; }
         public int? UsageType { get; set; } // nullable, chỉ cho INDIVIDUAL
+        public int AccessType { get; set; } // 1=ONE_TIME, 2=DAILY_MULTI
         public int? MinGroupSize { get; set; } // nullable, chỉ cho GROUP
         public int? MaxGroupSize { get; set; } // nullable, chỉ cho GROUP
         public int? QRMode { get; set; } // nullable, chỉ cho GROUP

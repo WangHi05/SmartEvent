@@ -27,7 +27,18 @@ const MyTickets = () => {
 
   const canUseTicket = (ticket) => Number(ticket?.status) === 1 || Number(ticket?.status) === 2;
 
-  const handleViewQr = (ticket) => {
+// accessType: 1 = ONE_TIME (vé 1 ngày), 2 = DAILY_MULTI (vé nhiều ngày)
+const isMultiDayAccess = (ticket) => Number(ticket?.accessType) === 2;  
+
+// Vé 1 ngày: hết chỗ -> đóng băng nút "Mở vé"
+// Vé nhiều ngày: luôn cho bấm mở, "hết lượt hôm nay" hiển thị bên trong modal QR
+const isOpenTicketDisabled = (ticket) => {
+  if (!canUseTicket(ticket)) return true;
+  if (isMultiDayAccess(ticket)) return false;
+  return ticket.remainingSlots === 0;
+};
+
+const handleViewQr = (ticket) => {
     setSelectedTicket(ticket);
     setQrModalOpen(true);
   };
@@ -71,6 +82,14 @@ const MyTickets = () => {
       else if (resData.items) ticketList = resData.items;
 
       setTickets(ticketList);
+
+      // Nếu đang mở QR của 1 vé, đồng bộ luôn dữ liệu mới nhất (remainingSlots) vào modal đang mở,
+      // để DynamicTicketCard biết vé đã được quét/dùng hết hay chưa mà tự đóng băng.
+      setSelectedTicket((prev) => {
+        if (!prev) return prev;
+        const updated = ticketList.find((t) => t.id === prev.id);
+        return updated ? updated : prev;
+      });
     } catch (error) {
       console.error('Error fetching tickets:', error);
       if (!isSilent) message.error('Không thể tải danh sách vé');
@@ -193,14 +212,14 @@ const MyTickets = () => {
         return (
           <Space>
             <Button
-              type="primary"
-              icon={<EyeOutlined />}
-              disabled={!canUseTicket(record) || record.remainingSlots === 0}
-              onClick={() => handleViewQr(record)}
-              className="!rounded-lg !border-orange-600 !bg-orange-600 hover:!border-orange-700 hover:!bg-orange-700"
-            >
-              Mở vé
-            </Button>
+            type="primary"
+            icon={<EyeOutlined />}
+            disabled={isOpenTicketDisabled(record)}
+            onClick={() => handleViewQr(record)}
+            className="!rounded-lg !border-orange-600 !bg-orange-600 hover:!border-orange-700 hover:!bg-orange-700"
+          >
+            Mở vé
+          </Button>
 
             {isReadyToShare && (
               <Tooltip title="Tặng/Gửi vé này cho bạn bè qua Zalo, Messenger...">
@@ -267,17 +286,20 @@ const MyTickets = () => {
         wrapClassName="custom-modal-transparent"
       >
         {selectedTicket && (
-          <DynamicTicketCard
-             ticketId={selectedTicket.id}
-             secretKey={selectedTicket.qrCode}
-             eventName={selectedTicket.eventName}
-             ticketTypeName={selectedTicket.ticketTypeName}
-             onClose={() => {
-                setQrModalOpen(false);
-                fetchMyTickets(true);
-             }}
-          />
-        )}
+        <DynamicTicketCard
+          ticketId={selectedTicket.id}
+          secretKey={selectedTicket.qrCode}
+          eventName={selectedTicket.eventName}
+          ticketTypeName={selectedTicket.ticketTypeName}
+          remainingSlots={selectedTicket.remainingSlots}
+          accessType={selectedTicket.accessType}
+          lastCheckInDate={selectedTicket.lastCheckInDate}
+          onClose={() => {
+              setQrModalOpen(false);
+              fetchMyTickets(true);
+          }}
+        />
+      )}
       </Modal>
 
       <Modal

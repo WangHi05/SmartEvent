@@ -44,6 +44,7 @@ const CheckInPage = () => {
   const [selectedEventId, setSelectedEventId] = useState(null);
 
   const peopleCountRef = useRef(1);
+  const gateNameRef = useRef(selectedGate);
   const scannerRef = useRef(null);
   const isLockedRef = useRef(false); 
   const connectionRef = useRef(null);
@@ -53,6 +54,12 @@ const CheckInPage = () => {
     setPeopleCount(val);
     peopleCountRef.current = val;
   };
+
+  // Đồng bộ ref mỗi khi nhân viên đổi cổng trực trong Select,
+  // để hàm onScanSuccess (đang bị khóa cứng trong closure của camera) luôn đọc đúng cổng mới nhất.
+  useEffect(() => {
+    gateNameRef.current = selectedGate;
+  }, [selectedGate]);
 
   useEffect(() => {
     const fetchActiveEvents = async () => {
@@ -191,7 +198,7 @@ const CheckInPage = () => {
       const response = await axiosClient.post(`/checkin/scan`, {
         qrPayload: qrPayload,
         peopleCount: currentCount, 
-        gateName: selectedGate 
+        gateName: gateNameRef.current 
       });
       
       if (response.isSuccess || response.data?.isSuccess) {

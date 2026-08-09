@@ -3,6 +3,7 @@ using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common; 
+using TicketSystem.Application.Common;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,10 +21,12 @@ namespace TicketSystem.Application.Services
     public class HelpDeskService : IHelpDeskService
     {
         private readonly IApplicationDbContext _context;
+        private readonly MediatR.IMediator _mediator;
 
-        public HelpDeskService(IApplicationDbContext context)
+        public HelpDeskService(IApplicationDbContext context, MediatR.IMediator mediator)
         {
             _context = context;
+            _mediator = mediator;
         }
 
         public async Task<List<HelpDeskTicketResponseDto>> SearchTicketsAsync(string keyword)
@@ -130,15 +133,65 @@ namespace TicketSystem.Application.Services
 
         public async Task<bool> ManualCheckInAsync(Guid ticketId, string reason, string actionBy)
         {
-            var ticket = await _context.Tickets.FirstOrDefaultAsync(t => t.Id == ticketId);
+            var ticket = await _context.Tickets
+                .Include(t => t.TicketType)
+                .FirstOrDefaultAsync(t => t.Id == ticketId);
             
             if (ticket == null) throw new Exception("Không tìm thấy vé.");
+
+            if (ticket.TicketType?.AccessType == TicketAccessType.DAILY_MULTI)
+            {
+                var today = VietnamTime.Today;
+                if (ticket.LastCheckInDate == null || ticket.LastCheckInDate.Value < today)
+                {
+                    ticket.RemainingSlots = ticket.GroupSize;
+                    ticket.Status = TicketStatus.ACTIVE;
+                    ticket.IsCheckedIn = false;
+                }
+            }
             
             if (ticket.Status != TicketStatus.ACTIVE) throw new Exception("Vé không ở trạng thái hoạt động.");
 
-            ticket.Status = TicketStatus.CHECKED_IN; 
+            if (ticket.RemainingSlots <= 0)
+                throw new Exception("Vé đã được sử dụng hết, không thể check-in thêm.");
+
+            const int peopleCount = 1;
+            ticket.RemainingSlots -= peopleCount;
+            ticket.LastCheckInDate = VietnamTime.Today;
+
+            if (ticket.RemainingSlots == 0)
+            {
+                ticket.Status = TicketStatus.CHECKED_IN;
+                ticket.IsCheckedIn = true;
+            }
+
             ticket.UpdatedAt = DateTime.UtcNow;
             ticket.UpdatedBy = actionBy;
+
+            var now = DateTime.UtcNow;
+            var eventId = ticket.TicketType?.EventId ?? Guid.Empty;
+
+            // THÊM MỚI: Ghi CheckInLog cho lượt check-in thủ công này.
+            // Thiếu bước này khiến trang Kiểm soát cổng (group theo CheckInLogs.GateName)
+            // không bao giờ thấy được số liệu check-in từ Help Desk.
+            _context.CheckInLogs.Add(new CheckInLog
+            {
+                Id = Guid.NewGuid(),
+                TicketId = ticket.Id,
+                EventId = eventId,
+                CheckedAt = now,
+                CheckinDate = DateOnly.FromDateTime(now),
+                Type = ScanType.Entry,
+                PeopleCount = peopleCount,
+                GateName = "Quầy Hỗ Trợ (Help Desk)",
+                StaffId = actionBy,
+                Note = reason,
+                CheckInResult = "Success",
+                FailureReason = null,
+                QRCodeData = null,
+                CreatedAt = now,
+                CreatedBy = actionBy
+            });
 
             _context.AuditLogs.Add(new AuditLog
             {
@@ -147,13 +200,23 @@ namespace TicketSystem.Application.Services
                 EntityType = "Ticket",
                 EntityId = ticketId,
                 PerformedBy = actionBy,
-                Timestamp = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow,
+                Timestamp = now,
+                CreatedAt = now,
                 CreatedBy = actionBy,
                 Details = $"HelpDesk: Check-in thủ công. Lý do: {reason}"
             });
 
             await _context.SaveChangesAsync();
+
+            if (ticket.TicketType != null)
+            {
+                await _mediator.Publish(new TicketSystem.Application.Events.TicketCheckedInEvent(
+                    ticket.TicketType.EventId,
+                    peopleCount,
+                    ScanType.Entry
+                ));
+            }
+
             return true;
         }
     }

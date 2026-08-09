@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using TicketSystem.Application.Interfaces;
 // using Microsoft.AspNetCore.Authorization; // Mở ra khi ráp JWT
@@ -16,11 +17,13 @@ namespace TicketSystem.API.Controllers
     public class SystemAdminController : ControllerBase
     {
         private readonly IDatabaseManagementService _dbManagementService;
+        private readonly IWebHostEnvironment _env;
 
         // DI: Tiêm Interface từ Application Layer, lỏng lẻo (loose coupling)
-        public SystemAdminController(IDatabaseManagementService dbManagementService)
+        public SystemAdminController(IDatabaseManagementService dbManagementService, IWebHostEnvironment env)
         {
             _dbManagementService = dbManagementService;
+            _env = env;
         }
 
         /// <summary>

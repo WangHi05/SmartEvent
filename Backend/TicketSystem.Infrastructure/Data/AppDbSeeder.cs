@@ -91,7 +91,9 @@ namespace TicketSystem.Infrastructure.Data
                 .RuleFor(e => e.CurrentOccupancy, 0)
                 .RuleFor(e => e.CancellationDeadlineHours, f => f.PickRandom(24, 48, 72))
                 .RuleFor(e => e.Status, (f, e) => {
-                    if (e.EndTime < now) return EventStatus.Completed;
+                    // Sự kiện đã kết thúc: gán thẳng Archived để khớp với luồng nghiệp vụ hiện tại
+                    // (tránh phải đợi Hangfire job chạy mới chuyển đổi sau mỗi lần seed lại DB)
+                    if (e.EndTime < now) return EventStatus.Archived;
                     if (e.StartTime <= now && e.EndTime >= now) return EventStatus.Ongoing;
                     return EventStatus.Active;
                 })

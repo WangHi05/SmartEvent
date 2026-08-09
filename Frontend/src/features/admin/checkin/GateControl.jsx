@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Button, Input, Modal, Typography, Progress, Badge, message, List, Avatar, Spin, Select } from 'antd';
 import { AlertOutlined, EnvironmentOutlined, CheckCircleOutlined, ThunderboltOutlined, ReloadOutlined, DashboardOutlined } from '@ant-design/icons';
 import { Sparkles, BrainCircuit } from 'lucide-react'; 
@@ -23,6 +23,7 @@ const GateControl = () => {
 
   const [gates, setGates] = useState([]);
   const [isLoadingGates, setIsLoadingGates] = useState(true);
+  const selectedEventIdRef = useRef(null);
 
   // --- STATE CHO CHỌN SỰ KIỆN ---
   const [activeEvents, setActiveEvents] = useState([]);
@@ -117,8 +118,18 @@ const GateControl = () => {
       message.success(`Nhân viên ${staffName} tại ${gateName} đã tiếp nhận lệnh!`);
     });
 
-    connection.on("RefreshGateData", () => {
-      console.log("🔔 Có khách check-in, vui lòng nhấn Làm mới dữ liệu.");
+    // Backend thực tế bắn sự kiện "TicketCheckedIn" (không phải "RefreshGateData") mỗi khi có
+    // khách check-in thành công — lắng nghe đúng tên này để tự động tải lại dữ liệu cổng.
+    connection.on("TicketCheckedIn", async () => {
+      const eventId = selectedEventIdRef.current;
+      if (!eventId) return;
+
+      try {
+        const response = await axiosClient.get('/gate/status', { params: { eventId } });
+        setGates(normalizeGateList(response));
+      } catch (error) {
+        console.error("Lỗi khi tự động làm mới dữ liệu cổng:", error);
+      }
     });
 
     return () => { connection.stop(); };
@@ -145,6 +156,7 @@ const GateControl = () => {
   };
 
   useEffect(() => {
+    selectedEventIdRef.current = selectedEventId;
     if (selectedEventId) {
       fetchGateData();
     }

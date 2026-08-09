@@ -120,6 +120,9 @@ namespace TicketSystem.Application.Services
                 MaxPerUser = request.MaxPerUser,
                 TicketMode = (TicketMode)request.TicketMode,
                 UsageType = request.UsageType.HasValue ? (UsageType)request.UsageType : null,
+                // THÊM MỚI: đồng bộ AccessType theo UsageType, vì logic check-in (TicketCheckInService)
+                // đọc AccessType chứ không đọc UsageType. Vé đoàn (GROUP) không có UsageType -> mặc định ONE_TIME.
+                AccessType = MapAccessType(request.TicketMode, request.UsageType),
                 MinGroupSize = request.MinGroupSize,
                 MaxGroupSize = request.MaxGroupSize,
                 QRMode = request.QRMode.HasValue ? (QRMode)request.QRMode : null,
@@ -210,11 +213,12 @@ namespace TicketSystem.Application.Services
             ticketType.Name = request.Name.Trim();
             ticketType.Price = request.Price;
             ticketType.Quantity = request.Quantity;
-            // Đồng bộ RemainingQuantity theo số vé đã bán để tránh bị kẹt 0 vé còn lại.
             ticketType.RemainingQuantity = request.Quantity - soldCount;
             ticketType.MaxPerUser = request.MaxPerUser;
             ticketType.TicketMode = (TicketMode)request.TicketMode;
             ticketType.UsageType = request.UsageType.HasValue ? (UsageType)request.UsageType : null;
+            // THÊM MỚI: đồng bộ AccessType mỗi lần sửa loại vé, để không bị lệch nếu đổi Kiểu sử dụng
+            ticketType.AccessType = MapAccessType(request.TicketMode, request.UsageType);
             ticketType.MinGroupSize = request.MinGroupSize;
             ticketType.MaxGroupSize = request.MaxGroupSize;
             ticketType.QRMode = request.QRMode.HasValue ? (QRMode)request.QRMode : null;
@@ -365,6 +369,7 @@ namespace TicketSystem.Application.Services
                 RemainingQuantity = ticketType.RemainingQuantity,
                 MaxPerUser = ticketType.MaxPerUser,
                 UsageType = ticketType.UsageType.HasValue ? (int)ticketType.UsageType : null,
+                AccessType = (int)ticketType.AccessType, // THÊM MỚI
                 MinGroupSize = ticketType.MinGroupSize,
                 MaxGroupSize = ticketType.MaxGroupSize,
                 QRMode = ticketType.QRMode.HasValue ? (int)ticketType.QRMode : null,
@@ -411,6 +416,17 @@ namespace TicketSystem.Application.Services
                 return "Đang mở bán";
 
             return "Đã kết thúc";
+        }
+        // Suy ra AccessType (dùng cho logic check-in) từ UsageType (dùng cho UI).
+        // Vé đoàn (GROUP) hiện chưa có lựa chọn Kiểu sử dụng trên UI -> mặc định ONE_TIME.
+        // Nếu sau này cần vé đoàn nhiều ngày, cần bổ sung UI chọn riêng cho GROUP.
+        private static Domain.Entities.TicketAccessType MapAccessType(int ticketMode, int? usageType)
+        {
+            if (ticketMode == (int)TicketMode.INDIVIDUAL && usageType == (int)Domain.Common.UsageType.MULTI_DAY)
+            {
+                return Domain.Entities.TicketAccessType.DAILY_MULTI;
+            }
+            return Domain.Entities.TicketAccessType.ONE_TIME;
         }
 
         // Ghi log AuditLog

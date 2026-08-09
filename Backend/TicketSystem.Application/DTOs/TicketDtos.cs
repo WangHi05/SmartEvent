@@ -27,6 +27,8 @@ public class TicketResponseDto
     public Guid OrderId { get; set; }
     public int GroupSize { get; set; }
     public int RemainingSlots { get; set; }
+    public int AccessType { get; set; } // 1 = ONE_TIME, 2 = DAILY_MULTI
+    public DateOnly? LastCheckInDate { get; set; } // Vé nhiều ngày: ngày check-in gần nhất, dùng để tính đếm ngược ở FE
 }
 
 public class MyTicketsResponseDto

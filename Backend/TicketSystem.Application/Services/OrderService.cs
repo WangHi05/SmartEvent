@@ -547,7 +547,9 @@ public class OrderService : IOrderService
             EventId = t.TicketType?.EventId ?? Guid.Empty,
             OrderId = t.OrderId ?? Guid.Empty,
             GroupSize = t.GroupSize,
-            RemainingSlots = t.RemainingSlots
+            RemainingSlots = t.RemainingSlots,
+            AccessType = (int)(t.TicketType?.AccessType ?? TicketAccessType.ONE_TIME),
+            LastCheckInDate = t.LastCheckInDate // THÊM MỚI: để FE tự tính đếm ngược tới ngày mai
         }).ToList();
 
         return new MyTicketsResponseDto

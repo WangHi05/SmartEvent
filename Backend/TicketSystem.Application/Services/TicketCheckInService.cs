@@ -58,6 +58,23 @@ namespace TicketSystem.Application.Services
             _httpContextAccessor = httpContextAccessor;
             _logger = logger;
         }
+        /// <summary>
+        /// Nếu vé thuộc loại DAILY_MULTI (sự kiện nhiều ngày) và đã sang ngày mới (giờ VN)
+        /// so với lần check-in gần nhất, tự động "mở lại" toàn bộ slot cho ngày hôm nay.
+        /// Vé ONE_TIME không bị ảnh hưởng bởi hàm này.
+        /// </summary>
+        private static void ResetSlotsIfNewDayForMultiDayTicket(Ticket ticket)
+        {
+            if (ticket.TicketType?.AccessType != TicketAccessType.DAILY_MULTI) return;
+
+            var today = VietnamTime.Today;
+            if (ticket.LastCheckInDate == null || ticket.LastCheckInDate.Value < today)
+            {
+                ticket.RemainingSlots = ticket.GroupSize;
+                ticket.Status = TicketStatus.ACTIVE;
+                ticket.IsCheckedIn = false;
+            }
+        }
 
         public async Task<TicketLookupResponse> LookupTicketAsync(string qrPayload)
         {
@@ -98,10 +115,16 @@ namespace TicketSystem.Application.Services
         public async Task<CheckInResponse> ManualCheckInAsync(Guid ticketId, int peopleCount, string staffId, string reason)
         {
             var ticket = await _context.Tickets
+                .Include(t => t.TicketType)
                 .FirstOrDefaultAsync(t => t.Id == ticketId);
 
-            if (ticket == null || ticket.Status != TicketStatus.ACTIVE)
-                return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại hoặc đã sử dụng hết." };
+            if (ticket == null)
+                return new CheckInResponse { IsSuccess = false, Message = "Vé không tồn tại." };
+
+            ResetSlotsIfNewDayForMultiDayTicket(ticket);
+
+            if (ticket.Status != TicketStatus.ACTIVE)
+                return new CheckInResponse { IsSuccess = false, Message = "Vé đã sử dụng hết hoặc không hoạt động." };
 
             var now = VietnamTime.Now;
             
@@ -110,6 +133,7 @@ namespace TicketSystem.Application.Services
                 return new CheckInResponse { IsSuccess = false, Message = $"Vượt quá giới hạn. Đoàn chỉ còn lại {ticket.RemainingSlots} chỗ trống." };
 
             ticket.RemainingSlots -= peopleCount;
+            ticket.LastCheckInDate = VietnamTime.Today;
 
             if (ticket.RemainingSlots == 0)
             {
@@ -258,6 +282,13 @@ namespace TicketSystem.Application.Services
 
                 if (ticket == null)
                 {
+                    // giữ nguyên nhánh xử lý ticket == null như cũ
+                }
+
+                ResetSlotsIfNewDayForMultiDayTicket(ticket!);
+
+                if (ticket == null)
+                {
                     var response = CheckInResponse.Fail("Vé không tồn tại.");
                     await PersistCheckInOutcomeAsync(new CheckInOutcome
                     {
@@ -279,6 +310,8 @@ namespace TicketSystem.Application.Services
 
                 eventId = ticket.TicketType?.EventId ?? Guid.Empty;
                 eventName = ticket.TicketType?.Event?.Name ?? string.Empty;
+
+                ResetSlotsIfNewDayForMultiDayTicket(ticket);
 
                 if (ticket.Status == TicketStatus.CANCELLED)
                 {
@@ -544,6 +577,7 @@ namespace TicketSystem.Application.Services
                 }
 
                 ticket.RemainingSlots -= peopleCount;
+                ticket.LastCheckInDate = VietnamTime.Today;
                 ticket.LastUsedOtp = clientOtp;
                 ticket.LastUsedOtpAt = timestamp;
 
@@ -552,7 +586,6 @@ namespace TicketSystem.Application.Services
                     ticket.Status = TicketStatus.CHECKED_IN;
                     ticket.IsCheckedIn = true;
                 }
-
                 var logScanType = triggerPrint ? ScanType.Print : ScanType.Entry;
                 await PersistCheckInOutcomeAsync(new CheckInOutcome
                 {

@@ -48,6 +48,10 @@ public class Ticket : BaseEntity
 
     // Cancel + Refund related fields
     public DateTime? CancelledAt { get; set; }
+
+    // Dùng cho vé DAILY_MULTI (sự kiện nhiều ngày): ghi nhận ngày check-in gần nhất (giờ VN)
+    // để hệ thống biết khi nào cần tự động "mở lại" slot cho ngày mới.
+    public DateOnly? LastCheckInDate { get; set; }
     public decimal? RefundAmount { get; set; }
     public string? CancelReason { get; set; }
     public bool IsCheckedIn { get; set; } = false; // True nếu vé đã check-in
