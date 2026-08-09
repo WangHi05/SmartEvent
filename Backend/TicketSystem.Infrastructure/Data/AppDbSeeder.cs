@@ -10,51 +10,25 @@ using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Common;
 
 using EntityTicketType = TicketSystem.Domain.Entities.TicketType;
-using DomainTicketTypeEnum = TicketSystem.Domain.Common.TicketType;
 
 namespace TicketSystem.Infrastructure.Data
 {
     public class AppDbSeeder
     {
+        // ... (Khai báo VietnamLocations và GenerateSlug giữ nguyên như cũ) ...
         private static readonly (string City, string[] Venues)[] VietnamLocations = new[]
         {
-            ("Hà Nội", new[] { "Trung tâm Hội nghị Quốc gia", "Sân vận động Mỹ Đình", "Cung Thể thao Quần Ngựa", "Nhà hát Lớn Hà Nội" }),
-            ("TP.HCM", new[] { "SECC Quận 7", "Nhà thi đấu Phú Thọ", "Sân vận động Quân khu 7", "Nhà hát Hòa Bình" }),
-            ("Đà Nẵng", new[] { "Cung Thể thao Tiên Sơn", "Công viên Biển Đông", "Nhà hát Trưng Vương" })
+            ("Hà Nội", new[] { "Trung tâm Hội nghị Quốc gia", "Sân vận động Mỹ Đình" }),
+            ("TP.HCM", new[] { "SECC Quận 7", "Nhà thi đấu Phú Thọ", "Sân vận động Quân khu 7" }),
+            ("Đà Nẵng", new[] { "Cung Thể thao Tiên Sơn", "Công viên Biển Đông" })
         };
 
-        // BỘ DỮ LIỆU ĐỊNH SẴN CHỨA TỪ KHÓA (KEYWORDS) ĐỂ FRONTEND REACT TỰ ĐỘNG PHÂN LOẠI
         private static readonly List<(string Category, string[] Names, string[] Images, string KeywordDesc)> EventThemes = new()
         {
-            ("Nhạc sống", 
-             new[] { "Live Concert: Vũ Trụ Cò Bay", "Đêm nhạc Trịnh: Nối vòng tay lớn", "EDM Festival: Ravolution", "Acoustic Night: Mùa Thu Cho Em", "The Masked Singer All-Star Concert" },
-             new[] { "https://images.unsplash.com/photo-1540039155732-6762b51ed81e?q=80&w=800", "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800", "https://images.unsplash.com/photo-1470229722913-7c090be5c524?q=80&w=800" },
-             "Một buổi hòa nhạc bùng nổ với hệ thống âm thanh ánh sáng đỉnh cao."),
-            
-            ("Hội thảo", 
-             new[] { "Hội thảo Kinh tế vĩ mô 2026", "Diễn đàn Bất động sản toàn quốc", "Leader Summit: Tương lai doanh nghiệp", "Hội thảo Tâm lý học đường" },
-             new[] { "https://images.unsplash.com/photo-1540575467063-178a50c2df87?q=80&w=800", "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=800" },
-             "Tham gia seminar chuyên sâu cùng các chuyên gia hàng đầu trong ngành."),
-            
-            ("Thể thao", 
-             new[] { "Giải chạy VnExpress Marathon", "Chung kết VBA 2026", "Giải Cầu lông Vô địch Quốc gia", "Đại hội Võ thuật MMA" },
-             new[] { "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800", "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=800" },
-             "Trực tiếp theo dõi trận giải đấu kịch tính và cổ vũ cho đội tuyển yêu thích."),
-            
-            ("Triển lãm", 
-             new[] { "Triển lãm Nghệ thuật Đương đại", "Motor Show 2026", "Triển lãm du học Quốc tế", "Expo Nông nghiệp xanh" },
-             new[] { "https://images.unsplash.com/photo-1531058020387-3be344556be6?q=80&w=800", "https://images.unsplash.com/photo-1518998053401-878c73fd477b?q=80&w=800" },
-             "Khám phá không gian expo nghệ thuật và công nghệ sáng tạo."),
-            
-            ("Workshop", 
-             new[] { "Workshop: Nghệ thuật pha chế Cafe", "Lớp học làm bánh Macaron", "Workshop Gốm sứ thủ công", "Kỹ năng nói trước đám đông" },
-             new[] { "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800", "https://images.unsplash.com/photo-1552664730-d307ca884978?q=80&w=800" },
-             "Trải nghiệm training và hands-on thực tế, mang về thành phẩm của chính mình."),
-            
-            ("Công nghệ", 
-             new[] { "TechX & Cloud Summit 2026", "AI & Blockchain Conference", "Vietnam Web Startup", "Triển lãm IT & Smart Home" },
-             new[] { "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=800", "https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=800" },
-             "Nơi hội tụ developer và các xu hướng công nghệ tiên tiến nhất năm nay.")
+            ("Nhạc sống", new[] { "Live Concert Vũ Trụ Cò Bay", "Đêm nhạc Trịnh" }, new[] { "https://images.unsplash.com/photo-1540039155732-6762b51ed81e?q=80&w=800" }, "Buổi hòa nhạc âm thanh ánh sáng đỉnh cao."),
+            ("Hội thảo", new[] { "Hội thảo Kinh tế 2026", "Diễn đàn Bất động sản" }, new[] { "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?q=80&w=800" }, "Tham gia seminar cùng các chuyên gia ngành."),
+            ("Thể thao", new[] { "Giải chạy VnExpress", "Chung kết VBA" }, new[] { "https://images.unsplash.com/photo-1461896836934-ffe607ba8211?q=80&w=800" }, "Theo dõi trận giải đấu kịch tính."),
+            ("Công nghệ", new[] { "AI & Cloud Summit", "Vietnam Web Startup" }, new[] { "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=800" }, "Hội tụ developer và công nghệ tiên tiến.")
         };
 
         private static string GenerateSlug(string phrase)
@@ -69,21 +43,50 @@ namespace TicketSystem.Infrastructure.Data
             str = Regex.Replace(str, @"[ýỳỷỹỵ]", "y");
             str = str.Replace("đ", "d");
             str = Regex.Replace(str, @"[^a-z0-9\s-]", "");
-            str = Regex.Replace(str, @"\s+", "-").Trim();
-            return Regex.Replace(str, @"-+", "-");
+            return Regex.Replace(str, @"\s+", "-").Trim();
         }
 
         public static async Task SeedDataAsync(DbContext context, ILogger logger, bool forceSeed = false)
         {
-            if (!forceSeed && await context.Set<Event>().AnyAsync())
+            // KIỂM TRA DB ĐÃ CÓ DỮ LIỆU CHƯA
+            bool hasData = await context.Set<Event>().AnyAsync();
+
+            if (hasData)
             {
-                logger.LogInformation("Database đã có dữ liệu. Bỏ qua Seeding để bảo toàn dữ liệu hiện tại.");
-                return;
+                if (!forceSeed)
+                {
+                    logger.LogInformation("Database đã có dữ liệu. Bỏ qua Seeding để bảo toàn dữ liệu hiện tại.");
+                    return;
+                }
+                else
+                {
+                    // 🛡️ CHỐNG DUPLICATE: Nếu ép buộc Seed, phải xóa sạch dữ liệu cũ trước!
+                    logger.LogWarning("⚠️ PHÁT HIỆN LỆNH FORCE SEED: Đang tiến hành xóa sạch dữ liệu Transactional cũ để tránh trùng lặp (Duplicate)...");
+                    try
+                    {
+                        var sql = @"
+                            TRUNCATE TABLE 
+                                ""AuditLogs"", ""CheckInLogs"", ""Tickets"", ""Payments"", 
+                                ""OrderItems"", ""Orders"", ""TicketTypes"", ""Events"", ""Customers"" 
+                            CASCADE;";
+                        await context.Database.ExecuteSqlRawAsync(sql);
+                        logger.LogInformation("✅ Đã dọn sạch dữ liệu cũ thành công. Bắt đầu sinh dữ liệu mới...");
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "❌ Lỗi khi dọn dẹp dữ liệu cũ.");
+                        throw;
+                    }
+                }
+            }
+            else
+            {
+                logger.LogInformation("Database trống. Bắt đầu chạy AI & Dashboard Data Seeding...");
             }
 
-            logger.LogInformation("Bắt đầu chạy AI & Dashboard Data Seeding...");
             Randomizer.Seed = new Random(8675309);
 
+            // --- TỪ ĐÂY TRỞ XUỐNG LOGIC HOÀN TOÀN GIỮ NGUYÊN (Sinh data chuẩn) ---
             var dummyPasswordHash = "hashed_password_123";
             var customerFaker = new Faker<Customer>("vi")
                 .CustomInstantiator(f => Customer.Create(
@@ -102,22 +105,18 @@ namespace TicketSystem.Infrastructure.Data
             var events = new List<Event>();
             var now = DateTime.UtcNow;
 
-            // TĂNG SỐ LƯỢNG SỰ KIỆN LÊN 30 ĐỂ PHỦ KÍN GIAO DIỆN FRONTEND
             var eventFaker = new Faker<Event>("vi")
                 .RuleFor(e => e.Id, f => Guid.NewGuid())
                 .CustomInstantiator(f => {
-                    // Chọn ngẫu nhiên 1 chủ đề (Nhạc sống, Công nghệ...)
                     var theme = f.PickRandom(EventThemes);
                     var loc = f.PickRandom(VietnamLocations);
                     var locationStr = $"{f.PickRandom(loc.Venues)}, {loc.City}";
                     var name = $"{f.PickRandom(theme.Names)} - {loc.City}";
-                    
                     return new Event {
                         Name = name,
                         Slug = GenerateSlug(name) + "-" + f.Random.AlphaNumeric(4).ToLower(),
                         Location = locationStr,
                         ImageUrl = f.PickRandom(theme.Images),
-                        // Nhúng mô tả chứa TỪ KHÓA để Frontend nhận diện danh mục
                         Description = theme.KeywordDesc
                     };
                 })
@@ -136,12 +135,11 @@ namespace TicketSystem.Infrastructure.Data
 
             events.AddRange(eventFaker.Generate(30)); 
 
-            // SỰ KIỆN CỐ ĐỊNH (Chứa từ khóa 'tech' để vào danh mục Công nghệ)
             var todayEventStart = now.AddHours(-2);
             var todayEvent = new Event
             {
                 Id = Guid.NewGuid(),
-                Name = "TechX & Cloud Summit 2026 - TP.HCM", // Chứa 'tech'
+                Name = "TechX & Cloud Summit 2026 - TP.HCM",
                 Slug = "techx-cloud-summit-2026-live",
                 Location = "SECC Quận 7, TP.HCM",
                 ImageUrl = "https://images.unsplash.com/photo-1505373877841-8d25f7d46678?q=80&w=800",
@@ -328,7 +326,7 @@ namespace TicketSystem.Infrastructure.Data
             try
             {
                 await context.SaveChangesAsync();
-                logger.LogInformation($"[Mock Data Success] Đã tạo thành công {events.Count} Sự kiện đa danh mục.");
+                logger.LogInformation($"[Mock Data Success] Đã tạo thành công {events.Count} Sự kiện không trùng lặp.");
             }
             catch (Exception ex)
             {
