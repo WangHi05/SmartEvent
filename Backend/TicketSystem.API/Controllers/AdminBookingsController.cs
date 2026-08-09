@@ -53,7 +53,7 @@ public class AdminBookingsController : ControllerBase
         return Ok(new
         {
             success = true,
-            message = "Đã xác nhận thanh toán thành công",
+            message = "Đã xác nhận thanh toán thành công tốt đẹp",
             data = result
         });
     }
