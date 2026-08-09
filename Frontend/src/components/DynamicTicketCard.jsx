@@ -27,7 +27,9 @@ const DynamicTicketCard = ({
         const syncServerTime = async () => {
             try {
                 const startFetch = Date.now();
-                const response = await axiosClient.get('http://localhost:5013/api/system/time');
+                // Dùng đường dẫn tương đối qua axiosClient (đã tự động trỏ đúng domain
+                // backend theo môi trường local/production), không hardcode localhost nữa.
+                const response = await axiosClient.get('/system/time');
                 const endFetch = Date.now();
 
                 const serverTimeMs = response.data?.serverTimeMs || response.data?.data?.serverTimeMs;
