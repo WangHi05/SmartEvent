@@ -227,10 +227,11 @@ namespace TicketSystem.Infrastructure.Data
                     bool isCancelled = faker.Random.Bool(0.08f); 
                     DateTime maxCancelTime = evt.StartTime.AddHours(-evt.CancellationDeadlineHours);
                     
-                    if (isCancelled && orderDate < maxCancelTime)
+                    var cancelUpperBound = maxCancelTime < now ? maxCancelTime : now;
+                    if (isCancelled && orderDate < cancelUpperBound)
                     {
                         order.OrderStatus = OrderStatus.Cancelled;
-                        order.CancelRequestAt = faker.Date.Between(orderDate.AddMinutes(30), maxCancelTime);
+                        order.CancelRequestAt = faker.Date.Between(orderDate.AddMinutes(30), cancelUpperBound);
                         order.RefundAmount = order.TotalPrice * 0.8m; 
                         order.RefundedAt = order.CancelRequestAt.Value.AddHours(2);
                         order.RefundStatus = RefundStatus.RefundCompleted;
@@ -240,7 +241,11 @@ namespace TicketSystem.Infrastructure.Data
                         auditLogs.Add(new AuditLog {
                             Id = Guid.NewGuid(), Action = "CancelOrder", EntityType = "Order",
                             EntityId = order.Id, Timestamp = order.CancelRequestAt.Value,
-                            PerformedBy = customerId.ToString()
+                            PerformedBy = order.BuyerName,
+                            Details = $"Order cancelled by {order.BuyerName}. Refund amount: {order.RefundAmount:N0}đ.",
+                            IpAddress = null,
+                            CreatedAt = order.CancelRequestAt.Value,
+                            CreatedBy = order.BuyerName
                         });
                     }
                     else
@@ -273,7 +278,7 @@ namespace TicketSystem.Infrastructure.Data
                             Id = Guid.NewGuid(),
                             TicketTypeId = selectedType.Id,
                             OrderId = order.Id,
-                            SecretKey = Guid.NewGuid().ToString("N")[..16].ToUpper(),
+                            SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
                             Status = (order.OrderStatus == OrderStatus.Cancelled) ? TicketStatus.CANCELLED : TicketStatus.ACTIVE,
                             ValidFrom = evt.StartTime,
                             ValidTo = evt.EndTime,

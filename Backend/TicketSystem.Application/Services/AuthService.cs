@@ -18,12 +18,27 @@ namespace TicketSystem.Application.Services
         private readonly IApplicationDbContext _context;
         private readonly IPasswordHasher _passwordHasher;
         private readonly IJwtTokenGenerator _jwtTokenGenerator;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
 
-        public AuthService(IApplicationDbContext context, IPasswordHasher passwordHasher, IJwtTokenGenerator jwtTokenGenerator)
+        public AuthService(
+            IApplicationDbContext context,
+            IPasswordHasher passwordHasher,
+            IJwtTokenGenerator jwtTokenGenerator,
+            Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _passwordHasher = passwordHasher;
             _jwtTokenGenerator = jwtTokenGenerator;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private string? GetClientIpAddress()
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+            if (ipAddress.ToString() == "::1") return "127.0.0.1";
+            if (ipAddress.IsIPv4MappedToIPv6) return ipAddress.MapToIPv4().ToString();
+            return ipAddress.ToString();
         }
 
         public async Task<AuthResponseDto?> AuthenticateAsync(string username, string password)
@@ -203,6 +218,7 @@ namespace TicketSystem.Application.Services
                 EntityId = entityId,
                 PerformedBy = performedBy,
                 Details = details,
+                IpAddress = GetClientIpAddress(),
                 Timestamp = VietnamTime.Now,
                 CreatedAt = DateTime.UtcNow
             });

@@ -24,15 +24,27 @@ namespace TicketSystem.Application.Services
         private readonly IApplicationDbContext _context;
         private readonly ISettingsService _settingsService;
         private readonly IRefundStrategyFactory _refundStrategyFactory;
+        private readonly Microsoft.AspNetCore.Http.IHttpContextAccessor _httpContextAccessor;
 
         public CancelOrderService(
             IApplicationDbContext context,
             ISettingsService settingsService,
-            IRefundStrategyFactory refundStrategyFactory)
+            IRefundStrategyFactory refundStrategyFactory,
+            Microsoft.AspNetCore.Http.IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
             _settingsService = settingsService;
             _refundStrategyFactory = refundStrategyFactory;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        private string? GetClientIpAddress()
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+            if (ipAddress.ToString() == "::1") return "127.0.0.1";
+            if (ipAddress.IsIPv4MappedToIPv6) return ipAddress.MapToIPv4().ToString();
+            return ipAddress.ToString();
         }
 
         public async Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId)
@@ -361,6 +373,7 @@ namespace TicketSystem.Application.Services
                 EntityId = orderId,
                 PerformedBy = performedBy,
                 Details = $"Order cancelled by {userId}. Refund amount: {refundAmount}. Reason: {reason}",
+                IpAddress = GetClientIpAddress(),
                 Timestamp = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = performedBy

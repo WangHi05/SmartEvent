@@ -192,6 +192,15 @@ namespace TicketSystem.Application.Services
             return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
         }
 
+        private string? GetClientIpAddress()
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+            if (ipAddress.ToString() == "::1") return "127.0.0.1";
+            if (ipAddress.IsIPv4MappedToIPv6) return ipAddress.MapToIPv4().ToString();
+            return ipAddress.ToString();
+        }
+
         private async Task LogAuditAsync(string action, string entityType, Guid entityId, string performedBy, string details)
         {
             _context.AuditLogs.Add(new AuditLog
@@ -202,6 +211,7 @@ namespace TicketSystem.Application.Services
                 EntityId = entityId,
                 PerformedBy = performedBy,
                 Details = details,
+                IpAddress = GetClientIpAddress(),
                 Timestamp = VietnamTime.Now,
                 CreatedAt = DateTime.UtcNow
             });
