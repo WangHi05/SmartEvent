@@ -24,17 +24,20 @@ namespace TicketSystem.Application.Services
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IApplicationDbContext _context;
+        private readonly IRealTimeUpdateService _realTimeUpdateService;
 
         public EventService(
             IGenericRepository<Event> eventRepository,
             IGenericRepository<AuditLog> auditLogRepository,
             IHttpContextAccessor httpContextAccessor,
-            IApplicationDbContext context)
+            IApplicationDbContext context,
+            IRealTimeUpdateService realTimeUpdateService)
         {
             _eventRepository = eventRepository;
             _auditLogRepository = auditLogRepository;
             _httpContextAccessor = httpContextAccessor;
             _context = context;
+            _realTimeUpdateService = realTimeUpdateService;
         }
 
         public async Task<PagedResult<EventResponseDto>> SearchEventsAsync(EventSearchRequest request)
@@ -443,39 +446,54 @@ namespace TicketSystem.Application.Services
 
         public async Task AutoUpdateCompletedEventsAsync()
         {
-            var now = DateTime.UtcNow;
+            var now = VietnamTime.Now;
 
-            // Tìm các sự kiện đã qua EndTime nhưng chưa Archived/Cancelled/PendingApproval
-            // (không tự động lưu trữ sự kiện đang chờ duyệt, để admin còn thấy mà xử lý)
-            var expiredEvents = await _context.Events
-                .Where(e => e.EndTime < now
-                    && e.Status != EventStatus.Archived
-                    && e.Status != EventStatus.Cancelled
-                    && e.Status != EventStatus.PendingApproval)
+            // Lấy toàn bộ sự kiện đang ở trạng thái theo lịch (Active/Ongoing),
+            // bỏ qua Cancelled/PendingApproval/Archived vì đó là trạng thái do người quản trị chủ động đặt.
+            var scheduledEvents = await _context.Events
+                .Where(e => e.Status == EventStatus.Active || e.Status == EventStatus.Ongoing)
                 .ToListAsync();
 
-            if (!expiredEvents.Any()) return;
+            if (!scheduledEvents.Any()) return;
 
-            foreach (var evt in expiredEvents)
+            var changedEvents = new List<Event>();
+
+            foreach (var evt in scheduledEvents)
             {
                 var oldStatus = evt.Status;
-                evt.Status = EventStatus.Archived;
+                var newStatus = DetermineScheduleStatus(evt, now);
+
+                if (newStatus == oldStatus) continue;
+
+                evt.Status = newStatus;
                 evt.UpdatedAt = now;
                 evt.UpdatedBy = "Hangfire System";
+                changedEvents.Add(evt);
 
-                // Ghi log tự động
+                var action = newStatus == EventStatus.Archived ? "AutoArchive"
+                    : newStatus == EventStatus.Ongoing ? "AutoStartOngoing"
+                    : "AutoUpdateStatus";
+
                 await LogAuditAsync(new AuditLog
                 {
-                    Action = "AutoArchive",
+                    Action = action,
                     EntityType = "Event",
                     EntityId = evt.Id,
                     PerformedBy = "System",
-                    Details = $"Hangfire tự động lưu trữ sự kiện đã kết thúc. Trạng thái cũ: {oldStatus} (Event EndTime: {evt.EndTime})"
+                    Details = $"Hangfire tự động cập nhật trạng thái sự kiện: {oldStatus} -> {newStatus} (StartTime: {evt.StartTime}, EndTime: {evt.EndTime})"
                 });
             }
 
-            _context.Events.UpdateRange(expiredEvents);
+            if (!changedEvents.Any()) return;
+
+            _context.Events.UpdateRange(changedEvents);
             await _context.SaveChangesAsync();
+
+            // Báo real-time cho Frontend biết để tự refresh, không cần F5
+            foreach (var evt in changedEvents)
+            {
+                await _realTimeUpdateService.NotifyEventStatusChangedAsync(evt.Id, (int)evt.Status);
+            }
         }
 
         /// <summary>

@@ -382,7 +382,7 @@ const GateControl = () => {
                           type="dashboard" 
                           percent={percent} 
                           strokeColor={getDashboardGradient(gate.currentTraffic, gate.capacity)}
-                          width={110} 
+                          size={{ width: 110, height: 110 }}
                           strokeWidth={12}
                           gapDegree={60}
                           format={(p) => <span className="font-extrabold text-xl text-gray-700">{p}%</span>}

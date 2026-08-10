@@ -12,7 +12,7 @@ namespace TicketSystem.API.Controllers
 {
     [ApiController]
     [Route("api/dashboard/admin")]
-    [Authorize(Roles = RoleNames.Admin)]
+    [Authorize(Roles = RoleNames.Admin + "," + RoleNames.Manager)]
     public class AdminDashboardController : ControllerBase
     {
         private readonly IDashboardService _dashboardService;

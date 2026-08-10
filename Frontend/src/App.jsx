@@ -107,7 +107,7 @@ function App() {
   const currentRole = normalizeRole(user?.role || user?.Role);
   return (
     <ConfigProvider locale={viVN}>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/" element={<RoleBasedHome />} />
 

@@ -95,7 +95,9 @@ const CustomerProfile = () => {
 
       {loading ? (
         <div className="flex min-h-[320px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-white">
-          <Spin size="large" tip="Đang tải hồ sơ..." />
+          <Spin size="large" tip="Đang tải hồ sơ...">
+            <div style={{ minHeight: 60, minWidth: 200 }} />
+          </Spin>
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">

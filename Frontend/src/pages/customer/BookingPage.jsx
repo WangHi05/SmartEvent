@@ -206,7 +206,9 @@ const BookingPage = () => {
   if (loading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <Spin size="large" tip="Đang tải..." />
+        <Spin size="large" tip="Đang tải...">
+          <div style={{ minHeight: 60, minWidth: 200 }} />
+        </Spin>
       </div>
     );
   }

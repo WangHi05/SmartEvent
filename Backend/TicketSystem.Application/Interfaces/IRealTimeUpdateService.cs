@@ -7,4 +7,5 @@ namespace TicketSystem.Application.Interfaces;
 public interface IRealTimeUpdateService
 {
     Task SendOccupancyUpdateAsync(Guid eventId, int newOccupancy, bool isFull, CancellationToken cancellationToken = default);
+    Task NotifyEventStatusChangedAsync(Guid eventId, int newStatus, CancellationToken cancellationToken = default);
 }

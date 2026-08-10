@@ -241,7 +241,9 @@ const EventBrowse = () => {
 
       {loading ? (
         <div className="flex min-h-[240px] items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <Spin size="large" tip="Đang tải dữ liệu..." />
+          <Spin size="large" tip="Đang tải dữ liệu...">
+            <div style={{ minHeight: 60, minWidth: 200 }} />
+          </Spin>
         </div>
       ) : events.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">

@@ -223,8 +223,8 @@ const DashboardView = () => {
             </div>
           </div>
         ) : (
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="h-64 w-full" style={{ minWidth: 300 }}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={300} minHeight={256} debounce={50}>
               <LineChart data={revenue} margin={{ top: 10, right: 16, left: 0, bottom: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
                 <XAxis

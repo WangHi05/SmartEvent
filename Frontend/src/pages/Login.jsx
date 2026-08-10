@@ -36,6 +36,10 @@ export default function Login() {
             navigate('/admin/dashboard', { replace: true });
             return;
         }
+        if (role === 'manager') {
+            navigate('/admin/dashboard', { replace: true });
+            return;
+        }
         if (role === 'staff') {
             navigate('/bookings', { replace: true });
             return;
@@ -146,6 +150,7 @@ export default function Login() {
                         <label className="mb-1.5 block text-sm font-medium text-gray-700">Tên đăng nhập</label>
                         <input
                             type="text" name="username" value={formData.username} onChange={handleChange}
+                            autoComplete="username"
                             className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Nhập tên đăng nhập" required
                         />
@@ -154,6 +159,7 @@ export default function Login() {
                         <label className="mb-1.5 block text-sm font-medium text-gray-700">Mật khẩu</label>
                         <input
                             type="password" name="password" value={formData.password} onChange={handleChange}
+                            autoComplete="current-password"
                             className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm outline-none transition-colors focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
                             placeholder="Nhập mật khẩu" required
                         />

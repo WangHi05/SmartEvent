@@ -22,6 +22,17 @@ const axiosClient = axios.create({
     },
 });
 
+// Các route không cần đăng nhập — không cần cảnh báo khi thiếu token
+const PUBLIC_ENDPOINTS = [
+    '/users/authenticate',
+    '/users/register',
+    '/users/forgot-password',
+    '/users/reset-password',
+    '/users/external-login',
+    '/events/search',
+    '/events/', // GetById công khai cho khách xem chi tiết sự kiện
+];
+
 // REQUEST INTERCEPTOR - Phiên bản mạnh hơn
 axiosClient.interceptors.request.use(
     (config) => {
@@ -29,10 +40,12 @@ axiosClient.interceptors.request.use(
                      sessionStorage.getItem('token') ||
                      window.memoryToken || '';
 
+        const isPublicEndpoint = PUBLIC_ENDPOINTS.some((path) => config.url?.includes(path));
+
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
             console.log(`✅ Gửi token cho: ${config.url}`);
-        } else {
+        } else if (!isPublicEndpoint) {
             console.warn("❌ Không tìm thấy token cho request:", config.url);
         }
         

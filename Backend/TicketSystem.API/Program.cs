@@ -341,7 +341,7 @@ app.UseHangfireDashboard("/hangfire");
 RecurringJob.AddOrUpdate<EventService>(
     "update-expired-events-status", 
     service => service.AutoUpdateCompletedEventsAsync(), 
-    Cron.Hourly());
+    Cron.MinuteInterval(1));
 
 app.MapControllers();
 

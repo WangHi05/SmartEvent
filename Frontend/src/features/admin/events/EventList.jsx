@@ -118,8 +118,16 @@ const EventList = () => {
 
   // CƠ CHẾ SIGNALR: Lắng nghe thay đổi Real-time
   useEffect(() => {
+    const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const baseUrl = configuredBaseUrl
+      ? configuredBaseUrl.trim().replace(/\/+$/, '').replace(/\/api$/, '')
+      : import.meta.env.PROD
+        ? window.location.origin
+        : 'http://localhost:5013';
+    const hubUrl = `${baseUrl}/gateHub`;
+
     const connection = new signalR.HubConnectionBuilder()
-      .withUrl("http://localhost:5013/gateHub")
+      .withUrl(hubUrl)
       .withAutomaticReconnect()
       .build();
 
@@ -133,6 +141,13 @@ const EventList = () => {
       ));
     });
 
+    // Backend tự động chuyển trạng thái Event (Active -> Ongoing -> Archived) mỗi phút
+    // qua Hangfire, rồi bắn sự kiện này — Frontend chỉ cần tải lại danh sách, không cần F5.
+    connection.on("EventStatusChanged", (data) => {
+      console.log("⚡ Trạng thái sự kiện thay đổi:", data);
+      fetchEvents(pagination.current, pagination.pageSize, debouncedSearch, statusFilter, dateRange, true);
+    });
+
     connection.start()
       .then(() => console.log('✅ Đã kết nối SignalR Real-time Dashboard'))
       .catch(err => console.error('❌ Lỗi kết nối SignalR: ', err));
@@ -140,6 +155,7 @@ const EventList = () => {
     return () => {
       connection.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleDelete = async (id) => {
@@ -281,7 +297,6 @@ const EventList = () => {
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
             options={[
-              { value: EVENT_STATUS.PendingApproval, label: 'Chờ duyệt' },
               { value: EVENT_STATUS.Draft, label: 'Nháp' },
               { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
               { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
