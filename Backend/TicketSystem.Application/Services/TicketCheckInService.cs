@@ -127,6 +127,12 @@ namespace TicketSystem.Application.Services
                 return new CheckInResponse { IsSuccess = false, Message = "Vé đã sử dụng hết hoặc không hoạt động." };
 
             var now = VietnamTime.Now;
+
+            if (now < VietnamTime.ToVietnamTime(ticket.ValidFrom))
+                return new CheckInResponse { IsSuccess = false, Message = "Sự kiện chưa bắt đầu, chưa thể check-in." };
+
+            if (now > VietnamTime.ToVietnamTime(ticket.ValidTo))
+                return new CheckInResponse { IsSuccess = false, Message = "Sự kiện đã kết thúc, không thể check-in." };
             
             // DÙNG REMAINING SLOTS THAY VÌ SUM LOG
             if (ticket.RemainingSlots < peopleCount)

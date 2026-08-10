@@ -152,6 +152,14 @@ namespace TicketSystem.Application.Services
             
             if (ticket.Status != TicketStatus.ACTIVE) throw new Exception("Vé không ở trạng thái hoạt động.");
 
+            var now = VietnamTime.Now;
+
+            if (now < VietnamTime.ToVietnamTime(ticket.ValidFrom))
+                throw new Exception("Sự kiện chưa bắt đầu, chưa thể check-in.");
+
+            if (now > VietnamTime.ToVietnamTime(ticket.ValidTo))
+                throw new Exception("Sự kiện đã kết thúc, không thể check-in.");
+
             if (ticket.RemainingSlots <= 0)
                 throw new Exception("Vé đã được sử dụng hết, không thể check-in thêm.");
 
@@ -168,7 +176,6 @@ namespace TicketSystem.Application.Services
             ticket.UpdatedAt = DateTime.UtcNow;
             ticket.UpdatedBy = actionBy;
 
-            var now = DateTime.UtcNow;
             var eventId = ticket.TicketType?.EventId ?? Guid.Empty;
 
             // THÊM MỚI: Ghi CheckInLog cho lượt check-in thủ công này.
