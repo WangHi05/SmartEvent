@@ -276,7 +276,7 @@ namespace TicketSystem.Application.Services
             if (dto.CancellationDeadlineHours.HasValue)
                 eventEntity.CancellationDeadlineHours = dto.CancellationDeadlineHours.Value;
 
-            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedAt = DateTime.UtcNow;
             eventEntity.UpdatedBy = updatedBy;
 
             var oldStatus = eventEntity.Status;
@@ -340,7 +340,7 @@ namespace TicketSystem.Application.Services
                 ? EventStatus.Cancelled
                 : DetermineScheduleStatus(eventEntity, VietnamTime.Now);
             
-            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedAt = DateTime.UtcNow;
 
             await _eventRepository.UpdateAsync(eventEntity);
 
@@ -421,7 +421,7 @@ namespace TicketSystem.Application.Services
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
-            log.Timestamp = VietnamTime.Now;
+            log.Timestamp = DateTime.UtcNow;
             await _auditLogRepository.AddAsync(log);
         }
 
@@ -508,7 +508,7 @@ namespace TicketSystem.Application.Services
                 throw new InvalidOperationException("Chỉ có thể duyệt sự kiện đang ở trạng thái chờ duyệt");
 
             ApplyScheduleStatus(eventEntity, VietnamTime.Now);
-            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedAt = DateTime.UtcNow;
             eventEntity.UpdatedBy = approvedBy;
 
             await _eventRepository.UpdateAsync(eventEntity);
@@ -536,7 +536,7 @@ namespace TicketSystem.Application.Services
             if (eventEntity == null) return null;
 
             eventEntity.Status = EventStatus.Archived;
-            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedAt = DateTime.UtcNow;
             eventEntity.UpdatedBy = archivedBy;
 
             await _eventRepository.UpdateAsync(eventEntity);
@@ -567,7 +567,7 @@ namespace TicketSystem.Application.Services
                 throw new InvalidOperationException("Chỉ có thể khôi phục sự kiện đang ở trạng thái lưu trữ");
 
             ApplyScheduleStatus(eventEntity, VietnamTime.Now);
-            eventEntity.UpdatedAt = VietnamTime.Now;
+            eventEntity.UpdatedAt = DateTime.UtcNow;
             eventEntity.UpdatedBy = restoredBy;
 
             await _eventRepository.UpdateAsync(eventEntity);

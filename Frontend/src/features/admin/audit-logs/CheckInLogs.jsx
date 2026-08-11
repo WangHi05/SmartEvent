@@ -3,6 +3,7 @@ import { Card, Select, Table, Tag, Typography, Statistic, Row, Col, Button } fro
 import { QrcodeOutlined, CheckCircleOutlined, CloseCircleOutlined, TeamOutlined, EnvironmentOutlined, ReloadOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 import dayjs from 'dayjs';
+import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 
 const { Title, Text } = Typography;
 
@@ -73,7 +74,7 @@ const CheckInLogs = () => {
       title: 'Thời gian quét',
       dataIndex: 'checkedAt',
       key: 'checkedAt',
-      render: (text) => <strong className="text-gray-700">{dayjs(text).format('HH:mm:ss - DD/MM/YYYY')}</strong>,
+      render: (text) => <strong className="text-gray-700">{formatVietnamDateTime(text, { withSeconds: true })}</strong>,
       width: '15%',
     },
     {

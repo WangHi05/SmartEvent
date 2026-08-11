@@ -60,7 +60,7 @@ namespace TicketSystem.Infrastructure.AI
 
             // 4. Đăng ký Plugins
             builder.Plugins.AddFromObject(new SystemDataPlugin(_context), pluginName: "SystemData");
-            builder.Plugins.AddFromObject(new ExternalDataPlugin(), pluginName: "ExternalData");
+            builder.Plugins.AddFromObject(new ExternalDataPlugin(configuration), pluginName: "ExternalData");
             builder.Plugins.AddFromObject(new AuditPlugin(_context), pluginName: "AuditTools");
 
             _kernel = builder.Build();
@@ -220,6 +220,41 @@ namespace TicketSystem.Infrastructure.AI
             }
 
             return "Không thể kết nối đến máy chủ AI.";
+        }
+
+        public async Task<List<SystemKnowledgeDto>> SearchRelevantKnowledgeAsync(string question, int topK = 3)
+        {
+            if (string.IsNullOrWhiteSpace(question))
+            {
+                return new List<SystemKnowledgeDto>();
+            }
+
+            try
+            {
+                var queryVectorArray = await GetEmbeddingWithCacheAsync(question);
+                var queryVector = new Vector(queryVectorArray);
+
+                var relevantDocs = await _context.SystemKnowledges
+                    .OrderBy(k => k.Embedding.CosineDistance(queryVector))
+                    .Take(topK)
+                    .ToListAsync();
+
+                return relevantDocs
+                    .Select(k => new SystemKnowledgeDto
+                    {
+                        Id = k.Id,
+                        Title = k.Title,
+                        Content = k.Content
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                // Không để lỗi RAG search làm sập luồng chat của khách hàng —
+                // nếu lỗi, trả về rỗng, AIController sẽ tự fallback dùng RefundPolicy cũ từ SystemSettings.
+                _logger.LogWarning(ex, "Lỗi khi tìm kiếm tri thức RAG cho câu hỏi: {Question}", question);
+                return new List<SystemKnowledgeDto>();
+            }
         }
 
         private async Task<float[]> GetEmbeddingWithCacheAsync(string question)
