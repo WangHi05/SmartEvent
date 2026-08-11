@@ -142,7 +142,7 @@ namespace TicketSystem.Infrastructure.AI
 
                     var relevantDocs = await _context.SystemKnowledges
                         .OrderBy(k => k.Embedding.CosineDistance(queryVector))
-                        .Take(3) // FIX: Tăng lên 3 kết quả để AI có nhiều ngữ cảnh hơn
+                        .Take(5) 
                         .ToListAsync();
 
                     var promptBuilder = new StringBuilder();

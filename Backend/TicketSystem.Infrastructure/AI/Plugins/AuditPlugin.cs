@@ -23,7 +23,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
         }
 
         [KernelFunction("investigate_checkin_logs")]
-        [Description("Truy vết lịch sử soát vé (Check-in). BẮT BUỘC SỬ DỤNG hàm này khi Admin yêu cầu điều tra việc soát vé, xem nhân viên nào đã cho ai vào, hoặc kiểm tra lưu lượng soát vé của một cổng cụ thể.")]
+        [Description("Truy vết lịch sử soát vé (Check-in). SỬ DỤNG khi Admin yêu cầu điều tra việc soát vé, xem nhân viên nào đã cho ai vào, hoặc kiểm tra lưu lượng soát vé của cổng.")]
         public async Task<string> InvestigateCheckInLogsAsync(
             [Description("Tên hoặc ID của cổng cần điều tra (Ví dụ: 'Cổng chính - Lối vào 1'). Nếu không cần lọc theo cổng, truyền chuỗi rỗng ''")] string gateName = "",
             [Description("Tên nhân viên soát vé cần điều tra. Nếu không cần, truyền chuỗi rỗng ''")] string staffName = "",
