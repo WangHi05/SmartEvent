@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
+using System.Text.Json;
 using TicketSystem.Application.Common;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
@@ -16,7 +18,7 @@ using TicketSystem.Domain.Common;
 namespace TicketSystem.Application.Services
 {
     /// <summary>
-    /// Service xử lý logic nghiệp vụ liên quan đến Event
+    /// Service xử lý logic nghiệp vụ liên quan đến Event, đã tích hợp Redis Caching
     /// </summary>
     public class EventService : IEventService 
     {
@@ -25,32 +27,42 @@ namespace TicketSystem.Application.Services
         private readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IApplicationDbContext _context;
         private readonly IRealTimeUpdateService _realTimeUpdateService;
+        private readonly IDistributedCache _cache; // Inject Redis Cache
 
         public EventService(
             IGenericRepository<Event> eventRepository,
             IGenericRepository<AuditLog> auditLogRepository,
             IHttpContextAccessor httpContextAccessor,
             IApplicationDbContext context,
-            IRealTimeUpdateService realTimeUpdateService)
+            IRealTimeUpdateService realTimeUpdateService,
+            IDistributedCache cache) // Khai báo injection
         {
             _eventRepository = eventRepository;
             _auditLogRepository = auditLogRepository;
             _httpContextAccessor = httpContextAccessor;
             _context = context;
             _realTimeUpdateService = realTimeUpdateService;
+            _cache = cache; // Gán instance
         }
 
         public async Task<PagedResult<EventResponseDto>> SearchEventsAsync(EventSearchRequest request)
         {
-            // 1. Khởi tạo Query cơ bản (Chưa gọi xuống DB)
-            // AsNoTracking() giúp tăng hiệu năng cho các truy vấn chỉ đọc (Read-only)
+            // 1. Tạo Cache Key dựa trên các tham số tìm kiếm (để đảm bảo tính duy nhất)
+            string cacheKey = $"SearchEvents_p{request.PageNumber}_s{request.PageSize}_k{request.Keyword}_c{request.Category}_st{request.Status}";
+            
+            // 2. Cache-Aside: Kiểm tra Redis trước
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonSerializer.Deserialize<PagedResult<EventResponseDto>>(cachedData)!;
+            }
+
+            // 3. Nếu Cache Miss, thực hiện Query DB
             var query = _context.Events.AsNoTracking().AsQueryable();
 
-            // 2. Áp dụng các bộ lọc (Filters) động
             if (!string.IsNullOrWhiteSpace(request.Keyword))
             {
                 var keyword = request.Keyword.Trim().ToLower();
-                // Tìm kiếm tương đối (LIKE %keyword%) trên Tên và Mô tả
                 query = query.Where(e => e.Name.ToLower().Contains(keyword) || 
                                          e.Description.ToLower().Contains(keyword));
             }
@@ -76,31 +88,24 @@ namespace TicketSystem.Application.Services
             }
             else if (request.IncludeAll)
             {
-                // Trang Admin xem "tất cả": vẫn luôn ẩn Archived vì đã có tab riêng cho nó
                 query = query.Where(e => e.Status != EventStatus.Archived);
             }
             else
             {
-                // Khách hàng: ẩn cả sự kiện chờ duyệt và đã lưu trữ
                 query = query.Where(e => e.Status != EventStatus.PendingApproval && e.Status != EventStatus.Archived);
             }
 
             if (!string.IsNullOrWhiteSpace(request.Category) && request.Category != "Tất cả")
             {
                 var categoryLower = request.Category.Trim().ToLower();
-                
-                // Mẹo: Nếu tương lai em thêm thuộc tính 'public string Category { get; set; }' vào Event.cs,
-                // em chỉ cần sửa dòng dưới thành: query = query.Where(e => e.Category == request.Category);
                 query = query.Where(e => e.Name.ToLower().Contains(categoryLower) || 
                                          e.Description.ToLower().Contains(categoryLower));
             }
 
-            // 3. Tính tổng số lượng bản ghi (để Front-end làm phân trang)
             int totalCount = await query.CountAsync();
 
-            // 4. Áp dụng Phân trang (Pagination) và Projection (Select mapping)
             var items = await query
-                .OrderByDescending(e => e.CreatedAt) // Ưu tiên sự kiện mới tạo lên đầu
+                .OrderByDescending(e => e.CreatedAt)
                 .Skip((request.PageNumber - 1) * request.PageSize)
                 .Take(request.PageSize)
                 .Select(e => new EventResponseDto
@@ -118,40 +123,64 @@ namespace TicketSystem.Application.Services
                     CurrentOccupancy = e.CurrentOccupancy,
                     IsFull = e.CurrentOccupancy >= e.MaxCapacity
                 })
-                .ToListAsync(); // <-- Lúc này câu lệnh SQL SELECT mới thực sự chạy
+                .ToListAsync();
 
-            // 5. Trả về kết quả bọc trong PagedResult
-            return new PagedResult<EventResponseDto>
+            var result = new PagedResult<EventResponseDto>
             {
                 Items = items,
                 TotalCount = totalCount,
                 PageNumber = request.PageNumber,
                 PageSize = request.PageSize
             };
+
+            // 4. Lưu kết quả vào Redis Cache với TTL (Time-To-Live) là 5 phút
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), cacheOptions);
+
+            return result;
         }
 
         
-        /// Lấy danh sách Event với phân trang
+        /// Lấy danh sách Event với phân trang (Đã tối ưu query và Cache)
         
         public async Task<EventListDto> GetEventsAsync(int pageNumber = 1, int pageSize = 10)
         {
-            var events = await _eventRepository.GetAllAsync();
-            var totalCount = events.Count();
+            string cacheKey = $"GetEvents_Page_{pageNumber}_Size_{pageSize}";
+            
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonSerializer.Deserialize<EventListDto>(cachedData)!;
+            }
 
-            var pagedEvents = events
+            // Sửa lỗi N+1 và tràn RAM: Dùng AsNoTracking trực tiếp từ DbContext thay vì repository.GetAllAsync()
+            var query = _context.Events.AsNoTracking();
+            var totalCount = await query.CountAsync();
+
+            var pagedEvents = await query
                 .OrderByDescending(e => e.StartTime)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
-                .Select(MapToResponseDto)
-                .ToList();
+                .ToListAsync();
 
-            return new EventListDto
+            var result = new EventListDto
             {
-                Items = pagedEvents,
+                Items = pagedEvents.Select(MapToResponseDto).ToList(),
                 TotalCount = totalCount,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+
+            var cacheOptions = new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5)
+            };
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), cacheOptions);
+
+            return result;
         }
 
         
@@ -159,23 +188,35 @@ namespace TicketSystem.Application.Services
         
         public async Task<EventResponseDto?> GetEventByIdAsync(Guid id)
         {
+            string cacheKey = $"EventById_{id}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return JsonSerializer.Deserialize<EventResponseDto>(cachedData);
+            }
+
             var eventEntity = await _eventRepository.GetByIdAsync(id);
-            return eventEntity == null ? null : MapToResponseDto(eventEntity);
+            if (eventEntity == null) return null;
+
+            var result = MapToResponseDto(eventEntity);
+            
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(result), 
+                new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) });
+
+            return result;
         }
 
         private string GenerateSlug(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return string.Empty;
             
-            // Xóa dấu tiếng Việt
             Regex regex = new Regex("\\p{IsCombiningDiacriticalMarks}+");
             string temp = title.Normalize(NormalizationForm.FormD);
             string slug = regex.Replace(temp, String.Empty).Replace('\u0111', 'd').Replace('\u0110', 'D');
             
-            // Chuyển thành chữ thường và thay khoảng trắng bằng gạch ngang
             slug = slug.ToLowerInvariant();
-            slug = Regex.Replace(slug, "[^a-z0-9\\s-]", ""); // Xóa ký tự đặc biệt
-            slug = Regex.Replace(slug, "\\s+", "-").Trim('-'); // Đổi khoảng trắng thành gạch ngang
+            slug = Regex.Replace(slug, "[^a-z0-9\\s-]", ""); 
+            slug = Regex.Replace(slug, "\\s+", "-").Trim('-'); 
             
             return slug;
         }
@@ -184,7 +225,6 @@ namespace TicketSystem.Application.Services
         
         public async Task<EventResponseDto> CreateEventAsync(CreateEventDto dto, string createdBy)
         {
-            // Validate business rules
             if (dto.StartTime >= dto.EndTime)
                 throw new ArgumentException("Thời gian kết thúc phải sau thời gian bắt đầu");
 
@@ -207,15 +247,12 @@ namespace TicketSystem.Application.Services
                 MaxCapacity = dto.MaxCapacity,
                 CurrentOccupancy = 0,
                 CancellationDeadlineHours = dto.CancellationDeadlineHours,
-                CreatedBy = createdBy
+                CreatedBy = createdBy,
+                Status = EventStatus.PendingApproval
             };
-
-            // Sự kiện mới tạo luôn ở trạng thái chờ duyệt, chưa hiển thị cho khách hàng
-            eventEntity.Status = EventStatus.PendingApproval;
 
             await _eventRepository.AddAsync(eventEntity);
 
-            // Ghi log
             await LogAuditAsync(new AuditLog
             {
                 Action = "Create",
@@ -242,7 +279,6 @@ namespace TicketSystem.Application.Services
             var now = VietnamTime.Now;
             var currentMinute = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, 0, now.Kind);
 
-            // Cập nhật các trường nếu có giá trị mới
             if (!string.IsNullOrEmpty(dto.Name))
             {
                 eventEntity.Name = dto.Name;
@@ -284,7 +320,6 @@ namespace TicketSystem.Application.Services
 
             await _eventRepository.UpdateAsync(eventEntity);
 
-            // Ghi log
             await LogAuditAsync(new AuditLog
             {
                 Action = "Update",
@@ -296,11 +331,14 @@ namespace TicketSystem.Application.Services
 
             await _context.SaveChangesAsync();
 
+            // Xóa cache cũ để đồng bộ dữ liệu mới (Cache Invalidation)
+            await _cache.RemoveAsync($"EventById_{eventEntity.Id}");
+
             return MapToResponseDto(eventEntity);
         }
 
         
-        /// Xóa Event (soft delete hoặc hard delete tùy business requirement)
+        /// Xóa Event
         
         public async Task<bool> DeleteEventAsync(Guid id, string deletedBy)
         {
@@ -308,7 +346,6 @@ namespace TicketSystem.Application.Services
             if (eventEntity == null)
                 return false;
 
-            // Kiểm tra xem có vé nào đã bán chưa
             if (eventEntity.Tickets.Any(t => t.Status == Domain.Entities.TicketStatus.CHECKED_IN))
             {
                 throw new InvalidOperationException("Không thể xóa sự kiện đã có vé được bán");
@@ -316,7 +353,6 @@ namespace TicketSystem.Application.Services
 
             await _eventRepository.DeleteAsync(id);
 
-            // Ghi log
             await LogAuditAsync(new AuditLog
             {
                 Action = "Delete",
@@ -327,6 +363,7 @@ namespace TicketSystem.Application.Services
             });
 
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync($"EventById_{id}");
 
             return true;
         }
@@ -349,11 +386,12 @@ namespace TicketSystem.Application.Services
                 Action = "UpdateStatus",
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
-                PerformedBy = "System", // Hoặc lấy user ID từ HttpContext
+                PerformedBy = "System", 
                 Details = $"Updated event status to: {newStatus}"
             });
 
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync($"EventById_{eventId}");
 
             return true;
         }
@@ -375,7 +413,6 @@ namespace TicketSystem.Application.Services
 
             if (endTime < now)
             {
-                // Sự kiện đã kết thúc: tự động chuyển sang lưu trữ, ẩn khỏi khách hàng
                 return EventStatus.Archived;
             }
 
@@ -387,9 +424,6 @@ namespace TicketSystem.Application.Services
             return EventStatus.Active;
         }
 
-        /// <summary>
-        /// Map Entity sang DTO
-        
         private EventResponseDto MapToResponseDto(Event eventEntity)
         {
             return new EventResponseDto
@@ -415,9 +449,6 @@ namespace TicketSystem.Application.Services
             };
         }
 
-        
-        /// Ghi log AuditLog
-        
         private async Task LogAuditAsync(AuditLog log)
         {
             log.IpAddress = GetClientIpAddress();
@@ -425,19 +456,14 @@ namespace TicketSystem.Application.Services
             await _auditLogRepository.AddAsync(log);
         }
 
-        
-        /// Lấy IP address của client (IPv4 format)
-        
         private string? GetClientIpAddress()
         {
             var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
             if (ipAddress == null) return null;
 
-            // Convert IPv6 localhost (::1) to IPv4 (127.0.0.1)
             if (ipAddress.ToString() == "::1")
                 return "127.0.0.1";
 
-            // Nếu là IPv4 mapped trong IPv6 (::ffff:192.168.1.1) → Extract IPv4
             if (ipAddress.IsIPv4MappedToIPv6)
                 return ipAddress.MapToIPv4().ToString();
 
@@ -448,8 +474,6 @@ namespace TicketSystem.Application.Services
         {
             var now = VietnamTime.Now;
 
-            // Lấy toàn bộ sự kiện đang ở trạng thái theo lịch (Active/Ongoing),
-            // bỏ qua Cancelled/PendingApproval/Archived vì đó là trạng thái do người quản trị chủ động đặt.
             var scheduledEvents = await _context.Events
                 .Where(e => e.Status == EventStatus.Active || e.Status == EventStatus.Ongoing)
                 .ToListAsync();
@@ -480,7 +504,7 @@ namespace TicketSystem.Application.Services
                     EntityType = "Event",
                     EntityId = evt.Id,
                     PerformedBy = "System",
-                    Details = $"Hangfire tự động cập nhật trạng thái sự kiện: {oldStatus} -> {newStatus} (StartTime: {evt.StartTime}, EndTime: {evt.EndTime})"
+                    Details = $"Hangfire tự động cập nhật trạng thái sự kiện: {oldStatus} -> {newStatus}"
                 });
             }
 
@@ -489,16 +513,13 @@ namespace TicketSystem.Application.Services
             _context.Events.UpdateRange(changedEvents);
             await _context.SaveChangesAsync();
 
-            // Báo real-time cho Frontend biết để tự refresh, không cần F5
             foreach (var evt in changedEvents)
             {
                 await _realTimeUpdateService.NotifyEventStatusChangedAsync(evt.Id, (int)evt.Status);
+                await _cache.RemoveAsync($"EventById_{evt.Id}");
             }
         }
 
-        /// <summary>
-        /// Duyệt sự kiện đang chờ duyệt (PendingApproval) — chuyển sang trạng thái thực tế theo lịch
-        /// </summary>
         public async Task<EventResponseDto?> ApproveEventAsync(Guid eventId, string approvedBy)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(eventId);
@@ -523,13 +544,11 @@ namespace TicketSystem.Application.Services
             });
 
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync($"EventById_{eventId}");
 
             return MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
-        /// Lưu trữ (ẩn) sự kiện khỏi giao diện khách hàng
-        /// </summary>
         public async Task<EventResponseDto?> ArchiveEventAsync(Guid eventId, string archivedBy)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(eventId);
@@ -551,13 +570,11 @@ namespace TicketSystem.Application.Services
             });
 
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync($"EventById_{eventId}");
 
             return MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
-        /// Khôi phục sự kiện đã lưu trữ về trạng thái theo lịch thực tế
-        /// </summary>
         public async Task<EventResponseDto?> UnarchiveEventAsync(Guid eventId, string restoredBy)
         {
             var eventEntity = await _eventRepository.GetByIdAsync(eventId);
@@ -582,13 +599,11 @@ namespace TicketSystem.Application.Services
             });
 
             await _context.SaveChangesAsync();
+            await _cache.RemoveAsync($"EventById_{eventId}");
 
             return MapToResponseDto(eventEntity);
         }
 
-        /// <summary>
-        /// Lấy danh sách sự kiện đã lưu trữ, có phân trang
-        /// </summary>
         public async Task<PagedResult<EventResponseDto>> GetArchivedEventsAsync(int pageNumber, int pageSize, string? keyword = null)
         {
             var query = _context.Events.AsNoTracking()
