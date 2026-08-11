@@ -40,7 +40,9 @@ namespace TicketSystem.Application.Common
 
         private static TimeZoneInfo GetTimeZone()
         {
-            foreach (var timeZoneId in new[] { "SE Asia Standard Time", "Asia/Ho_Chi_Minh" })
+            // Ưu tiên "Asia/Ho_Chi_Minh" trước cho môi trường Linux/Docker (Cloud Server)
+            // Sau đó mới đến "SE Asia Standard Time" dành cho Windows (Local)
+            foreach (var timeZoneId in new[] { "Asia/Ho_Chi_Minh", "SE Asia Standard Time" })
             {
                 try
                 {
