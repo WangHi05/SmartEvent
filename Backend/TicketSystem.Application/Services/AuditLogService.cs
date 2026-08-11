@@ -26,7 +26,7 @@ namespace TicketSystem.Application.Services
                 PerformedBy = performedBy,
                 Details = details,
                 IpAddress = ipAddress,
-                Timestamp = VietnamTime.Now
+                Timestamp = VietnamTime.UtcNow // Sử dụng UtcNow thay vì Now
             };
 
             // 1. Thêm vào RAM thông qua Generic Repository lấy từ UnitOfWork
