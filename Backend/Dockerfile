@@ -24,6 +24,10 @@ RUN dotnet publish "TicketSystem.API.csproj" -c Release -o /app/publish /p:UseAp
 
 # Stage 3: Chạy ứng dụng bằng ASP.NET Runtime sạch
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+
+# ---> THÊM ĐOẠN NÀY ĐỂ CÀI ĐẶT MÚI GIỜ CHO LINUX CONTAINER <---
+RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY --from=publish /app/publish .
 
