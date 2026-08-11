@@ -213,12 +213,18 @@ const GateControl = () => {
     }
   };
 
-  const handleUseAiCommand = () => {
-    const overloadedGate = gates.find(g => g.status === 'Quá tải') || gates[0];
-    if (overloadedGate) {
-      setSelectedGate(overloadedGate.name);
-      setAlertMessage(aiCommand);
-      setIsModalVisible(true);
+  const handleUseAiCommandToAllGates = async () => {
+    if (!aiCommand || gates.length === 0) return;
+
+    try {
+      await Promise.all(
+        gates.map((gate) =>
+          axiosClient.post('/gate/notify', { gateName: gate.name, message: aiCommand })
+        )
+      );
+      message.success(`Đã gửi lệnh AI xuống toàn bộ ${gates.length} cổng!`);
+    } catch (error) {
+      message.error('Có lỗi xảy ra khi gửi lệnh xuống một số cổng.');
     }
   };
 
@@ -304,8 +310,8 @@ const GateControl = () => {
                        <h4 className="text-blue-300 font-semibold mb-1 text-sm uppercase tracking-wider">Lệnh đề xuất tự động</h4>
                        <p className="text-white font-medium italic">"{aiCommand}"</p>
                      </div>
-                     <Button type="primary" danger onClick={handleUseAiCommand} className="shrink-0 font-bold">
-                       Dùng lệnh này gửi xuống cổng
+                     <Button type="primary" danger onClick={handleUseAiCommandToAllGates} className="shrink-0 font-bold">
+                       Gửi lệnh này đến TẤT CẢ cổng
                      </Button>
                    </div>
                  )}

@@ -218,16 +218,75 @@ const DynamicTicketCard = ({
                             </span>
                         </div>
                     ) : (
-                        // Vé 1 ngày (ONE_TIME) đã dùng hết -> đóng băng vĩnh viễn
-                        <div className="w-full h-[256px] bg-emerald-50 border-2 border-emerald-200 rounded-lg flex flex-col items-center justify-center text-center p-4">
-                            <span className="text-5xl mb-3">✅</span>
-                            <span className="text-emerald-700 font-bold text-lg">
+                        
+                    // Vé 1 ngày (ONE_TIME) đã dùng hết -> đóng băng vĩnh viễn
+                    <div className="w-full h-[256px] bg-gradient-to-br from-slate-50 via-white to-slate-100 border border-slate-200 rounded-2xl flex flex-col items-center justify-center text-center p-6 relative overflow-hidden shadow-sm">
+                        {/* Background pattern */}
+                        <div className="absolute inset-0 opacity-[0.035] bg-[radial-gradient(circle,_#475569_1px,_transparent_1px)] bg-[length:14px_14px]" />
+
+                        {/* Decorative blur */}
+                        <div className="absolute -top-10 -right-10 w-28 h-28 bg-slate-200/40 rounded-full blur-2xl" />
+                        <div className="absolute -bottom-10 -left-10 w-28 h-28 bg-slate-200/40 rounded-full blur-2xl" />
+
+                        <div className="relative z-10 flex flex-col items-center">
+                            {/* Lock icon */}
+                            <div className="relative mb-4">
+                                <div className="w-[72px] h-[72px] rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shadow-inner">
+                                    <div className="w-12 h-12 rounded-full bg-slate-800 flex items-center justify-center shadow-md">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            className="w-6 h-6 text-white"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                        >
+                                            <rect
+                                                x="4"
+                                                y="11"
+                                                width="16"
+                                                height="10"
+                                                rx="2"
+                                            />
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M8 11V7a4 4 0 018 0v4"
+                                            />
+                                            <circle
+                                                cx="12"
+                                                cy="16"
+                                                r="1"
+                                                fill="currentColor"
+                                                stroke="none"
+                                            />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                <div className="absolute -right-1 -bottom-1 w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-sm">
+                                    <span className="text-[11px] text-slate-500">✓</span>
+                                </div>
+                            </div>
+
+                            {/* Status badge */}
+                            <div className="px-3 py-1 rounded-full bg-slate-100 border border-slate-200 mb-2">
+                                <span className="text-[10px] font-bold tracking-[0.12em] text-slate-500 uppercase">
+                                    Đã sử dụng
+                                </span>
+                            </div>
+
+                            <span className="text-slate-800 font-semibold text-base tracking-tight">
                                 Vé đã được sử dụng
                             </span>
-                            <span className="text-emerald-600 text-sm mt-1">
-                                Mã QR đã đóng băng, không thể quét lại
+
+                            <span className="text-slate-400 text-xs mt-1.5 leading-relaxed max-w-[190px]">
+                                Mã QR đã đóng băng và không thể quét lại
                             </span>
                         </div>
+                    </div>
+
+
                     )}
                 </div>
             ) : (

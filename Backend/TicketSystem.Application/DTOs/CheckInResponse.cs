@@ -41,5 +41,6 @@ namespace TicketSystem.Application.DTOs
         public string QrPayload { get; set; } = string.Empty; // Chuỗi quét được từ Frontend
         public int PeopleCount { get; set; } = 1;             // Số người vào (dành cho vé đoàn)
         public string GateName { get; set; } = string.Empty;
+        public Guid? EventId { get; set; }
     }
 }

@@ -45,6 +45,7 @@ const CheckInPage = () => {
 
   const peopleCountRef = useRef(1);
   const gateNameRef = useRef(selectedGate);
+  const selectedEventIdRef = useRef(selectedEventId);
   const scannerRef = useRef(null);
   const isLockedRef = useRef(false); 
   const connectionRef = useRef(null);
@@ -60,6 +61,10 @@ const CheckInPage = () => {
   useEffect(() => {
     gateNameRef.current = selectedGate;
   }, [selectedGate]);
+
+  useEffect(() => {
+    selectedEventIdRef.current = selectedEventId;
+  }, [selectedEventId]);
 
   useEffect(() => {
     const fetchActiveEvents = async () => {
@@ -198,7 +203,8 @@ const CheckInPage = () => {
       const response = await axiosClient.post(`/checkin/scan`, {
         qrPayload: qrPayload,
         peopleCount: currentCount, 
-        gateName: gateNameRef.current 
+        gateName: gateNameRef.current,
+        eventId: selectedEventIdRef.current
       });
       
       if (response.isSuccess || response.data?.isSuccess) {

@@ -126,12 +126,12 @@ namespace TicketSystem.Application.Services
             if (ticket.Status != TicketStatus.ACTIVE)
                 return new CheckInResponse { IsSuccess = false, Message = "Vé đã sử dụng hết hoặc không hoạt động." };
 
-            var now = VietnamTime.Now;
+            var nowVn = VietnamTime.Now;
 
-            if (now < VietnamTime.ToVietnamTime(ticket.ValidFrom))
+            if (nowVn < VietnamTime.ToVietnamTime(ticket.ValidFrom))
                 return new CheckInResponse { IsSuccess = false, Message = "Sự kiện chưa bắt đầu, chưa thể check-in." };
 
-            if (now > VietnamTime.ToVietnamTime(ticket.ValidTo))
+            if (nowVn > VietnamTime.ToVietnamTime(ticket.ValidTo))
                 return new CheckInResponse { IsSuccess = false, Message = "Sự kiện đã kết thúc, không thể check-in." };
             
             // DÙNG REMAINING SLOTS THAY VÌ SUM LOG
@@ -149,13 +149,15 @@ namespace TicketSystem.Application.Services
 
             var eventId = ticket.TicketType?.EventId ?? Guid.Empty;
 
+            var nowUtc = DateTime.UtcNow;
+
             var log = new CheckInLog
             {
                 Id = Guid.NewGuid(),
                 TicketId = ticket.Id,
                 EventId = eventId,
-                CheckedAt = now,
-                CheckinDate = DateOnly.FromDateTime(now),
+                CheckedAt = nowUtc,
+                CheckinDate = DateOnly.FromDateTime(nowVn),
                 Type = ScanType.Entry, 
                 PeopleCount = peopleCount,
                 GateName = "Quầy Hỗ Trợ (Help Desk)",
@@ -164,7 +166,7 @@ namespace TicketSystem.Application.Services
                 CheckInResult = "Success",
                 QRCodeData = null,
                 FailureReason = null,
-                CreatedAt = now,
+                CreatedAt = nowUtc,
                 CreatedBy = staffId
             };
 
@@ -316,6 +318,29 @@ namespace TicketSystem.Application.Services
 
                 eventId = ticket.TicketType?.EventId ?? Guid.Empty;
                 eventName = ticket.TicketType?.Event?.Name ?? string.Empty;
+
+                if (request.EventId.HasValue && request.EventId.Value != Guid.Empty && eventId != request.EventId.Value)
+                {
+                    var response = CheckInResponse.Fail("Vé không thuộc sự kiện đang chọn.");
+                    await PersistCheckInOutcomeAsync(new CheckInOutcome
+                    {
+                        Ticket = ticket,
+                        TicketId = ticketId,
+                        EventId = eventId,
+                        EventName = eventName,
+                        StaffId = staffId,
+                        GateName = gateName,
+                        QrPayload = qrPayload,
+                        PeopleCount = peopleCount,
+                        Timestamp = timestamp,
+                        IsSuccess = false,
+                        FailureReason = response.Message,
+                        ScanType = ScanType.Entry,
+                        Note = "QR check-in"
+                    }, skipDomainChanges: true);
+                    _cache.Set(processedKey, response, DuplicateRequestWindow);
+                    return response;
+                }
 
                 ResetSlotsIfNewDayForMultiDayTicket(ticket);
 
@@ -715,6 +740,11 @@ namespace TicketSystem.Application.Services
 
             // If ticketId is not known (Guid.Empty), skip adding CheckInLog
             // to avoid unique-index conflicts on (TicketId, CheckinDate) for unknown tickets.
+            // outcome.Timestamp là VietnamTime.Now (dùng cho logic nghiệp vụ/CheckinDate).
+            // Khi LƯU xuống DB phải dùng đúng UTC thật, tránh bị converter của EF Core
+            // (ToUniversalTime) cộng lệch múi giờ lần thứ 2.
+            var persistUtcNow = DateTime.UtcNow;
+
             if (ticketId != Guid.Empty && outcome.Ticket != null)
             {
                 await _context.CheckInLogs.AddAsync(new CheckInLog
@@ -723,7 +753,7 @@ namespace TicketSystem.Application.Services
                     TicketId = ticketId,
                     EventId = outcome.EventId,
                     GateId = outcome.GateId,
-                    CheckedAt = outcome.Timestamp,
+                    CheckedAt = persistUtcNow,
                     CheckinDate = DateOnly.FromDateTime(outcome.Timestamp),
                     Type = outcome.ScanType,
                     PeopleCount = outcome.PeopleCount,
@@ -733,7 +763,7 @@ namespace TicketSystem.Application.Services
                     CheckInResult = outcome.IsSuccess ? "Success" : "Failed",
                     FailureReason = outcome.FailureReason,
                     QRCodeData = outcome.QrPayload,
-                    CreatedAt = outcome.Timestamp,
+                    CreatedAt = persistUtcNow,
                     CreatedBy = outcome.StaffId
                 });
             }
@@ -747,8 +777,8 @@ namespace TicketSystem.Application.Services
                 PerformedBy = outcome.StaffId,
                 Details = BuildAuditDetails(outcome),
                 IpAddress = GetClientIpAddress(),
-                Timestamp = outcome.Timestamp,
-                CreatedAt = outcome.Timestamp,
+                Timestamp = persistUtcNow,
+                CreatedAt = persistUtcNow,
                 CreatedBy = outcome.StaffId
             });
 

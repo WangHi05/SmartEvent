@@ -1,5 +1,7 @@
 using System.ComponentModel;
 using Microsoft.SemanticKernel;
+using Microsoft.Extensions.Configuration;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Text.Json;
@@ -14,12 +16,14 @@ namespace TicketSystem.Infrastructure.AI.Plugins
     public class ExternalDataPlugin
     {
         private readonly HttpClient _httpClient;
-    
-        private readonly string _serperApiKey = "435ecb6cb57c88300b09fb96476504e3bafbfdd8"; 
+        private readonly string _serperApiKey;
 
-        public ExternalDataPlugin()
+        public ExternalDataPlugin(IConfiguration configuration)
         {
             _httpClient = new HttpClient();
+
+            _serperApiKey = configuration["Serper:ApiKey"]?.Trim()
+                ?? throw new InvalidOperationException("Missing Serper API key.");
         }
 
         [KernelFunction("search_web_for_trends_and_news")]

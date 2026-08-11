@@ -152,12 +152,12 @@ namespace TicketSystem.Application.Services
             
             if (ticket.Status != TicketStatus.ACTIVE) throw new Exception("Vé không ở trạng thái hoạt động.");
 
-            var now = VietnamTime.Now;
+            var nowVn = VietnamTime.Now;
 
-            if (now < VietnamTime.ToVietnamTime(ticket.ValidFrom))
+            if (nowVn < VietnamTime.ToVietnamTime(ticket.ValidFrom))
                 throw new Exception("Sự kiện chưa bắt đầu, chưa thể check-in.");
 
-            if (now > VietnamTime.ToVietnamTime(ticket.ValidTo))
+            if (nowVn > VietnamTime.ToVietnamTime(ticket.ValidTo))
                 throw new Exception("Sự kiện đã kết thúc, không thể check-in.");
 
             if (ticket.RemainingSlots <= 0)
@@ -165,7 +165,7 @@ namespace TicketSystem.Application.Services
 
             const int peopleCount = 1;
             ticket.RemainingSlots -= peopleCount;
-            ticket.LastCheckInDate = VietnamTime.Today;
+            ticket.LastCheckInDate = DateOnly.FromDateTime(nowVn);
 
             if (ticket.RemainingSlots == 0)
             {
@@ -177,6 +177,7 @@ namespace TicketSystem.Application.Services
             ticket.UpdatedBy = actionBy;
 
             var eventId = ticket.TicketType?.EventId ?? Guid.Empty;
+            var nowUtc = DateTime.UtcNow;
 
             // THÊM MỚI: Ghi CheckInLog cho lượt check-in thủ công này.
             // Thiếu bước này khiến trang Kiểm soát cổng (group theo CheckInLogs.GateName)
@@ -186,8 +187,8 @@ namespace TicketSystem.Application.Services
                 Id = Guid.NewGuid(),
                 TicketId = ticket.Id,
                 EventId = eventId,
-                CheckedAt = now,
-                CheckinDate = DateOnly.FromDateTime(now),
+                CheckedAt = nowUtc,
+                CheckinDate = DateOnly.FromDateTime(nowVn),
                 Type = ScanType.Entry,
                 PeopleCount = peopleCount,
                 GateName = "Quầy Hỗ Trợ (Help Desk)",
@@ -196,7 +197,7 @@ namespace TicketSystem.Application.Services
                 CheckInResult = "Success",
                 FailureReason = null,
                 QRCodeData = null,
-                CreatedAt = now,
+                CreatedAt = nowUtc,
                 CreatedBy = actionBy
             });
 
@@ -207,8 +208,8 @@ namespace TicketSystem.Application.Services
                 EntityType = "Ticket",
                 EntityId = ticketId,
                 PerformedBy = actionBy,
-                Timestamp = now,
-                CreatedAt = now,
+                Timestamp = nowUtc,
+                CreatedAt = nowUtc,
                 CreatedBy = actionBy,
                 Details = $"HelpDesk: Check-in thủ công. Lý do: {reason}"
             });
