@@ -107,6 +107,129 @@ namespace TicketSystem.Infrastructure.AI.Plugins
 
             return JsonSerializer.Serialize(formattedEvents);
         }
+        [KernelFunction("search_events_by_criteria")]
+        [Description(
+            "Tìm sự kiện phù hợp theo địa điểm, chủ đề, ngân sách tổng cộng, " +
+            "số người và từ khóa cần loại trừ. Dùng khi người dùng muốn tìm hoặc " +
+            "chọn sự kiện phù hợp với nhiều tiêu chí."
+        )]
+        public async Task<string> SearchEventsByCriteriaAsync(
+            [Description("Địa điểm cần tìm, ví dụ: Hà Nội")]
+            string? location,
+
+            [Description("Chủ đề hoặc từ khóa cần tìm, ví dụ: công nghệ, startup, AI")]
+            string? keyword,
+
+            [Description("Số người tham gia")]
+            int people,
+
+            [Description("Tổng ngân sách tối đa cho tất cả người, tính bằng VNĐ")]
+            decimal maxBudget,
+
+            [Description("Từ khóa cần loại trừ, ví dụ: âm nhạc, ca nhạc")]
+            string? excludeKeyword = null)
+        {
+            Console.WriteLine(
+                $"[AI TOOL] search_events_by_criteria CALLED | " +
+                $"location={location} | keyword={keyword} | " +
+                $"people={people} | budget={maxBudget} | " +
+                $"exclude={excludeKeyword}");
+
+            var query = _context.Events
+                .AsNoTracking()
+                .Where(e =>
+                    e.Status != EventStatus.Archived &&
+                    e.Status != EventStatus.Cancelled);
+
+            // Địa điểm
+            if (!string.IsNullOrWhiteSpace(location))
+            {
+                var loc = location.Trim().ToLower();
+
+                query = query.Where(e =>
+                    e.Location.ToLower().Contains(loc));
+            }
+
+            // Từ khóa bắt buộc phải có
+            if (!string.IsNullOrWhiteSpace(keyword))
+            {
+                var key = keyword.Trim().ToLower();
+
+                query = query.Where(e =>
+                    e.Name.ToLower().Contains(key) ||
+                    e.Description.ToLower().Contains(key));
+            }
+
+            // Từ khóa phải loại trừ
+            if (!string.IsNullOrWhiteSpace(excludeKeyword))
+            {
+                var excluded = excludeKeyword
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim().ToLower())
+                    .ToList();
+
+                foreach (var word in excluded)
+                {
+                    query = query.Where(e =>
+                        !e.Name.ToLower().Contains(word) &&
+                        !e.Description.ToLower().Contains(word));
+                }
+            }
+
+            var events = await query
+                .Select(e => new
+                {
+                    e.Name,
+                    e.Description,
+                    e.Location,
+                    e.StartTime,
+                    e.EndTime,
+
+                    TicketTypes = e.TicketTypes
+                        .Where(t =>
+                            t.IsActive &&
+                            t.RemainingQuantity >= people)
+                        .Select(t => new
+                        {
+                            t.Name,
+                            t.Price,
+                            t.RemainingQuantity
+                        })
+                        .ToList()
+                })
+                .ToListAsync();
+
+            var result = events
+                .Select(e => new
+                {
+                    e.Name,
+                    e.Description,
+                    e.Location,
+                    e.StartTime,
+                    e.EndTime,
+
+                    TicketTypes = e.TicketTypes
+                        .Where(t =>
+                            t.Price * people <= maxBudget)
+                        .Select(t => new
+                        {
+                            t.Name,
+                            PricePerPerson = t.Price,
+                            TotalPrice = t.Price * people,
+                            t.RemainingQuantity
+                        })
+                        .ToList()
+                })
+                .Where(e => e.TicketTypes.Any())
+                .ToList();
+
+            if (!result.Any())
+            {
+                return "Không tìm thấy sự kiện phù hợp với các tiêu chí đã cung cấp.";
+            }
+
+            return JsonSerializer.Serialize(result);
+        }
 
         [KernelFunction("get_realtime_checkin_status")]
         [Description("Lấy tình trạng check-in theo thời gian thực và cảnh báo sức chứa của một sự kiện cụ thể.")]
