@@ -34,7 +34,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
             {
                 var query = _context.CheckInLogs.AsQueryable();
 
-                // 1. Áp dụng các bộ lọc điều tra do AI quyết định
+                // 1. Áp dụng các bộ lọc điều tra do AI quyết định.
                 if (!string.IsNullOrWhiteSpace(gateName))
                 {
                     query = query.Where(l => l.GateName != null && l.GateName.Contains(gateName));

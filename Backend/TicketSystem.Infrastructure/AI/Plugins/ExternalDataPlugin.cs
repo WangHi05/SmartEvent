@@ -45,7 +45,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 using var document = JsonDocument.Parse(jsonResponse);
 
-                // Trích xuất các đoạn snippet và link nguồn từ Google Search
+                // Trích xuất các đoạn snippet và link nguồn từ Google Search.
                 var results = document.RootElement.GetProperty("organic")
                     .EnumerateArray()
                     .Select(x => new 

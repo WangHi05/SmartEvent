@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
+using TicketSystem.Application.Common;
 
 namespace TicketSystem.Application.Services
 {
@@ -25,7 +26,7 @@ namespace TicketSystem.Application.Services
                 PerformedBy = performedBy,
                 Details = details,
                 IpAddress = ipAddress,
-                Timestamp = DateTime.UtcNow
+                Timestamp = VietnamTime.UtcNow // Sử dụng UtcNow thay vì Now
             };
 
             // 1. Thêm vào RAM thông qua Generic Repository lấy từ UnitOfWork
