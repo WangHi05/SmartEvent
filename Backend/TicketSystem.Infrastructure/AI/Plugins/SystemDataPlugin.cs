@@ -48,7 +48,6 @@ namespace TicketSystem.Infrastructure.AI.Plugins
 
         [KernelFunction("get_top_customers")]
         [Description("Lấy danh sách những khách hàng mua nhiều vé nhất.")]
-        // SỬA LỖI 400: Thêm tham số 'limit' để tránh lỗi schema rỗng của Semantic Kernel
         public async Task<string> GetTopCustomersAsync(
             [Description("Số lượng khách hàng cần lấy, mặc định là 5")] int limit = 5)
         {

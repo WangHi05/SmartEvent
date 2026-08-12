@@ -27,7 +27,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
         }
 
         [KernelFunction("search_web_for_trends_and_news")]
-        [Description("Tìm kiếm thông tin trên Internet. BẮT BUỘC SỬ DỤNG hàm này khi Admin hỏi về: Xu hướng sự kiện, thời tiết, tin tức, hoặc các thông tin không có trong cơ sở dữ liệu nội bộ.")]
+        [Description("Tìm kiếm thông tin trên Internet. CHỈ SỬ DỤNG hàm này khi Admin hỏi về: Xu hướng sự kiện bên ngoài, thời tiết, tin tức xã hội, hoặc khi dữ liệu nội bộ (Vector Search) không có thông tin.")]
         public async Task<string> SearchWebAsync(
             [Description("Câu truy vấn tìm kiếm ngắn gọn, ví dụ: 'Thời tiết TP.HCM ngày mai', 'Xu hướng sự kiện âm nhạc 2026'")] string query)
         {
@@ -45,7 +45,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 using var document = JsonDocument.Parse(jsonResponse);
 
-                // Trích xuất các đoạn snippet và link nguồn từ Google Search
+                // Trích xuất các đoạn snippet và link nguồn từ Google Search.
                 var results = document.RootElement.GetProperty("organic")
                     .EnumerateArray()
                     .Select(x => new 
