@@ -70,6 +70,26 @@ if (isPostgres && !string.IsNullOrEmpty(rawConnectionString) &&
     connectionString = ConvertPostgresUriToKeywordValue(rawConnectionString);
 }
 
+static StackExchange.Redis.ConfigurationOptions ParseRedisUrl(string url)
+{
+    var uri = new Uri(url);
+    var userInfo = uri.UserInfo.Split(':', 2);
+    var password = userInfo.Length > 1 ? userInfo[1] : userInfo[0];
+
+    var config = new StackExchange.Redis.ConfigurationOptions
+    {
+        EndPoints = { { uri.Host, uri.Port } },
+        Password = password,
+        Ssl = url.StartsWith("rediss://", StringComparison.OrdinalIgnoreCase),
+        AbortOnConnectFail = false,   // quan trọng: không throw ngay khi chưa connect được lúc khởi động
+        ConnectTimeout = 10000,
+        SyncTimeout = 10000,
+        ConnectRetry = 3
+    };
+
+    return config;
+}
+
 // Cấu hình Npgsql Builder để chống Timeout
 static string ConvertPostgresUriToKeywordValue(string uriString)
 {
@@ -283,7 +303,7 @@ if (!string.IsNullOrWhiteSpace(redisConnectionString))
 {
     builder.Services.AddStackExchangeRedisCache(options =>
     {
-        options.Configuration = redisConnectionString;
+        options.ConfigurationOptions = ParseRedisUrl(redisConnectionString);
         options.InstanceName = "TicketSystem_";
     });
 }
