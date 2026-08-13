@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, message, Button, Card, Row, Col, Tag } from 'antd';
+import { Modal, message, Button, Card, Row, Col, Tag, Pagination } from 'antd';
 import { Settings } from 'lucide-react';
 import axiosClient from '../../../api/axiosClient';
 import TicketTypesAdmin from '../../../pages/TicketTypesAdminV2';
@@ -11,6 +11,9 @@ export function TicketList() {
   const [loading, setLoading] = useState(false);
   const [selectedEventForTicketTypes, setSelectedEventForTicketTypes] = useState(null);
   const [ticketTypesVisible, setTicketTypesVisible] = useState(false);
+  const [shortDayPage, setShortDayPage] = useState(1);
+  const [multiDayPage, setMultiDayPage] = useState(1);
+  const PAGE_SIZE = 6;
 
   useEffect(() => {
     fetchEvents();
@@ -55,6 +58,16 @@ export function TicketList() {
       multiDayEvents.push(event);
     }
   });
+
+  // Cắt dữ liệu theo trang hiện tại của từng mục
+  const pagedShortDayEvents = shortDayEvents.slice(
+    (shortDayPage - 1) * PAGE_SIZE,
+    shortDayPage * PAGE_SIZE
+  );
+  const pagedMultiDayEvents = multiDayEvents.slice(
+    (multiDayPage - 1) * PAGE_SIZE,
+    multiDayPage * PAGE_SIZE
+  );
 
   const EventCard = ({ event }) => (
     <Card
@@ -114,12 +127,23 @@ export function TicketList() {
                 📅 Sự Kiện Ngắn Ngày (1 Ngày)
               </h3>
               <Row gutter={[16, 16]}>
-                {shortDayEvents.map(event => (
+                {pagedShortDayEvents.map(event => (
                   <Col xs={24} sm={24} md={12} lg={8} key={event.id}>
                     <EventCard event={event} />
                   </Col>
                 ))}
               </Row>
+              {shortDayEvents.length > PAGE_SIZE && (
+                <div className="flex justify-end mt-4">
+                  <Pagination
+                    current={shortDayPage}
+                    pageSize={PAGE_SIZE}
+                    total={shortDayEvents.length}
+                    onChange={(page) => setShortDayPage(page)}
+                    showSizeChanger={false}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -130,12 +154,23 @@ export function TicketList() {
                 📆 Sự Kiện Dài Ngày (Nhiều Ngày)
               </h3>
               <Row gutter={[16, 16]}>
-                {multiDayEvents.map(event => (
+                {pagedMultiDayEvents.map(event => (
                   <Col xs={24} sm={24} md={12} lg={8} key={event.id}>
                     <EventCard event={event} />
                   </Col>
                 ))}
               </Row>
+              {multiDayEvents.length > PAGE_SIZE && (
+                <div className="flex justify-end mt-4">
+                  <Pagination
+                    current={multiDayPage}
+                    pageSize={PAGE_SIZE}
+                    total={multiDayEvents.length}
+                    onChange={(page) => setMultiDayPage(page)}
+                    showSizeChanger={false}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

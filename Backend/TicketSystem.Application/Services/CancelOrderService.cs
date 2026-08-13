@@ -16,6 +16,11 @@ namespace TicketSystem.Application.Services
     /// Service để quản lý hủy đơn hàng và hoàn tiền.
     /// LƯU Ý: Chính sách hoàn tiền được hardcode trong PartialRefundStrategy,
     /// không còn phụ thuộc vào cấu hình ở trang Cấu hình hệ thống (/settings).
+    ///
+    /// HỖ TRỢ HỦY TỪNG VÉ RIÊNG LẺ (vé đoàn mua nhiều vé trong 1 Order):
+    /// - ticketId == null  -> hủy CẢ đơn (mọi vé còn active trong Order), hành vi cũ.
+    /// - ticketId có giá trị -> chỉ hủy đúng vé đó, các vé khác trong cùng Order không đổi.
+    ///   Order chỉ chuyển sang OrderStatus.Cancelled khi TẤT CẢ vé trong đơn đã bị hủy hết.
     /// </summary>
     public class CancelOrderService : ICancelOrderService
     {
@@ -47,7 +52,16 @@ namespace TicketSystem.Application.Services
             return ipAddress.ToString();
         }
 
-        public async Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId)
+        // Giá trị 1 vé trong đơn = TotalPrice gốc chia cho Quantity gốc lúc mua.
+        // Dùng Quantity gốc (không phải số vé còn active) để đơn giá luôn ổn định,
+        // không bị lệch dần qua nhiều lần hủy từng phần.
+        private static decimal GetUnitPrice(Order order)
+        {
+            if (order.Quantity <= 0) return 0m;
+            return order.TotalPrice / order.Quantity;
+        }
+
+        public async Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId, Guid? ticketId = null)
         {
             var order = await _context.Orders
                 .Include(o => o.Event)
@@ -73,38 +87,89 @@ namespace TicketSystem.Application.Services
                 };
             }
 
-            var validationResult = ValidateCancelConditions(order);
+            Ticket? targetTicket = null;
+            if (ticketId.HasValue)
+            {
+                targetTicket = order.Tickets.FirstOrDefault(t => t.Id == ticketId.Value);
+                if (targetTicket == null)
+                {
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = "Vé không thuộc đơn hàng này"
+                    };
+                }
+
+                if (targetTicket.Status == TicketStatus.CANCELLED)
+                {
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = "Vé này đã được hủy trước đó"
+                    };
+                }
+
+                if (targetTicket.IsCheckedIn || targetTicket.Status == TicketStatus.CHECKED_IN)
+                {
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = "Vé đã check-in, không thể hủy"
+                    };
+                }
+            }
+
+            var validationResult = ValidateCancelConditions(order, targetTicket);
             if (!validationResult.CanCancel)
             {
                 return validationResult;
             }
 
-            var cancelCountThisMonth = await GetUserCancelCountThisMonthAsync(userId);
-            var maxCancelPerMonth = await _settingsService.GetMaxCancelPerUserPerMonthAsync();
-
-            if (cancelCountThisMonth >= maxCancelPerMonth)
+            // Giới hạn số lần hủy/tháng chỉ áp dụng khi hủy CẢ đơn (giữ nguyên hành vi cũ).
+            // Hủy từng vé lẻ trong đơn vé đoàn không tính vào giới hạn này.
+            if (!ticketId.HasValue)
             {
-                return new CancelValidationDto
+                var cancelCountThisMonth = await GetUserCancelCountThisMonthAsync(userId);
+                var maxCancelPerMonth = await _settingsService.GetMaxCancelPerUserPerMonthAsync();
+
+                if (cancelCountThisMonth >= maxCancelPerMonth)
                 {
-                    CanCancel = false,
-                    ReasonCannotCancel = $"Exceeded maximum cancellations per month ({maxCancelPerMonth})"
-                };
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = $"Exceeded maximum cancellations per month ({maxCancelPerMonth})"
+                    };
+                }
             }
 
             var refundCalc = await CalculateRefundAsync(orderId);
+            var unitPrice = GetUnitPrice(order);
+
+            decimal estimatedAmount;
+            if (ticketId.HasValue)
+            {
+                // Hủy 1 vé: hoàn theo đơn giá của riêng vé đó
+                estimatedAmount = Math.Round(unitPrice * refundCalc.RefundPercentage / 100m, 0);
+            }
+            else
+            {
+                // Hủy cả đơn: hoàn theo tất cả các vé còn active (chưa bị hủy từ trước)
+                var activeTicketsCount = order.Tickets.Count(t => t.Status != TicketStatus.CANCELLED);
+                estimatedAmount = Math.Round(unitPrice * activeTicketsCount * refundCalc.RefundPercentage / 100m, 0);
+            }
 
             return new CancelValidationDto
             {
                 CanCancel = true,
-                EstimatedRefundAmount = refundCalc.FinalRefundAmount,
+                EstimatedRefundAmount = estimatedAmount,
                 EstimatedRefundPercentage = refundCalc.RefundPercentage,
                 RefundReason = refundCalc.RefundReason
             };
         }
 
-        public async Task<CancelOrderResponseDto> CancelOrderAsync(Guid orderId, Guid userId, string reason, string performedBy)
+        public async Task<CancelOrderResponseDto> CancelOrderAsync(Guid orderId, Guid userId, string reason, string performedBy, Guid? ticketId = null)
         {
-            var validation = await ValidateCancelAsync(orderId, userId);
+            var validation = await ValidateCancelAsync(orderId, userId, ticketId);
             if (!validation.CanCancel)
             {
                 return new CancelOrderResponseDto
@@ -136,51 +201,133 @@ namespace TicketSystem.Application.Services
             try
             {
                 var refundCalc = await CalculateRefundAsync(orderId);
-                var refundAmount = refundCalc.FinalRefundAmount;
-
-                order.OrderStatus = OrderStatus.Cancelled;
-                order.CancelRequestAt = DateTime.UtcNow;
-                order.RefundAmount = refundAmount;
-                order.UpdatedAt = DateTime.UtcNow;
-                order.UpdatedBy = performedBy;
-                order.RefundStatus = refundAmount > 0 ? RefundStatus.PendingRefund : RefundStatus.RefundCompleted;
-
-                foreach (var ticket in order.Tickets)
-                {
-                    ticket.Status = TicketStatus.CANCELLED;
-                    ticket.CancelledAt = DateTime.UtcNow;
-                    ticket.CancelReason = reason;
-                    ticket.RefundAmount = refundAmount / order.Tickets.Count;
-                    ticket.UpdatedAt = DateTime.UtcNow;
-                    ticket.UpdatedBy = performedBy;
-                }
-
+                var unitPrice = GetUnitPrice(order);
                 var autoReleaseSeat = await _settingsService.IsAutoReleaseSeatEnabledAsync();
-                if (autoReleaseSeat && order.TicketType != null)
+                decimal refundAmount;
+
+                if (ticketId.HasValue)
                 {
-                    order.TicketType.RemainingQuantity += order.Quantity;
-                    order.TicketType.UpdatedAt = DateTime.UtcNow;
-                    order.TicketType.UpdatedBy = performedBy;
+                    // ===== HỦY 1 VÉ RIÊNG LẺ TRONG ĐƠN =====
+                    var targetTicket = order.Tickets.FirstOrDefault(t => t.Id == ticketId.Value);
+                    if (targetTicket == null)
+                    {
+                        return new CancelOrderResponseDto
+                        {
+                            Success = false,
+                            Message = "Vé không thuộc đơn hàng này",
+                            ErrorCode = "TICKET_NOT_FOUND"
+                        };
+                    }
+
+                    refundAmount = Math.Round(unitPrice * refundCalc.RefundPercentage / 100m, 0);
+
+                    targetTicket.Status = TicketStatus.CANCELLED;
+                    targetTicket.CancelledAt = DateTime.UtcNow;
+                    targetTicket.CancelReason = reason;
+                    targetTicket.RefundAmount = refundAmount;
+                    targetTicket.UpdatedAt = DateTime.UtcNow;
+                    targetTicket.UpdatedBy = performedBy;
+
+                    if (autoReleaseSeat && order.TicketType != null)
+                    {
+                        order.TicketType.RemainingQuantity += 1;
+                        order.TicketType.UpdatedAt = DateTime.UtcNow;
+                        order.TicketType.UpdatedBy = performedBy;
+                    }
+
+                    // Cộng dồn số tiền hoàn vào Order để tiện theo dõi tổng đã hoàn của cả đơn
+                    order.RefundAmount = (order.RefundAmount ?? 0) + refundAmount;
+                    order.UpdatedAt = DateTime.UtcNow;
+                    order.UpdatedBy = performedBy;
+
+                    if (refundAmount > 0)
+                    {
+                        order.RefundStatus = RefundStatus.PendingRefund;
+                    }
+
+                    var remainingActiveTickets = order.Tickets.Count(t => t.Status != TicketStatus.CANCELLED);
+
+                    if (remainingActiveTickets == 0)
+                    {
+                        // Tất cả vé trong đơn đã bị hủy hết -> đóng luôn cả Order
+                        order.OrderStatus = OrderStatus.Cancelled;
+                        order.CancelRequestAt = DateTime.UtcNow;
+
+                        var lastPaymentAll = order.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
+                        if (lastPaymentAll != null && lastPaymentAll.PaymentStatus == PaymentStatus.Pending)
+                        {
+                            lastPaymentAll.PaymentStatus = PaymentStatus.Cancelled;
+                            lastPaymentAll.UpdatedAt = DateTime.UtcNow;
+                            lastPaymentAll.UpdatedBy = performedBy;
+                        }
+                    }
+                    // Còn vé khác chưa hủy -> Order giữ nguyên OrderStatus (vẫn Confirmed),
+                    // chỉ riêng vé này chuyển CANCELLED.
+
+                    await _context.SaveChangesAsync();
+                    await LogCancelOrderAsync(orderId, userId, refundAmount, reason, performedBy, ticketId);
+
+                    return new CancelOrderResponseDto
+                    {
+                        Success = true,
+                        Message = remainingActiveTickets == 0
+                            ? "Đã hủy vé cuối cùng của đơn hàng, đơn hàng đã đóng"
+                            : "Đã hủy vé thành công, các vé khác trong đơn không bị ảnh hưởng",
+                        RefundAmount = refundAmount,
+                        CancelledAt = targetTicket.CancelledAt
+                    };
                 }
-
-                var lastPayment = order.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
-                if (lastPayment != null && lastPayment.PaymentStatus == PaymentStatus.Pending)
+                else
                 {
-                    lastPayment.PaymentStatus = PaymentStatus.Cancelled;
-                    lastPayment.UpdatedAt = DateTime.UtcNow;
-                    lastPayment.UpdatedBy = performedBy;
+                    // ===== HỦY CẢ ĐƠN (hành vi cũ, giữ nguyên) =====
+                    var activeTicketsCount = order.Tickets.Count(t => t.Status != TicketStatus.CANCELLED);
+                    refundAmount = Math.Round(unitPrice * activeTicketsCount * refundCalc.RefundPercentage / 100m, 0);
+
+                    order.OrderStatus = OrderStatus.Cancelled;
+                    order.CancelRequestAt = DateTime.UtcNow;
+                    order.RefundAmount = refundAmount;
+                    order.UpdatedAt = DateTime.UtcNow;
+                    order.UpdatedBy = performedBy;
+                    order.RefundStatus = refundAmount > 0 ? RefundStatus.PendingRefund : RefundStatus.RefundCompleted;
+
+                    var perTicketRefund = activeTicketsCount > 0 ? refundAmount / activeTicketsCount : 0;
+
+                    foreach (var ticket in order.Tickets.Where(t => t.Status != TicketStatus.CANCELLED))
+                    {
+                        ticket.Status = TicketStatus.CANCELLED;
+                        ticket.CancelledAt = DateTime.UtcNow;
+                        ticket.CancelReason = reason;
+                        ticket.RefundAmount = perTicketRefund;
+                        ticket.UpdatedAt = DateTime.UtcNow;
+                        ticket.UpdatedBy = performedBy;
+                    }
+
+                    if (autoReleaseSeat && order.TicketType != null)
+                    {
+                        order.TicketType.RemainingQuantity += activeTicketsCount;
+                        order.TicketType.UpdatedAt = DateTime.UtcNow;
+                        order.TicketType.UpdatedBy = performedBy;
+                    }
+
+                    var lastPayment = order.Payments?.OrderByDescending(p => p.CreatedAt).FirstOrDefault();
+                    if (lastPayment != null && lastPayment.PaymentStatus == PaymentStatus.Pending)
+                    {
+                        lastPayment.PaymentStatus = PaymentStatus.Cancelled;
+                        lastPayment.UpdatedAt = DateTime.UtcNow;
+                        lastPayment.UpdatedBy = performedBy;
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await LogCancelOrderAsync(orderId, userId, refundAmount, reason, performedBy, null);
+
+                    return new CancelOrderResponseDto
+                    {
+                        Success = true,
+                        Message = "Order cancelled successfully",
+                        RefundAmount = refundAmount,
+                        CancelledAt = order.CancelRequestAt
+                    };
                 }
-
-                await _context.SaveChangesAsync();
-                await LogCancelOrderAsync(orderId, userId, refundAmount, reason, performedBy);
-
-                return new CancelOrderResponseDto
-                {
-                    Success = true,
-                    Message = "Order cancelled successfully",
-                    RefundAmount = refundAmount,
-                    CancelledAt = order.CancelRequestAt
-                };
             }
             catch (Exception ex)
             {
@@ -278,7 +425,10 @@ namespace TicketSystem.Application.Services
             return true;
         }
 
-        private CancelValidationDto ValidateCancelConditions(Order order)
+        // targetTicket == null: đang validate hủy CẢ đơn (kiểm tra mọi vé chưa hủy trong đơn).
+        // targetTicket != null: đang validate hủy 1 vé cụ thể (chỉ kiểm tra check-in của riêng vé đó,
+        // việc đó đã làm ở ValidateCancelAsync trước khi gọi hàm này).
+        private CancelValidationDto ValidateCancelConditions(Order order, Ticket? targetTicket)
         {
             if (order.OrderStatus == OrderStatus.Cancelled)
             {
@@ -351,28 +501,37 @@ namespace TicketSystem.Application.Services
                 }
             }
 
-            if (order.Tickets != null && order.Tickets.Any(t => t.IsCheckedIn))
+            if (targetTicket == null)
             {
-                return new CancelValidationDto
+                // Hủy cả đơn: chỉ chặn nếu còn vé ACTIVE nào đã check-in.
+                // Vé đã bị hủy từ trước (Status == CANCELLED) thì bỏ qua, không cần xét IsCheckedIn.
+                if (order.Tickets != null && order.Tickets.Any(t => t.Status != TicketStatus.CANCELLED && t.IsCheckedIn))
                 {
-                    CanCancel = false,
-                    ReasonCannotCancel = "Cannot cancel order with checked-in tickets"
-                };
+                    return new CancelValidationDto
+                    {
+                        CanCancel = false,
+                        ReasonCannotCancel = "Cannot cancel order with checked-in tickets"
+                    };
+                }
             }
+            // targetTicket != null: việc kiểm tra IsCheckedIn/đã hủy của riêng vé đó
+            // đã được làm ở ValidateCancelAsync trước khi gọi hàm này, không lặp lại ở đây.
 
             return new CancelValidationDto { CanCancel = true };
         }
 
-        private async Task LogCancelOrderAsync(Guid orderId, Guid userId, decimal refundAmount, string reason, string performedBy)
+        private async Task LogCancelOrderAsync(Guid orderId, Guid userId, decimal refundAmount, string reason, string performedBy, Guid? ticketId)
         {
+            var scopeText = ticketId.HasValue ? $"Ticket {ticketId.Value} (1 vé trong đơn)" : "Toàn bộ đơn hàng";
+
             var auditLog = new AuditLog
             {
                 Id = Guid.NewGuid(),
-                Action = "CancelOrder",
-                EntityType = "Order",
-                EntityId = orderId,
+                Action = ticketId.HasValue ? "CancelSingleTicket" : "CancelOrder",
+                EntityType = ticketId.HasValue ? "Ticket" : "Order",
+                EntityId = ticketId ?? orderId,
                 PerformedBy = performedBy,
-                Details = $"Order cancelled by {userId}. Refund amount: {refundAmount}. Reason: {reason}",
+                Details = $"[{scopeText}] Order {orderId} cancelled by {userId}. Refund amount: {refundAmount}. Reason: {reason}",
                 IpAddress = GetClientIpAddress(),
                 Timestamp = DateTime.UtcNow,
                 CreatedAt = DateTime.UtcNow,

@@ -83,6 +83,7 @@ namespace TicketSystem.Application.DTOs
     {
         [StringLength(500)]
         public string? Reason { get; set; }
+        public Guid? TicketId { get; set; }
     }
 
     /// <summary>

@@ -140,6 +140,7 @@ const handleViewQr = (ticket) => {
     try {
       await axiosClient.post(`/orders/${cancelTarget.orderId}/cancel`, {
         reason: 'Khách hàng yêu cầu hủy vé',
+        ticketId: cancelTarget.id
       });
       message.success('Yêu cầu hủy vé thành công, tiền sẽ được hoàn thủ công sau khi xử lý');
       setCancelModalOpen(false);

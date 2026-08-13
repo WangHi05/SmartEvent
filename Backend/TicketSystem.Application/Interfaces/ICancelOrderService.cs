@@ -10,14 +10,18 @@ namespace TicketSystem.Application.Interfaces
     public interface ICancelOrderService
     {
         /// <summary>
-        /// Kiểm tra xem có thể hủy đơn hàng hay không
+        /// Kiểm tra xem có thể hủy đơn hàng (hoặc 1 vé cụ thể trong đơn) hay không.
+        /// ticketId = null: kiểm tra hủy CẢ đơn (hành vi cũ).
+        /// ticketId có giá trị: kiểm tra hủy RIÊNG vé đó trong đơn.
         /// </summary>
-        Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId);
+        Task<CancelValidationDto> ValidateCancelAsync(Guid orderId, Guid userId, Guid? ticketId = null);
 
         /// <summary>
-        /// Hủy đơn hàng và xử lý hoàn tiền
+        /// Hủy đơn hàng (hoặc 1 vé cụ thể trong đơn) và xử lý hoàn tiền.
+        /// ticketId = null: hủy CẢ đơn (hành vi cũ).
+        /// ticketId có giá trị: chỉ hủy vé đó, các vé khác trong đơn không đổi.
         /// </summary>
-        Task<CancelOrderResponseDto> CancelOrderAsync(Guid orderId, Guid userId, string reason, string performedBy);
+        Task<CancelOrderResponseDto> CancelOrderAsync(Guid orderId, Guid userId, string reason, string performedBy, Guid? ticketId = null);
 
         /// <summary>
         /// Tính toán số tiền hoàn lại
