@@ -246,18 +246,15 @@ This is used for scenarios such as:
 * Updating the management dashboard
 * Sending event-related updates to connected clients
 
-```
-
 ### Backend Layers
 
-| Layer          | Responsibility                                                      |
-| -------------- | ------------------------------------------------------------------- |
-| API            | HTTP endpoints, authentication, authorization and API configuration |
-| Application    | Application services, use cases and business workflows              |
-| Domain         | Core entities and domain rules                                      |
-| Infrastructure | Database access, caching and external service integrations          |
+| Layer              | Responsibility                                                      |
+| ------------------ | ------------------------------------------------------------------- |
+| **API**            | HTTP endpoints, authentication, authorization and API configuration |
+| **Application**    | Application services, use cases and business workflows              |
+| **Domain**         | Core entities and domain rules                                      |
+| **Infrastructure** | Database access, caching and external service integrations          |
 
----
 
 ## Project Structure
 
