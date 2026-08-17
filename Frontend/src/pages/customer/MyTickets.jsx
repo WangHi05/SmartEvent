@@ -30,12 +30,11 @@ const MyTickets = () => {
 // accessType: 1 = ONE_TIME (vé 1 ngày), 2 = DAILY_MULTI (vé nhiều ngày)
 const isMultiDayAccess = (ticket) => Number(ticket?.accessType) === 2;  
 
-// Vé 1 ngày: hết chỗ -> đóng băng nút "Mở vé"
-// Vé nhiều ngày: luôn cho bấm mở, "hết lượt hôm nay" hiển thị bên trong modal QR
+// Chỉ khóa nút khi vé đã hủy hoặc bị thu hồi — không còn gì để xem.
+// Còn lại (kể cả hết slot / đã check-in hết) vẫn cho bấm vào xem trạng thái + đếm ngược (nếu có).
 const isOpenTicketDisabled = (ticket) => {
-  if (!canUseTicket(ticket)) return true;
-  if (isMultiDayAccess(ticket)) return false;
-  return ticket.remainingSlots === 0;
+  const status = Number(ticket?.status);
+  return status === 3 || status === 4; // 3 = Cancelled, 4 = Revoked
 };
 
 const handleViewQr = (ticket) => {

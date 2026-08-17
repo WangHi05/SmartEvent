@@ -73,7 +73,7 @@ namespace TicketSystem.Domain.Entities
             // Group tickets
             if (TicketMode == TicketMode.GROUP)
             {
-                if (UsageType != null) return false;
+                if (UsageType == null) return false; // MỚI: vé đoàn giờ cũng cần UsageType
                 if (MinGroupSize == null || MaxGroupSize == null) return false;
                 if (MinGroupSize < 2) return false;
                 if (MaxGroupSize < MinGroupSize) return false;

@@ -49,12 +49,13 @@ namespace TicketSystem.Application.Services
             {
                 if (!employee.IsActive || !_passwordHasher.VerifyPassword(password, employee.PasswordHash))
                 {
-                    await LogAuditAsync("Login", "Employee", employee.Id, username, "Failed login attempt");
+                    // Trong AuthenticateAsync — Employee
+                    await LogAuditAsync("Login", "Employee", employee.Id, username, "Đăng nhập thất bại (sai tài khoản hoặc mật khẩu)");
                     return null;
                 }
 
                 var token = _jwtTokenGenerator.GenerateToken(employee.Id, employee.Username, employee.Email, employee.FullName, employee.Role.ToString());
-                await LogAuditAsync("Login", "Employee", employee.Id, username, "Employee logged in successfully");
+                await LogAuditAsync("Login", "Employee", employee.Id, username, "Nhân viên đăng nhập thành công");
 
                 return new AuthResponseDto
                 {
@@ -67,12 +68,13 @@ namespace TicketSystem.Application.Services
             var customer = await _context.Customers.FirstOrDefaultAsync(c => c.Username == username);
             if (customer == null || !customer.IsActive || !_passwordHasher.VerifyPassword(password, customer.PasswordHash))
             {
-                await LogAuditAsync("Login", "Customer", customer?.Id ?? Guid.Empty, username, "Failed login attempt");
+                
+                await LogAuditAsync("Login", "Customer", customer?.Id ?? Guid.Empty, username, "Đăng nhập thất bại (sai tài khoản hoặc mật khẩu)");
                 return null;
             }
 
             var customerToken = _jwtTokenGenerator.GenerateToken(customer.Id, customer.Username, customer.Email, customer.FullName, "Customer");
-            await LogAuditAsync("Login", "Customer", customer.Id, username, "Customer logged in successfully");
+            await LogAuditAsync("Login", "Customer", customer.Id, username, "Khách hàng đăng nhập thành công");
 
             return new AuthResponseDto
             {
@@ -100,7 +102,8 @@ namespace TicketSystem.Application.Services
 
             _context.Customers.Add(customer);
             await _context.SaveChangesAsync();
-            await LogAuditAsync("Register", "Customer", customer.Id, createdBy, $"Registered customer: {customer.Username}");
+            // RegisterCustomerAsync
+            await LogAuditAsync("Register", "Customer", customer.Id, createdBy, $"Đăng ký tài khoản khách hàng mới: {customer.Username}");
 
             return MapCustomerToDto(customer);
         }
@@ -112,7 +115,8 @@ namespace TicketSystem.Application.Services
             {
                 employee.GeneratePasswordResetToken();
                 await _context.SaveChangesAsync();
-                await LogAuditAsync("ForgotPassword", "Employee", employee.Id, "System", $"Generated reset token for {email}");
+                // ForgotPasswordAsync
+                await LogAuditAsync("ForgotPassword", "Employee", employee.Id, "System", $"Tạo mã đặt lại mật khẩu cho email {email}");
                 return true;
             }
 
@@ -121,7 +125,8 @@ namespace TicketSystem.Application.Services
             {
                 customer.GeneratePasswordResetToken();
                 await _context.SaveChangesAsync();
-                await LogAuditAsync("ForgotPassword", "Customer", customer.Id, "System", $"Generated reset token for {email}");
+                // ForgotPasswordAsync
+                await LogAuditAsync("ForgotPassword", "Customer", customer.Id, "System", $"Tạo mã đặt lại mật khẩu cho email {email}");
                 return true;
             }
 
@@ -139,7 +144,7 @@ namespace TicketSystem.Application.Services
                 if (success)
                 {
                     await _context.SaveChangesAsync();
-                    await LogAuditAsync("ResetPassword", "Employee", employee.Id, "System", $"Password reset for {email}");
+                    await LogAuditAsync("ResetPassword", "Employee", employee.Id, "System", $"Đặt lại mật khẩu thành công cho email {email}");
                 }
                 return success;
             }
@@ -151,7 +156,7 @@ namespace TicketSystem.Application.Services
                 if (success)
                 {
                     await _context.SaveChangesAsync();
-                    await LogAuditAsync("ResetPassword", "Customer", customer.Id, "System", $"Password reset for {email}");
+                    await LogAuditAsync("ResetPassword", "Customer", customer.Id, "System", $"Đặt lại mật khẩu thành công cho email {email}");
                 }
                 return success;
             }
@@ -169,11 +174,11 @@ namespace TicketSystem.Application.Services
                 customer = Customer.CreateSocialUser(email, fullName, provider, providerId);
                 _context.Customers.Add(customer);
                 await _context.SaveChangesAsync();
-                await LogAuditAsync("Register", "Customer", customer.Id, "System", $"Auto registered via {provider}");
+                await LogAuditAsync("Register", "Customer", customer.Id, "System", $"Tự động tạo tài khoản qua {provider}");
             }
 
             var token = _jwtTokenGenerator.GenerateToken(customer.Id, customer.Username, customer.Email, customer.FullName, "Customer");
-            await LogAuditAsync("Login", "Customer", customer.Id, customer.Username, $"Logged in via {provider}");
+            await LogAuditAsync("Login", "Customer", customer.Id, customer.Username, $"Đăng nhập qua {provider}");
 
             return new AuthResponseDto
             {

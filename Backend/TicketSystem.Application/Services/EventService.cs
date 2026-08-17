@@ -334,7 +334,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = createdBy,
-                Details = $"Created event: {eventEntity.Name} (Trạng thái chờ duyệt)"
+                Details = $"Tạo sự kiện mới: {eventEntity.Name} (Trạng thái: Chờ duyệt)"
             });
 
             await _context.SaveChangesAsync();
@@ -402,7 +402,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = updatedBy,
-                Details = $"Updated event: {eventEntity.Name}. Status: {oldStatus} -> {eventEntity.Status}"
+                Details = $"Cập nhật sự kiện: {eventEntity.Name}. Trạng thái: {TranslateStatus(oldStatus)} → {TranslateStatus(eventEntity.Status)}"
             });
 
             await _context.SaveChangesAsync();
@@ -437,7 +437,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = id,
                 PerformedBy = deletedBy,
-                Details = $"Deleted event: {eventEntity.Name}"
+                Details = $"Xóa sự kiện: {eventEntity.Name}"
             });
 
             await _context.SaveChangesAsync();
@@ -466,7 +466,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = "System", 
-                Details = $"Updated event status to: {newStatus}"
+                Details = $"Cập nhật trạng thái sự kiện thành: {TranslateStatus(eventEntity.Status)}"
             });
 
             await _context.SaveChangesAsync();
@@ -585,7 +585,7 @@ namespace TicketSystem.Application.Services
                     EntityType = "Event",
                     EntityId = evt.Id,
                     PerformedBy = "System",
-                    Details = $"Hangfire tự động cập nhật trạng thái sự kiện: {oldStatus} -> {newStatus}"
+                    Details = $"Hangfire tự động cập nhật trạng thái sự kiện: {TranslateStatus(oldStatus)} → {TranslateStatus(newStatus)}"
                 });
             }
 
@@ -622,7 +622,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = approvedBy,
-                Details = $"Duyệt sự kiện: {eventEntity.Name}. Trạng thái mới: {eventEntity.Status}"
+                Details = $"Duyệt sự kiện: {eventEntity.Name}. Trạng thái mới: {TranslateStatus(eventEntity.Status)}"
             });
 
             await _context.SaveChangesAsync();
@@ -680,7 +680,7 @@ namespace TicketSystem.Application.Services
                 EntityType = "Event",
                 EntityId = eventEntity.Id,
                 PerformedBy = restoredBy,
-                Details = $"Khôi phục sự kiện: {eventEntity.Name}. Trạng thái mới: {eventEntity.Status}"
+                Details = $"Khôi phục sự kiện: {eventEntity.Name}. Trạng thái mới: {TranslateStatus(eventEntity.Status)}"
             });
 
             await _context.SaveChangesAsync();
@@ -734,6 +734,17 @@ namespace TicketSystem.Application.Services
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+
+            
         }
+        private static string TranslateStatus(EventStatus status) => status switch
+        {
+            EventStatus.PendingApproval => "Chờ duyệt",
+            EventStatus.Active => "Sắp diễn ra",
+            EventStatus.Ongoing => "Đang diễn ra",
+            EventStatus.Archived => "Đã lưu trữ",
+            EventStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
     }
 }

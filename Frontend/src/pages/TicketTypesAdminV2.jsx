@@ -138,7 +138,7 @@ const loadTicketTypes = async () => {
       });
     } else {
       form.setFieldsValue({
-        usageType: undefined,
+        usageType: USAGE_TYPES.ONE_TIME,
         minGroupSize: 2,
         maxGroupSize: 50,
         qrMode: QR_MODES.SINGLE_QR,
@@ -172,9 +172,10 @@ const loadTicketTypes = async () => {
       };
 
       // Thêm fields theo loại vé
-      if (values.ticketMode === TICKET_MODES.INDIVIDUAL) {
-        payload.usageType = values.usageType;
-      } else {
+      // usageType dùng cho cả vé cá nhân và vé đoàn
+      payload.usageType = values.usageType;
+
+      if (values.ticketMode === TICKET_MODES.GROUP) {
         payload.minGroupSize = values.minGroupSize;
         payload.maxGroupSize = values.maxGroupSize;
         payload.qrMode = values.qrMode;
@@ -281,7 +282,7 @@ const loadTicketTypes = async () => {
         } else {
           return (
             <small>
-              {record.minGroupSize}-{record.maxGroupSize} người | {getQRModeLabel(record.qrMode)} | {getPriceModeLabel(record.priceMode)}
+              {record.minGroupSize}-{record.maxGroupSize} người | {getQRModeLabel(record.qrMode)} | {getPriceModeLabel(record.priceMode)} | {getUsageTypeLabel(record.usageType)}
             </small>
           );
         }
@@ -707,6 +708,19 @@ const loadTicketTypes = async () => {
                 ]}
               >
                 <InputNumber style={{ width: '100%' }} min={1} placeholder="Số đoàn tối đa mỗi khách hàng mua" />
+              </Form.Item>
+              <Form.Item
+                label="Kiểu sử dụng *"
+                name="usageType"
+                rules={[{ required: true, message: 'Vui lòng chọn kiểu sử dụng' }]}
+              >
+                <Select
+                  placeholder="Chọn kiểu sử dụng"
+                  options={[
+                    { label: 'Vé 1 ngày (check-in 1 lần)', value: USAGE_TYPES.ONE_TIME },
+                    { label: `Vé ${event?.eventDurationDays} ngày (check-in 1 lần/ngày)`, value: USAGE_TYPES.MULTI_DAY },
+                  ]}
+                />
               </Form.Item>
             </>
           )}

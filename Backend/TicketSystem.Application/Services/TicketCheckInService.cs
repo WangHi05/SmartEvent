@@ -729,6 +729,18 @@ namespace TicketSystem.Application.Services
             return response;
         }
 
+        private async Task<string> ResolveStaffNameAsync(string staffId)
+        {
+            if (string.IsNullOrWhiteSpace(staffId)) return "Không xác định";
+            if (Guid.TryParse(staffId, out var staffGuid))
+            {
+                var employee = await _context.Employees.AsNoTracking()
+                    .FirstOrDefaultAsync(e => e.Id == staffGuid);
+                if (employee != null) return $"{employee.FullName} ({employee.Username})";
+            }
+            return staffId; // fallback nếu không parse được / không tìm thấy
+        }       
+
         private async Task PersistCheckInOutcomeAsync(CheckInOutcome outcome, bool skipDomainChanges = false)
         {
             if (!skipDomainChanges && outcome.Ticket != null)
@@ -737,12 +749,7 @@ namespace TicketSystem.Application.Services
             }
 
             var ticketId = outcome.TicketId == Guid.Empty && outcome.Ticket != null ? outcome.Ticket.Id : outcome.TicketId;
-
-            // If ticketId is not known (Guid.Empty), skip adding CheckInLog
-            // to avoid unique-index conflicts on (TicketId, CheckinDate) for unknown tickets.
-            // outcome.Timestamp là VietnamTime.Now (dùng cho logic nghiệp vụ/CheckinDate).
-            // Khi LƯU xuống DB phải dùng đúng UTC thật, tránh bị converter của EF Core
-            // (ToUniversalTime) cộng lệch múi giờ lần thứ 2.
+            var staffName = await ResolveStaffNameAsync(outcome.StaffId); // MỚI
             var persistUtcNow = DateTime.UtcNow;
 
             if (ticketId != Guid.Empty && outcome.Ticket != null)
@@ -758,7 +765,7 @@ namespace TicketSystem.Application.Services
                     Type = outcome.ScanType,
                     PeopleCount = outcome.PeopleCount,
                     GateName = outcome.GateName,
-                    StaffId = outcome.StaffId,
+                    StaffId = outcome.StaffId, // giữ nguyên GUID thô ở đây, vì đây là dữ liệu nghiệp vụ
                     Note = outcome.Note,
                     CheckInResult = outcome.IsSuccess ? "Success" : "Failed",
                     FailureReason = outcome.FailureReason,
@@ -774,8 +781,8 @@ namespace TicketSystem.Application.Services
                 Action = outcome.IsSuccess ? "CheckIn" : "CheckInFailed",
                 EntityType = "Ticket",
                 EntityId = ticketId,
-                PerformedBy = outcome.StaffId,
-                Details = BuildAuditDetails(outcome),
+                PerformedBy = staffName, // SỬA: tên thay vì GUID
+                Details = BuildAuditDetails(outcome, staffName), // SỬA: truyền staffName
                 IpAddress = GetClientIpAddress(),
                 Timestamp = persistUtcNow,
                 CreatedAt = persistUtcNow,
@@ -850,15 +857,21 @@ namespace TicketSystem.Application.Services
             }
         }
 
-        private string BuildAuditDetails(CheckInOutcome outcome)
+        private string BuildAuditDetails(CheckInOutcome outcome, string staffName)
         {
-            var ticketValue = outcome.TicketId == Guid.Empty ? "không xác định" : outcome.TicketId.ToString();
-            var eventValue = outcome.EventId == Guid.Empty ? (string.IsNullOrWhiteSpace(outcome.EventName) ? "không xác định" : outcome.EventName) : outcome.EventId.ToString();
+            var ticketLabel = outcome.Ticket != null
+                ? $"{outcome.Ticket.TicketType?.Name ?? "Vé"} của {outcome.Ticket.Order?.Customer?.FullName ?? "khách vãng lai"}"
+                : (outcome.TicketId == Guid.Empty ? "không xác định" : outcome.TicketId.ToString());
+
+            var eventValue = string.IsNullOrWhiteSpace(outcome.EventName)
+                ? (outcome.EventId == Guid.Empty ? "không xác định" : outcome.EventId.ToString())
+                : outcome.EventName;
+
             var gateValue = string.IsNullOrWhiteSpace(outcome.GateName) ? "không có" : outcome.GateName;
             var resultValue = outcome.IsSuccess ? "thành công" : "thất bại";
             var reasonValue = string.IsNullOrWhiteSpace(outcome.FailureReason) ? string.Empty : $"; Lý do thất bại: {outcome.FailureReason}";
 
-            return $"Nhân viên {outcome.StaffId} quét vé {ticketValue} cho sự kiện {eventValue} tại cổng {gateValue}. Kết quả: {resultValue}{reasonValue}. QR: {outcome.QrPayload}";
+            return $"Nhân viên {staffName} quét vé {ticketLabel} cho sự kiện {eventValue} tại cổng {gateValue}. Kết quả: {resultValue}{reasonValue}.";
         }
 
         private bool IsRecognizedGate(string gateName)

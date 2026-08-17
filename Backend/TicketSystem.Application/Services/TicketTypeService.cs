@@ -8,6 +8,7 @@ using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
 using TicketSystem.Domain.Entities;
 using TicketSystem.Domain.Interfaces;
+using Microsoft.AspNetCore.Http;
 
 namespace TicketSystem.Application.Services
 {
@@ -21,17 +22,20 @@ namespace TicketSystem.Application.Services
         private readonly IGenericRepository<Event> _eventRepository;
         private readonly IGenericRepository<AuditLog> _auditLogRepository;
         private readonly IApplicationDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public TicketTypeService(
             ITicketTypeRepository ticketTypeRepository,
             IGenericRepository<Event> eventRepository,
             IGenericRepository<AuditLog> auditLogRepository,
-            IApplicationDbContext context)
+            IApplicationDbContext context,
+            IHttpContextAccessor httpContextAccessor)
         {
             _ticketTypeRepository = ticketTypeRepository;
             _eventRepository = eventRepository;
             _auditLogRepository = auditLogRepository;
             _context = context;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         // Lấy danh sách TicketType của một Event
@@ -82,6 +86,10 @@ namespace TicketSystem.Application.Services
             // Validate MaxPerUser must be positive
             if (request.MaxPerUser <= 0)
                 throw new InvalidOperationException("Số vé tối đa trên một người phải > 0");
+
+            // Validate GROUP ticket must have UsageType
+            if (request.TicketMode == (int)TicketMode.GROUP && !request.UsageType.HasValue)
+                throw new InvalidOperationException("Vé đoàn cần chọn Kiểu sử dụng (1 ngày / nhiều ngày).");
 
             // Validate name is unique
             var isNameUnique = await _ticketTypeRepository.IsNameUniqueInEventAsync(eventId, request.Name);
@@ -182,6 +190,9 @@ namespace TicketSystem.Application.Services
             // Validate MaxPerUser
             if (request.MaxPerUser <= 0)
                 throw new InvalidOperationException("Số vé tối đa trên một người phải > 0");
+            // Validate GROUP ticket must have UsageType
+            if (request.TicketMode == (int)TicketMode.GROUP && !request.UsageType.HasValue)
+                throw new InvalidOperationException("Vé đoàn cần chọn Kiểu sử dụng (1 ngày / nhiều ngày).");
 
             // Lưu giá trị cũ để logging
             var oldPrice = ticketType.Price;
@@ -417,12 +428,10 @@ namespace TicketSystem.Application.Services
 
             return "Đã kết thúc";
         }
-        // Suy ra AccessType (dùng cho logic check-in) từ UsageType (dùng cho UI).
-        // Vé đoàn (GROUP) hiện chưa có lựa chọn Kiểu sử dụng trên UI -> mặc định ONE_TIME.
-        // Nếu sau này cần vé đoàn nhiều ngày, cần bổ sung UI chọn riêng cho GROUP.
+        // Suy ra AccessType từ UsageType — áp dụng cho CẢ INDIVIDUAL lẫn GROUP
         private static Domain.Entities.TicketAccessType MapAccessType(int ticketMode, int? usageType)
         {
-            if (ticketMode == (int)TicketMode.INDIVIDUAL && usageType == (int)Domain.Common.UsageType.MULTI_DAY)
+            if (usageType == (int)Domain.Common.UsageType.MULTI_DAY)
             {
                 return Domain.Entities.TicketAccessType.DAILY_MULTI;
             }
@@ -432,7 +441,17 @@ namespace TicketSystem.Application.Services
         // Ghi log AuditLog
         private async Task LogAuditAsync(AuditLog log)
         {
+            log.IpAddress = GetClientIpAddress();
             await _auditLogRepository.AddAsync(log);
+        }
+
+        private string? GetClientIpAddress() // MỚI - copy y hệt EventService
+        {
+            var ipAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress;
+            if (ipAddress == null) return null;
+            if (ipAddress.ToString() == "::1") return "127.0.0.1";
+            if (ipAddress.IsIPv4MappedToIPv6) return ipAddress.MapToIPv4().ToString();
+            return ipAddress.ToString();
         }
     }
 }
