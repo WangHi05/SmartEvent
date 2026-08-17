@@ -464,7 +464,7 @@ Update Event Status
 Real-time Monitoring
 ```
 
-> Add a demo video or deployment URL here when available.
+> [URL Demo](https://smart-event-one.vercel.app/).
 
 ---
 
@@ -481,11 +481,17 @@ Recommended screenshots:
 5. QR Check-in
 6. Real-time Monitoring
 
-Example:
-
-```markdown
+Dashboard:
 ![Dashboard](docs/images/dashboard.png)
-```
+
+Event Management
+![Event Management](docs/images/event-management.png)
+
+QR Check-in
+![QR Check-in](docs/images/QR-Checkin.png)
+
+Gate Control Real-time
+![Gate Control Real-time](docs/images/gate-control.png)
 
 ---
 
