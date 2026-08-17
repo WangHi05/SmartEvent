@@ -484,13 +484,13 @@ Recommended screenshots:
 Dashboard:
 ![Dashboard](docs/images/dashboard.png)
 
-Event Management
+Event Management:
 ![Event Management](docs/images/event-management.png)
 
-QR Check-in
+QR Check-in:
 ![QR Check-in](docs/images/QR-Checkin.png)
 
-Gate Control Real-time
+Gate Control Real-time:
 ![Gate Control Real-time](docs/images/gate-control.png)
 
 ---
