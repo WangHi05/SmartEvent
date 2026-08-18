@@ -179,6 +179,8 @@ const DynamicTicketCard = ({
         return () => clearInterval(interval);
     }, [ticketId, secretKey, isTimeSynced, timeOffset, isTicketExhausted]);
 
+    const hasNoSecretKey = !secretKey;
+
     const isExpiringSoon = timeLeft <= 3;
 
     const formatCountdown = (ms) => {
@@ -198,7 +200,17 @@ const DynamicTicketCard = ({
                 <span className="text-gray-500">{ticketTypeName}</span>
             </div>
 
-            {isTicketExhausted ? (
+            {hasNoSecretKey ? (
+                <div className="w-[256px] h-[256px] bg-amber-50 border-2 border-amber-200 rounded-lg flex flex-col items-center justify-center text-center p-4">
+                    <span className="text-5xl mb-3">⏱️</span>
+                    <span className="text-amber-700 font-bold text-lg">
+                        Vé chưa thanh toán
+                    </span>
+                    <span className="text-amber-600 text-sm mt-2">
+                        Vui lòng hoàn tất thanh toán để xem mã QR
+                    </span>
+                </div>
+            ) : isTicketExhausted ? (
                 <div className="w-[256px] flex flex-col items-center justify-center text-center p-4">
                     {isExhaustedTodayOnly ? (
                         // Vé nhiều ngày, đã dùng hết lượt hôm nay -> thông báo ĐỎ, đếm ngược tới 00:00

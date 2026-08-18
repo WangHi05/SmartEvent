@@ -535,21 +535,30 @@ public class OrderService : IOrderService
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();
 
-        var ticketDtos = tickets.Select(t => new TicketResponseDto
+        var ticketDtos = tickets.Select(t =>
         {
-            Id = t.Id,
-            EventName = t.TicketType?.Event?.Name ?? "Unknown Event",
-            TicketTypeName = t.TicketType?.Name ?? "Unknown Type",
-            QrCode = t.SecretKey,
-            Status = MapTicketUiStatus(t),
-            StatusName = GetTicketStatusName(MapTicketUiStatus(t)),
-            CreatedAt = t.CreatedAt,
-            EventId = t.TicketType?.EventId ?? Guid.Empty,
-            OrderId = t.OrderId ?? Guid.Empty,
-            GroupSize = t.GroupSize,
-            RemainingSlots = t.RemainingSlots,
-            AccessType = (int)(t.TicketType?.AccessType ?? TicketAccessType.ONE_TIME),
-            LastCheckInDate = t.LastCheckInDate // THÊM MỚI: để FE tự tính đếm ngược tới ngày mai
+            var uiStatus = MapTicketUiStatus(t);
+            // Chỉ trả SecretKey (dùng để sinh mã QR/TOTP) khi vé đã Paid (1) hoặc CheckedIn (2).
+            // Vé Pending/Cancelled/Revoked không được lộ SecretKey ra response, tránh việc
+            // FE bị bypass (đọc thẳng Network tab) để tự sinh mã QR dùng khi chưa thanh toán.
+            var canRevealQr = uiStatus == 1 || uiStatus == 2;
+
+            return new TicketResponseDto
+            {
+                Id = t.Id,
+                EventName = t.TicketType?.Event?.Name ?? "Unknown Event",
+                TicketTypeName = t.TicketType?.Name ?? "Unknown Type",
+                QrCode = canRevealQr ? t.SecretKey : null,
+                Status = uiStatus,
+                StatusName = GetTicketStatusName(uiStatus),
+                CreatedAt = t.CreatedAt,
+                EventId = t.TicketType?.EventId ?? Guid.Empty,
+                OrderId = t.OrderId ?? Guid.Empty,
+                GroupSize = t.GroupSize,
+                RemainingSlots = t.RemainingSlots,
+                AccessType = (int)(t.TicketType?.AccessType ?? TicketAccessType.ONE_TIME),
+                LastCheckInDate = t.LastCheckInDate // THÊM MỚI: để FE tự tính đếm ngược tới ngày mai
+            };
         }).ToList();
 
         return new MyTicketsResponseDto

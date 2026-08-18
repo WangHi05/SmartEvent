@@ -34,7 +34,7 @@ const isMultiDayAccess = (ticket) => Number(ticket?.accessType) === 2;
 // Còn lại (kể cả hết slot / đã check-in hết) vẫn cho bấm vào xem trạng thái + đếm ngược (nếu có).
 const isOpenTicketDisabled = (ticket) => {
   const status = Number(ticket?.status);
-  return status === 3 || status === 4; // 3 = Cancelled, 4 = Revoked
+  return status === 0 || status === 3 || status === 4; // 0 = Chờ thanh toán, 3 = Cancelled, 4 = Revoked
 };
 
 const handleViewQr = (ticket) => {
