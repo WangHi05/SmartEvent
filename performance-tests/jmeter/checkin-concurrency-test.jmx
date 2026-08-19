@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
   <hashTree>
+    <!-- KẾ HOẠCH KIỂM THỬ (TEST PLAN): Đánh giá xử lý đụng độ Check-in -->
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Test Plan - Checkin Concurrency">
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <!-- Chạy tuần tự: Setup Thread Group chạy xong mới tới Main Thread Group -->
       <boolProp name="TestPlan.serialize_threadgroups">true</boolProp>
-      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables">
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="Biến toàn cục (Global Variables)">
         <collectionProp name="Arguments.arguments">
           <elementProp name="BASE_URL" elementType="Argument">
             <stringProp name="Argument.name">BASE_URL</stringProp>
@@ -22,9 +24,12 @@
     </TestPlan>
     <hashTree>
       
-      <!-- SETUP THREAD GROUP: Lấy Token và QR Code 1 lần duy nhất -->
+      <!-- ================================================================= -->
+      <!-- GIAI ĐOẠN 1: SETUP (Chuẩn bị Dữ liệu Test)                        -->
+      <!-- Mục tiêu: Đăng nhập hệ thống và lấy 1 mã QR hợp lệ duy nhất       -->
+      <!-- ================================================================= -->
       <SetupThreadGroup guiclass="SetupThreadGroupGui" testclass="SetupThreadGroup" testname="1. setUp - Login &amp; Get QR">
-        <intProp name="ThreadGroup.num_threads">1</intProp>
+        <intProp name="ThreadGroup.num_threads">1</intProp> <!-- Chỉ cần 1 User để lấy dữ liệu -->
         <intProp name="ThreadGroup.ramp_time">1</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
@@ -34,7 +39,7 @@
       </SetupThreadGroup>
       <hashTree>
         
-        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
+        <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Cấu hình HTTP Header chung">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
               <stringProp name="Header.name">Content-Type</stringProp>
@@ -44,8 +49,8 @@
         </HeaderManager>
         <hashTree/>
 
-        <!-- API: Login -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Login">
+        <!-- Yêu cầu 1: Đăng nhập lấy JWT Token -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Lấy JWT Token (Login)">
           <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
           <stringProp name="HTTPSampler.port">${PORT}</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
@@ -67,7 +72,8 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract Token">
+          <!-- Trích xuất Token từ Response Body -->
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON Extractor - Token">
             <stringProp name="JSONPostProcessor.referenceNames">EXTRACTED_TOKEN</stringProp>
             <stringProp name="JSONPostProcessor.jsonPathExprs">$.token</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
@@ -76,8 +82,8 @@
           <hashTree/>
         </hashTree>
 
-        <!-- API: Lấy QR Code -->
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET - Fetch Unused QR">
+        <!-- Yêu cầu 2: Gọi API lấy mã QR chưa sử dụng -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET - Lấy QR Code chưa sử dụng">
           <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
           <stringProp name="HTTPSampler.port">${PORT}</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
@@ -87,7 +93,8 @@
           <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
         </HTTPSamplerProxy>
         <hashTree>
-          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Auth Header">
+          <!-- Gắn JWT Token vào Header để xác thực -->
+          <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Xác thực (Authorization Header)">
             <collectionProp name="HeaderManager.headers">
               <elementProp name="" elementType="Header">
                 <stringProp name="Header.name">Authorization</stringProp>
@@ -96,7 +103,8 @@
             </collectionProp>
           </HeaderManager>
           <hashTree/>
-          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract QR Payload">
+          <!-- Trích xuất nội dung mã QR -->
+          <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="JSON Extractor - QR Payload">
             <stringProp name="JSONPostProcessor.referenceNames">EXTRACTED_QR</stringProp>
             <stringProp name="JSONPostProcessor.jsonPathExprs">$.qrPayload</stringProp>
             <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
@@ -105,8 +113,8 @@
           <hashTree/>
         </hashTree>
 
-        <!-- Đẩy biến lên Global Properties để Thread Group chính dùng được -->
-        <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Export Properties">
+        <!-- Đẩy các biến nội bộ lên mức Toàn cục (Global) để Thread Group chính có thể sử dụng -->
+        <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="Xuất biến toàn cục (Export Properties)">
           <stringProp name="scriptLanguage">groovy</stringProp>
           <stringProp name="script">
             props.put("GLOBAL_TOKEN", vars.get("EXTRACTED_TOKEN"));
@@ -116,17 +124,22 @@
         <hashTree/>
       </hashTree>
 
-      <!-- MAIN THREAD GROUP: Bắn phá đồng thời (Race Condition) -->
+      <!-- ================================================================= -->
+      <!-- GIAI ĐOẠN 2: THỰC THI KIỂM THỬ TẢI TRỌNG (Concurrency Execution)  -->
+      <!-- Mục tiêu: Giả lập 100 nhân viên quét cùng 1 mã QR tại 1 thời điểm -->
+      <!-- ================================================================= -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="2. Main - 100 Concurrent Check-ins">
-        <intProp name="ThreadGroup.num_threads">100</intProp>
+        <intProp name="ThreadGroup.num_threads">100</intProp> <!-- Số lượng User đồng thời -->
         <intProp name="ThreadGroup.ramp_time">2</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController">
           <boolProp name="LoopController.continue_forever">false</boolProp>
-          <intProp name="LoopController.loops">1</intProp>
+          <intProp name="LoopController.loops">1</intProp> <!-- Mỗi User chỉ gửi 1 request -->
         </elementProp>
       </ThreadGroup>
       <hashTree>
+        
+        <!-- Cấu hình Header chứa Token đã lấy từ Giai đoạn 1 -->
         <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="HTTP Header Manager">
           <collectionProp name="HeaderManager.headers">
             <elementProp name="" elementType="Header">
@@ -141,14 +154,16 @@
         </HeaderManager>
         <hashTree/>
         
-        <!-- Đồng bộ hóa 100 threads để gửi CÙNG MỘT LÚC -->
-        <SyncTimer guiclass="TestBeanGUI" testclass="SyncTimer" testname="Synchronizing Timer (Race Condition Force)">
+        <!-- COMPONENT QUAN TRỌNG NHẤT: Đồng bộ hóa các luồng (Sync Timer) -->
+        <!-- Đợi đủ 100 threads sẵn sàng rồi mới bắn request cùng 1 mili-giây -->
+        <SyncTimer guiclass="TestBeanGUI" testclass="SyncTimer" testname="Synchronizing Timer (Ép lỗi Race Condition)">
           <intProp name="groupSize">100</intProp>
           <longProp name="timeoutInMs">5000</longProp>
         </SyncTimer>
         <hashTree/>
 
-        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Checkin Scan">
+        <!-- Bắn phá API Check-in với cùng 1 mã QR -->
+        <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST - Quét mã vào cổng (Checkin Scan)">
           <stringProp name="HTTPSampler.domain">${BASE_URL}</stringProp>
           <stringProp name="HTTPSampler.port">${PORT}</stringProp>
           <stringProp name="HTTPSampler.protocol">http</stringProp>
@@ -171,6 +186,30 @@
           </elementProp>
         </HTTPSamplerProxy>
         <hashTree/>
+        <!-- Bổ sung Groovy script để ghi log ra Terminal -->
+          <JSR223PostProcessor guiclass="TestBeanGUI" testclass="JSR223PostProcessor" testname="In Lỗi Check-in ra Terminal" enabled="true">
+            <stringProp name="cacheKey">true</stringProp>
+            <stringProp name="filename"></stringProp>
+            <stringProp name="parameters"></stringProp>
+            <stringProp name="script">
+            // Lấy HTTP Status Code từ request
+            String statusCode = prev.getResponseCode();
+
+            // Kiểm tra nếu request KHÔNG thành công (khác 200)
+            if (!statusCode.equals(&quot;200&quot;)) {
+                // Trích xuất Response Body
+                String responseBody = prev.getResponseDataAsString();
+                
+                // In trực tiếp ra Terminal (System.out)
+                System.out.println(&quot;\n========== LỖI CHECK-IN TỪ BACKEND ==========&quot;);
+                System.out.println(&quot;Status Code: &quot; + statusCode);
+                System.out.println(&quot;Response JSON: &quot; + responseBody);
+                System.out.println(&quot;=============================================\n&quot;);
+            }
+            </stringProp>
+            <stringProp name="scriptLanguage">groovy</stringProp>
+          </JSR223PostProcessor>
+        </hashTree>
 
       </hashTree>
 

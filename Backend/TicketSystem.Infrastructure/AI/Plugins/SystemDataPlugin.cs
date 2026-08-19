@@ -51,24 +51,49 @@ namespace TicketSystem.Infrastructure.AI.Plugins
         public async Task<string> GetTopCustomersAsync(
             [Description("Số lượng khách hàng cần lấy, mặc định là 5")] int limit = 5)
         {
-            var topUsers = await _context.Users
-                .Select(u => new
-                {
-                    u.FullName,
-                    TicketCount = _context.Tickets.Count(t => t.Order != null && t.Order.CustomerId == u.Id)
-                })
-                .OrderByDescending(x => x.TicketCount)
-                .Take(limit) // Áp dụng biến limit
-                .ToListAsync();
-
-            if (!topUsers.Any()) return "Chưa có dữ liệu khách hàng.";
-
-            var result = "Top khách hàng:\n";
-            foreach (var user in topUsers)
+            try 
             {
-                result += $"- {user.FullName}: {user.TicketCount} vé\n";
+                // Sử dụng Navigation Properties chuẩn của EF Core thay vì Join thủ công
+                // TRỌNG TÂM FIX LỖI: Truy vấn trên tập _context.Customers thay vì _context.Users
+                var topCustomers = await _context.Customers
+                    .Select(c => new
+                    {
+                        FullName = c.FullName,
+                        // Lọc các đơn hàng có trạng thái Confirmed và đếm tổng số vé (Tickets) bên trong
+                        TicketCount = c.Orders
+                            .Where(o => o.OrderStatus == OrderStatus.Confirmed)
+                            .SelectMany(o => o.Tickets)
+                            .Count()
+                    })
+                    // Chỉ lấy những khách hàng thực sự có vé
+                    .Where(x => x.TicketCount > 0)
+                    // Sắp xếp giảm dần theo số lượng vé
+                    .OrderByDescending(x => x.TicketCount)
+                    .Take(limit)
+                    .ToListAsync();
+
+                if (!topCustomers.Any()) 
+                    return "Hiện tại chưa có khách hàng nào mua vé thành công trên hệ thống.";
+
+                var result = "Dưới đây là danh sách Top khách hàng mua nhiều vé nhất:\n";
+
+                foreach (var stat in topCustomers)
+                {
+                    // Xử lý chuỗi an toàn, dự phòng trường hợp FullName bị null
+                    string displayName = !string.IsNullOrWhiteSpace(stat.FullName) 
+                        ? stat.FullName 
+                        : "Khách hàng Ẩn danh";
+                    
+                    result += $"- **{displayName}**: {stat.TicketCount} vé\n";
+                }
+                
+                return result;
             }
-            return result;
+            catch (Exception ex)
+            {
+                // Ghi nhận ngoại lệ an toàn để AI không bị sập (Exception Handling)
+                return $"Lỗi khi truy xuất dữ liệu khách hàng: {ex.Message}";
+            }
         }
 
         [KernelFunction("get_ongoing_events")]
@@ -113,18 +138,18 @@ namespace TicketSystem.Infrastructure.AI.Plugins
             "số người và từ khóa cần loại trừ. Dùng khi người dùng muốn tìm hoặc " +
             "chọn sự kiện phù hợp với nhiều tiêu chí."
         )]
-        public async Task<string> SearchEventsByCriteriaAsync(
+         public async Task<string> SearchEventsByCriteriaAsync(
             [Description("Địa điểm cần tìm, ví dụ: Hà Nội")]
-            string? location,
+            string? location = null, 
 
-            [Description("Chủ đề hoặc từ khóa cần tìm, ví dụ: công nghệ, startup, AI")]
-            string? keyword,
+            [Description("Chủ đề hoặc từ khóa cần tìm, ví dụ: công nghệ, startup, bất động sản")]
+            string? keyword = null,
 
-            [Description("Số người tham gia")]
-            int people,
+            [Description("Số người tham gia. Nếu người dùng không nói rõ, mặc định truyền là 1")]
+            int people = 1, 
 
-            [Description("Tổng ngân sách tối đa cho tất cả người, tính bằng VNĐ")]
-            decimal maxBudget,
+            [Description("Tổng ngân sách tối đa cho tất cả người (VNĐ). CHỈ TRUYỀN khi người dùng nhắc đến tiền/ngân sách/giá rẻ. Nếu không, bắt buộc để trống (null)")]
+            decimal? maxBudget = null, 
 
             [Description("Từ khóa cần loại trừ, ví dụ: âm nhạc, ca nhạc")]
             string? excludeKeyword = null)
@@ -209,8 +234,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                     e.EndTime,
 
                     TicketTypes = e.TicketTypes
-                        .Where(t =>
-                            t.Price * people <= maxBudget)
+                        .Where(t => maxBudget == null || (t.Price * people) <= maxBudget.Value)
                         .Select(t => new
                         {
                             t.Name,
@@ -220,7 +244,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                         })
                         .ToList()
                 })
-                .Where(e => e.TicketTypes.Any())
+                .Where(e => e.TicketTypes.Any()) // Giữ lại sự kiện nếu còn ít nhất 1 loại vé pass qua bộ lọc
                 .ToList();
 
             if (!result.Any())
