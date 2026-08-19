@@ -15,4 +15,6 @@ public interface IOrderService
     Task<PagedOrdersResponseDto> GetUserOrdersAsync(Guid userId, int pageNumber = 1, int pageSize = 10, int? paymentStatus = null);
     Task<PagedOrdersResponseDto> GetAdminOrdersAsync(int pageNumber = 1, int pageSize = 10, string? search = null, int? paymentStatus = null, int? orderStatus = null, Guid? eventId = null);
     Task<OrderResponseDto?> GetOrderDetailAsync(Guid orderId, Guid? userId = null, bool isAdmin = false);
+    Task<VnPayOrderTokenResultDto> BuildVnPayOrderTokenAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy);
+    Task<OrderResponseDto> CreateOrderFromVnPayTokenAsync(string token, string transactionReference);
 }

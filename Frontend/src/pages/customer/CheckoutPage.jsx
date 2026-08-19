@@ -9,9 +9,27 @@ import { CustomerSectionTitle, formatCurrency } from '../../components/customer/
 const CheckoutPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const bookingData = location.state;
+  const [bookingData, setBookingData] = useState(location.state || null);
   const [paymentMethod, setPaymentMethod] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!location.state) {
+      const cached = sessionStorage.getItem('checkoutBookingData');
+      if (cached) {
+        try {
+          setBookingData(JSON.parse(cached));
+        } catch (e) {
+          // dữ liệu cache lỗi, bỏ qua
+        }
+      }
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('vnpayCancelled') === '1') {
+      message.info('Bạn đã hủy thanh toán VNPay. Vui lòng thử lại.');
+    }
+  }, []);
 
   const [form] = Form.useForm();
 
@@ -38,7 +56,7 @@ const CheckoutPage = () => {
     );
   }
 
-  const handlePlaceOrder = async () => {
+    const handlePlaceOrder = async () => {
     try {
       const values = await form.validateFields();
 
@@ -57,6 +75,19 @@ const CheckoutPage = () => {
         buyerCccd: values.cccd || null
       };
 
+      if (paymentMethod === 1) { // VNPay: CHƯA tạo đơn hàng thật, chỉ khởi tạo và lấy link thanh toán
+        const initiateResponse = await axiosClient.post('/orders/vnpay-initiate', orderData);
+        const paymentUrl = initiateResponse?.paymentUrl || initiateResponse?.data?.paymentUrl;
+
+        if (!paymentUrl) {
+          throw new Error('Không tạo được link thanh toán VNPay');
+        }
+        sessionStorage.setItem('checkoutBookingData', JSON.stringify(bookingData));
+        window.location.href = paymentUrl;
+        return;
+      }
+
+      // QR Payment / Thanh toán tại quầy: giữ nguyên luồng cũ (tạo đơn ngay)
       const response = await axiosClient.post('/orders', orderData);
       const result = response.data || response;
 
@@ -71,17 +102,6 @@ const CheckoutPage = () => {
       };
 
       sessionStorage.setItem('lastPaymentContext', JSON.stringify(paymentPayload));
-
-      if (paymentPayload.paymentMethod === 1) { // VNPay
-        const paymentUrlResponse = await axiosClient.post(`/orders/${paymentPayload.orderId}/vnpay-payment-url`);
-        const paymentUrl = paymentUrlResponse?.paymentUrl || paymentUrlResponse?.data?.paymentUrl;
-
-        if (!paymentUrl) {
-          throw new Error('Không tạo được link thanh toán VNPay');
-        }
-        window.location.href = paymentUrl;
-        return;
-      }
 
       navigate('/customer/payment-result', { state: paymentPayload });
     } catch (error) {

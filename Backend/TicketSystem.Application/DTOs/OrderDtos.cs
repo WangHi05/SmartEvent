@@ -133,3 +133,29 @@ public class EventSummaryLineDto
     public int CompletedPayments { get; set; }
     public int PendingPayments { get; set; }
 }
+
+public class VnPayOrderTokenResultDto
+{
+    public string Token { get; set; } = string.Empty;
+    public decimal TotalPrice { get; set; }
+}
+
+// Payload được mã hóa + ký (HMAC) rồi nhét vào vnp_ReturnUrl khi khởi tạo thanh toán VNPay.
+// Đặt tên field ngắn (U, E, I, N, P, C, Cb) để giảm độ dài token trên URL.
+public class VnPayOrderTokenPayload
+{
+    public Guid U { get; set; } // UserId
+    public Guid E { get; set; } // EventId
+    public List<VnPayTokenItem> I { get; set; } = new(); // Items
+    public string? N { get; set; } // BuyerName
+    public string? P { get; set; } // BuyerPhone
+    public string? C { get; set; } // BuyerCccd
+    public string Cb { get; set; } = string.Empty; // CreatedBy
+}
+
+public class VnPayTokenItem
+{
+    public Guid T { get; set; } // TicketTypeId
+    public int Q { get; set; } // Quantity
+    public int M { get; set; } // MemberCount
+}

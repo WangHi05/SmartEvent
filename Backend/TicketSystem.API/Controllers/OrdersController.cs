@@ -296,7 +296,82 @@ namespace TicketSystem.API.Controllers
             }
         }
 
-        /// <summary>
+                /// <summary>
+        /// Khởi tạo thanh toán VNPay — không tạo Order/Ticket, chỉ mã hóa đơn hàng thành token gắn vào ReturnUrl
+        /// </summary>
+        [HttpPost("vnpay-initiate")]
+        public async Task<IActionResult> InitiateVnPayOrder([FromBody] CreateOrderDto request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+                return Unauthorized(new { message = "Phiên đăng nhập không hợp lệ hoặc thiếu Token." });
+
+            if (!Guid.TryParse(userIdClaim.Value, out Guid userId))
+                return BadRequest(new { message = "Định dạng ID người dùng bị lỗi." });
+
+            string createdBy = User.FindFirst(ClaimTypes.Name)?.Value ?? "Customer_Online";
+
+            try
+            {
+                var tokenResult = await _orderService.BuildVnPayOrderTokenAsync(userId, request, createdBy);
+
+                var tmnCode = _configuration["VnPay:TmnCode"];
+                var hashSecret = _configuration["VnPay:HashSecret"];
+                var baseUrl = _configuration["VnPay:BaseUrl"];
+                var returnUrl = _configuration["VnPay:ReturnUrl"];
+                var version = _configuration["VnPay:Version"] ?? "2.1.0";
+                var command = _configuration["VnPay:Command"] ?? "pay";
+                var currCode = _configuration["VnPay:CurrCode"] ?? "VND";
+                var locale = _configuration["VnPay:Locale"] ?? "vn";
+
+                if (string.IsNullOrWhiteSpace(tmnCode) ||
+                    string.IsNullOrWhiteSpace(hashSecret) ||
+                    string.IsNullOrWhiteSpace(baseUrl) ||
+                    string.IsNullOrWhiteSpace(returnUrl))
+                {
+                    return BadRequest(new { message = "VNPay configuration is missing" });
+                }
+
+                var now = VietnamTime.Now;
+                var txnRef = Guid.NewGuid().ToString("N");
+                var amount = ((long)Math.Round(tokenResult.TotalPrice, 0, MidpointRounding.AwayFromZero) * 100L).ToString(CultureInfo.InvariantCulture);
+                var ipAddr = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
+
+                // Nhét token đã ký vào ReturnUrl — VNPay sẽ trả lại nguyên vẹn khi redirect về
+                var dynamicReturnUrl = returnUrl + (returnUrl.Contains('?') ? "&" : "?") + "ot=" + Uri.EscapeDataString(tokenResult.Token);
+
+                var vnpParams = new SortedDictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["vnp_Version"] = version,
+                    ["vnp_Command"] = command,
+                    ["vnp_TmnCode"] = tmnCode,
+                    ["vnp_Amount"] = amount,
+                    ["vnp_CurrCode"] = currCode,
+                    ["vnp_TxnRef"] = txnRef,
+                    ["vnp_OrderInfo"] = $"Thanh toan don hang {txnRef}",
+                    ["vnp_OrderType"] = "other",
+                    ["vnp_Locale"] = locale,
+                    ["vnp_ReturnUrl"] = dynamicReturnUrl,
+                    ["vnp_IpAddr"] = ipAddr,
+                    ["vnp_CreateDate"] = now.ToString("yyyyMMddHHmmss")
+                };
+
+                var queryString = BuildQueryString(vnpParams);
+                var secureHash = ComputeHmacSha512(hashSecret, queryString);
+                var paymentUrl = $"{baseUrl}?{queryString}&vnp_SecureHash={secureHash}";
+
+                return Ok(new { paymentUrl });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+                /// <summary>
         /// VNPay callback endpoint
         /// </summary>
         [AllowAnonymous]
@@ -335,22 +410,30 @@ namespace TicketSystem.API.Controllers
                 }
 
                 var responseCode = Request.Query["vnp_ResponseCode"].ToString();
-                var txnRef = Request.Query["vnp_TxnRef"].ToString();
                 var transactionNo = Request.Query["vnp_TransactionNo"].ToString();
                 var amount = Request.Query["vnp_Amount"].ToString();
-
-                if (!Guid.TryParseExact(txnRef, "N", out var orderId))
-                {
-                    return Redirect($"{frontendResultUrl}?paymentMethod=1&status=failed&message=InvalidOrderRef");
-                }
+                var orderToken = Request.Query["ot"].ToString();
 
                 if (responseCode == "00")
                 {
-                    await _orderService.ConfirmOrderPaymentBySystemAsync(orderId, transactionNo);
-                    return Redirect($"{frontendResultUrl}?paymentMethod=1&status=success&orderId={orderId}&totalPrice={amount}");
+                    if (string.IsNullOrWhiteSpace(orderToken))
+                    {
+                        return Redirect($"{frontendResultUrl}?paymentMethod=1&status=failed&message=MissingOrderToken");
+                    }
+
+                    var createdOrder = await _orderService.CreateOrderFromVnPayTokenAsync(orderToken, transactionNo);
+                    return Redirect($"{frontendResultUrl}?paymentMethod=1&status=success&orderId={createdOrder.Id}&totalPrice={amount}");
                 }
 
-                return Redirect($"{frontendResultUrl}?paymentMethod=1&status=failed&orderId={orderId}&code={responseCode}");
+                // Mã 24 = khách chủ động bấm "Hủy thanh toán" bên VNPay -> quay lại Checkout để thử lại.
+                // Vì không có gì được lưu trước đó (stateless), không cần dọn dẹp gì cả.
+                if (responseCode == "24")
+                {
+                    var frontendBaseUrl = _configuration["Frontend:BaseUrl"]?.TrimEnd('/') ?? "http://localhost:5173";
+                    return Redirect($"{frontendBaseUrl}/customer/checkout?vnpayCancelled=1");
+                }
+
+                return Redirect($"{frontendResultUrl}?paymentMethod=1&status=failed&code={responseCode}");
             }
             catch
             {

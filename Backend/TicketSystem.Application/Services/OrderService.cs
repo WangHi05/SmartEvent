@@ -2,6 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
 using TicketSystem.Domain.Common;
+using System.Text.Json;
+using System.Security.Cryptography;
+using Microsoft.Extensions.Caching.Memory;
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using TicketSystem.Domain.Entities;
 
@@ -13,17 +17,20 @@ public class OrderService : IOrderService
     private readonly ICancelOrderService _cancelOrderService;
     private readonly INotificationService _notificationService;
     private readonly IConfiguration _configuration;
+    private readonly IMemoryCache _cache;
 
     public OrderService(
         IApplicationDbContext context,
         ICancelOrderService cancelOrderService,
         INotificationService notificationService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IMemoryCache cache)
     {
         _context = context;
         _cancelOrderService = cancelOrderService;
         _notificationService = notificationService;
         _configuration = configuration;
+        _cache = cache;
     }
 
     public async Task<CreateOrderResponseDto> CreateOrderAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
@@ -159,6 +166,273 @@ public class OrderService : IOrderService
             PaymentMethodName = ((PaymentMethod)createOrderDto.PaymentMethod).ToString(),
             Message = $"Order created successfully. Total: {totalPrice:C}"
         };
+    }
+
+        public async Task<VnPayOrderTokenResultDto> BuildVnPayOrderTokenAsync(Guid userId, CreateOrderDto createOrderDto, string createdBy)
+    {
+        if (createOrderDto.Items == null || createOrderDto.Items.Count == 0)
+            throw new Exception("Order must contain at least 1 ticket item");
+
+        var user = await _context.Customers.FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) throw new Exception("User not found");
+
+        var eventEntity = await _context.Events.FirstOrDefaultAsync(e => e.Id == createOrderDto.EventId);
+        if (eventEntity == null) throw new Exception("Event not found");
+        if (eventEntity.IsFull()) throw new Exception("Event is at full capacity");
+
+        decimal totalPrice = 0;
+        var tokenItems = new List<VnPayTokenItem>();
+
+        foreach (var itemDto in createOrderDto.Items)
+        {
+            var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == itemDto.TicketTypeId);
+            if (ticketType == null) throw new Exception($"Ticket type {itemDto.TicketTypeId} not found");
+            if (ticketType.EventId != createOrderDto.EventId) throw new Exception("Ticket type does not belong to this event");
+            if (ticketType.RemainingQuantity < itemDto.Quantity)
+                throw new Exception($"Only {ticketType.RemainingQuantity} tickets available for {ticketType.Name}");
+
+            var itemSubtotal = ticketType.Price * itemDto.Quantity;
+            if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
+            {
+                itemSubtotal = ticketType.Price * itemDto.Quantity * itemDto.MemberCount;
+            }
+            totalPrice += itemSubtotal;
+
+            tokenItems.Add(new VnPayTokenItem { T = itemDto.TicketTypeId, Q = itemDto.Quantity, M = itemDto.MemberCount });
+        }
+
+        var payload = new VnPayOrderTokenPayload
+        {
+            U = userId,
+            E = createOrderDto.EventId,
+            I = tokenItems,
+            N = createOrderDto.BuyerName ?? user.FullName,
+            P = createOrderDto.BuyerPhone ?? user.PhoneNumber,
+            C = createOrderDto.BuyerCccd,
+            Cb = createdBy
+        };
+
+        // Không nhét toàn bộ payload vào URL (dễ vượt giới hạn độ dài ReturnUrl của VNPay
+        // khi đơn có nhiều loại vé / tên dài). Chỉ nhét 1 mã ngắn, dữ liệu thật lưu tạm
+        // trong bộ nhớ server (IMemoryCache) — không phải bảng DB, tự hết hạn sau 20 phút.
+        var shortId = Guid.NewGuid().ToString("N");
+        _cache.Set($"vnpay_order_{shortId}", payload, TimeSpan.FromMinutes(20));
+
+        return new VnPayOrderTokenResultDto
+        {
+            Token = shortId,
+            TotalPrice = totalPrice
+        };
+    }
+
+    public async Task<OrderResponseDto> CreateOrderFromVnPayTokenAsync(string token, string transactionReference)
+    {
+        // Chống xử lý trùng: nếu transaction này đã tạo đơn rồi (VNPay gọi lại, khách F5 trang kết quả...)
+        // thì trả về đơn đã có, không tạo vé lần 2.
+        var existingPayment = await _context.Payments
+            .FirstOrDefaultAsync(p => p.TransactionReference == transactionReference && p.PaymentMethod == PaymentMethod.VNPAY);
+
+        if (existingPayment != null)
+        {
+            var existing = await _context.Orders
+                .Include(o => o.Customer).Include(o => o.Event).Include(o => o.TicketType)
+                .Include(o => o.Payments).Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
+                .FirstAsync(o => o.Id == existingPayment.OrderId);
+            return MapOrderToDto(existing);
+        }
+
+        if (!_cache.TryGetValue($"vnpay_order_{token}", out VnPayOrderTokenPayload? payload) || payload == null)
+        {
+            throw new Exception("Order token không hợp lệ hoặc đã hết hạn (quá 20 phút chưa thanh toán)");
+        }
+
+        _cache.Remove($"vnpay_order_{token}"); // dùng 1 lần, tránh tái sử dụng token
+
+        var user = await _context.Customers.FirstOrDefaultAsync(u => u.Id == payload.U);
+        if (user == null) throw new Exception("User not found");
+
+        var eventEntity = await _context.Events.FirstOrDefaultAsync(e => e.Id == payload.E);
+        if (eventEntity == null) throw new Exception("Event not found");
+
+        var orderId = Guid.NewGuid();
+        var orderItems = new List<OrderItem>();
+        decimal totalPrice = 0;
+        int totalQuantity = 0;
+
+        foreach (var itemDto in payload.I)
+        {
+            var ticketType = await _context.TicketTypes.FirstOrDefaultAsync(tt => tt.Id == itemDto.T);
+            if (ticketType == null) continue;
+
+            var itemSubtotal = ticketType.Price * itemDto.Q;
+            if ((int)ticketType.TicketMode == 2 && (int?)ticketType.PriceMode == 1)
+            {
+                itemSubtotal = ticketType.Price * itemDto.Q * itemDto.M;
+            }
+
+            totalPrice += itemSubtotal;
+            totalQuantity += itemDto.Q;
+
+            orderItems.Add(new OrderItem
+            {
+                Id = Guid.NewGuid(),
+                OrderId = orderId,
+                TicketTypeId = ticketType.Id,
+                Quantity = itemDto.Q,
+                MemberCount = itemDto.M,
+                UnitPrice = ticketType.Price,
+                Subtotal = itemSubtotal,
+                CreatedAt = DateTime.UtcNow,
+                CreatedBy = "VNPAY"
+            });
+
+            var currentQrMode = ticketType.QRMode ?? QRMode.SINGLE_QR;
+            int totalTicketsToGenerate = itemDto.Q;
+            int slotsPerTicket = itemDto.M;
+
+            if (currentQrMode == QRMode.SUB_QR && itemDto.M > 1)
+            {
+                totalTicketsToGenerate = itemDto.Q * itemDto.M;
+                slotsPerTicket = 1;
+            }
+
+            for (var i = 0; i < totalTicketsToGenerate; i++)
+            {
+                _context.Tickets.Add(new Ticket
+                {
+                    Id = Guid.NewGuid(),
+                    TicketTypeId = ticketType.Id,
+                    OrderId = orderId,
+                    ValidFrom = eventEntity.StartTime,
+                    ValidTo = eventEntity.EndTime,
+                    SecretKey = TicketSystem.Application.Utils.Base32Generator.Generate(16),
+                    Status = TicketStatus.ACTIVE,
+                    GroupSize = slotsPerTicket,
+                    RemainingSlots = slotsPerTicket,
+                    IsClaimed = false,
+                    ShareToken = null,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "VNPAY"
+                });
+            }
+
+            if (ticketType.RemainingQuantity < itemDto.Q)
+            {
+                _context.AuditLogs.Add(new AuditLog
+                {
+                    Id = Guid.NewGuid(),
+                    Action = "OverbookedAfterVnPaySuccess",
+                    EntityType = "TicketType",
+                    EntityId = ticketType.Id,
+                    PerformedBy = "SYSTEM",
+                    Timestamp = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow,
+                    CreatedBy = "SYSTEM",
+                    Details = $"Order {orderId}: cần {itemDto.Q} nhưng chỉ còn {ticketType.RemainingQuantity}. Khách đã thanh toán thành công, vé vẫn được tạo. Cần admin kiểm tra thủ công."
+                });
+                ticketType.RemainingQuantity = 0;
+            }
+            else
+            {
+                ticketType.RemainingQuantity -= itemDto.Q;
+            }
+            ticketType.UpdatedAt = DateTime.UtcNow;
+            ticketType.UpdatedBy = "VNPAY";
+        }
+
+        var firstItem = orderItems.FirstOrDefault();
+
+        var order = new Order
+        {
+            Id = orderId,
+            CustomerId = payload.U,
+            EventId = payload.E,
+            TicketTypeId = firstItem?.TicketTypeId ?? Guid.Empty,
+            Quantity = totalQuantity,
+            TotalPrice = totalPrice,
+            OrderStatus = OrderStatus.Confirmed,
+            BuyerName = payload.N ?? user.FullName,
+            BuyerPhone = payload.P ?? user.PhoneNumber,
+            BuyerCccd = payload.C,
+            ConfirmedAt = DateTime.UtcNow,
+            ConfirmedBy = "VNPAY",
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = payload.Cb
+        };
+
+        _context.Orders.Add(order);
+        foreach (var item in orderItems) _context.OrderItems.Add(item);
+
+        var payment = new Payment
+        {
+            Id = Guid.NewGuid(),
+            OrderId = order.Id,
+            Amount = totalPrice,
+            PaymentMethod = PaymentMethod.VNPAY,
+            PaymentStatus = PaymentStatus.Completed,
+            TransactionReference = transactionReference,
+            PaidAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            CreatedBy = "VNPAY"
+        };
+        _context.Payments.Add(payment);
+
+        await _context.SaveChangesAsync();
+
+        var fullOrder = await _context.Orders
+            .Include(o => o.Customer).Include(o => o.Event).Include(o => o.TicketType)
+            .Include(o => o.Payments).Include(o => o.OrderItems).ThenInclude(oi => oi.TicketType)
+            .FirstAsync(o => o.Id == order.Id);
+
+        await SendTicketConfirmationNotificationAsync(fullOrder);
+
+        return MapOrderToDto(fullOrder);
+    }
+
+    private string SignOrderToken(VnPayOrderTokenPayload payload)
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(payload);
+        var jsonBytes = Encoding.UTF8.GetBytes(json);
+        var secret = _configuration["JwtSettings:Secret"] ?? _configuration["VnPay:HashSecret"] ?? "fallback-secret";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var sig = hmac.ComputeHash(jsonBytes);
+        return $"{Base64UrlEncode(jsonBytes)}.{Base64UrlEncode(sig)}";
+    }
+
+    private VnPayOrderTokenPayload? VerifyAndParseOrderToken(string token)
+    {
+        var parts = token.Split('.');
+        if (parts.Length != 2) return null;
+
+        byte[] jsonBytes, sigBytes;
+        try
+        {
+            jsonBytes = Base64UrlDecode(parts[0]);
+            sigBytes = Base64UrlDecode(parts[1]);
+        }
+        catch { return null; }
+
+        var secret = _configuration["JwtSettings:Secret"] ?? _configuration["VnPay:HashSecret"] ?? "fallback-secret";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+        var expectedSig = hmac.ComputeHash(jsonBytes);
+
+        if (!CryptographicOperations.FixedTimeEquals(expectedSig, sigBytes)) return null;
+
+        return System.Text.Json.JsonSerializer.Deserialize<VnPayOrderTokenPayload>(jsonBytes);
+    }
+
+    private static string Base64UrlEncode(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+
+    private static byte[] Base64UrlDecode(string s)
+    {
+        s = s.Replace('-', '+').Replace('_', '/');
+        switch (s.Length % 4)
+        {
+            case 2: s += "=="; break;
+            case 3: s += "="; break;
+        }
+        return Convert.FromBase64String(s);
     }
 
     public async Task<OrderResponseDto> ConfirmOrderPaymentAsync(Guid orderId, Guid userId, string transactionReference = "")
