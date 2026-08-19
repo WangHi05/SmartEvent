@@ -1,0 +1,50 @@
+{
+  "GET - Lấy QR Code chưa sử dụng" : {
+    "transaction" : "GET - Lấy QR Code chưa sử dụng",
+    "sampleCount" : 1,
+    "errorCount" : 0,
+    "errorPct" : 0.0,
+    "meanResTime" : 990.0,
+    "medianResTime" : 990.0,
+    "minResTime" : 990.0,
+    "maxResTime" : 990.0,
+    "pct1ResTime" : 990.0,
+    "pct2ResTime" : 990.0,
+    "pct3ResTime" : 990.0,
+    "throughput" : 1.0101010101010102,
+    "receivedKBytesPerSec" : 0.21504103535353536,
+    "sentKBytesPerSec" : 0.5938289141414141
+  },
+  "Total" : {
+    "transaction" : "Total",
+    "sampleCount" : 2,
+    "errorCount" : 0,
+    "errorPct" : 0.0,
+    "meanResTime" : 631.0,
+    "medianResTime" : 631.0,
+    "minResTime" : 272.0,
+    "maxResTime" : 990.0,
+    "pct1ResTime" : 990.0,
+    "pct2ResTime" : 990.0,
+    "pct3ResTime" : 990.0,
+    "throughput" : 0.6410256410256411,
+    "receivedKBytesPerSec" : 0.31957381810897434,
+    "sentKBytesPerSec" : 0.2651116786858974
+  },
+  "POST - Lấy JWT Token (Login)" : {
+    "transaction" : "POST - Lấy JWT Token (Login)",
+    "sampleCount" : 1,
+    "errorCount" : 0,
+    "errorPct" : 0.0,
+    "meanResTime" : 272.0,
+    "medianResTime" : 272.0,
+    "minResTime" : 272.0,
+    "maxResTime" : 272.0,
+    "pct1ResTime" : 272.0,
+    "pct2ResTime" : 272.0,
+    "pct3ResTime" : 272.0,
+    "throughput" : 3.676470588235294,
+    "receivedKBytesPerSec" : 2.883013556985294,
+    "sentKBytesPerSec" : 0.8796243106617646
+  }
+}
