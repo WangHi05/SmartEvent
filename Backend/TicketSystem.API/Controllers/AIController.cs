@@ -17,7 +17,7 @@ namespace TicketSystem.API.Controllers
     [Route("api/[controller]")]
     public class AIController : ControllerBase
     {
-        private const string FriendlyErrorMessage = "Hiện tại trợ lý AI đang gặp sự cố. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ.";
+        private const string FriendlyErrorMessage = "Hiện tại trợ lý AI đang gặp sự cố lỗi. Bạn vui lòng thử lại sau hoặc liên hệ nhân viên hỗ trợ.";
 
         private const string OffTopicAnswer = "Mình là trợ lý hỗ trợ của SmartEvent nên chỉ có thể giúp bạn về sự kiện, vé, thanh toán, tài khoản và các vấn đề liên quan đến hệ thống. Bạn có câu hỏi nào về những nội dung này không?";
 
