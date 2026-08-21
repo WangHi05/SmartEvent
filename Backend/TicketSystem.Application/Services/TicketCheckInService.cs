@@ -76,6 +76,48 @@ namespace TicketSystem.Application.Services
             }
         }
 
+        /// <summary>
+        /// Hangfire job: quét toàn bộ vé DAILY_MULTI đã qua ngày mới (so với LastCheckInDate)
+        /// và tự động mở lại slot + reset trạng thái, KHÔNG phụ thuộc vào có ai quét vé hay không.
+        /// Đây là fix cho bug: FE gọi GET /tickets/my-tickets (luồng đọc) không bao giờ trigger
+        /// ResetSlotsIfNewDayForMultiDayTicket vì hàm đó chỉ chạy trong luồng quét/check-in.
+        /// </summary>
+        public async Task ResetDailyMultiTicketsAsync()
+        {
+            var today = VietnamTime.Today;
+
+            var ticketsToReset = await _context.Tickets
+                .Include(t => t.TicketType)
+                .Where(t => t.TicketType != null
+                    && t.TicketType.AccessType == TicketAccessType.DAILY_MULTI
+                    && t.LastCheckInDate != null
+                    && t.LastCheckInDate.Value < today
+                    && (t.Status == TicketStatus.CHECKED_IN || t.RemainingSlots < t.GroupSize))
+                .ToListAsync();
+
+            if (!ticketsToReset.Any()) return;
+
+            foreach (var ticket in ticketsToReset)
+            {
+                ticket.RemainingSlots = ticket.GroupSize;
+                ticket.Status = TicketStatus.ACTIVE;
+                ticket.IsCheckedIn = false;
+                ticket.LastUsedOtp = null; // tránh chặn nhầm QR mới bởi replay-guard của ngày hôm qua
+            }
+
+            _context.Tickets.UpdateRange(ticketsToReset);
+
+            try
+            {
+                await _context.SaveChangesAsync(default);
+                _logger.LogInformation("ResetDailyMultiTicketsAsync: đã reset {Count} vé DAILY_MULTI sang ngày mới.", ticketsToReset.Count);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                _logger.LogWarning(ex, "ResetDailyMultiTicketsAsync: xung đột concurrency khi reset, sẽ thử lại ở lần chạy job kế tiếp.");
+            }
+        }
+
         public async Task<TicketLookupResponse> LookupTicketAsync(string qrPayload)
         {
             var parts = qrPayload.Split('|');

@@ -171,6 +171,7 @@ builder.Services.AddScoped<ITicketTypeService, TicketTypeService>();
 builder.Services.AddScoped<TicketTypeValidationService>();
 builder.Services.AddScoped<IEventService, EventService>();
 builder.Services.AddScoped<ITicketCheckInService, TicketCheckInService>();
+builder.Services.AddScoped<TicketCheckInService, TicketCheckInService>();
 builder.Services.AddScoped<IOrderService, OrderService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<ICancelOrderService, CancelOrderService>();
@@ -363,6 +364,11 @@ app.UseHangfireDashboard("/hangfire");
 RecurringJob.AddOrUpdate<EventService>(
     "update-expired-events-status", 
     service => service.AutoUpdateCompletedEventsAsync(), 
+    Cron.MinuteInterval(1));
+
+RecurringJob.AddOrUpdate<TicketCheckInService>(
+    "reset-daily-multi-tickets",
+    service => service.ResetDailyMultiTicketsAsync(),
     Cron.MinuteInterval(1));
 
 app.MapControllers();
