@@ -447,36 +447,6 @@ namespace TicketSystem.Application.Services
             return true;
         }
 
-        public async Task<bool> UpdateStatusAsync(Guid eventId, EventStatus newStatus)
-        {
-            var eventEntity = await _eventRepository.GetByIdAsync(eventId);
-            if (eventEntity == null) return false;
-
-            eventEntity.Status = newStatus == EventStatus.Cancelled
-                ? EventStatus.Cancelled
-                : DetermineScheduleStatus(eventEntity, VietnamTime.Now);
-            
-            eventEntity.UpdatedAt = DateTime.UtcNow;
-
-            await _eventRepository.UpdateAsync(eventEntity);
-
-            await LogAuditAsync(new AuditLog
-            {
-                Action = "UpdateStatus",
-                EntityType = "Event",
-                EntityId = eventEntity.Id,
-                PerformedBy = "System", 
-                Details = $"Cập nhật trạng thái sự kiện thành: {TranslateStatus(eventEntity.Status)}"
-            });
-
-            await _context.SaveChangesAsync();
-            await SafeCacheRemoveAsync($"EventById_{eventId}");
-            await InvalidateListCachesAsync();
-            await _realTimeUpdateService.NotifyEventStatusChangedAsync(eventId, (int)eventEntity.Status);
-
-            return true;
-        }
-
         private static void ApplyScheduleStatus(Event eventEntity, DateTime now)
         {
             eventEntity.Status = DetermineScheduleStatus(eventEntity, now);
@@ -484,24 +454,11 @@ namespace TicketSystem.Application.Services
 
         private static EventStatus DetermineScheduleStatus(Event eventEntity, DateTime now)
         {
-            if (eventEntity.Status == EventStatus.Cancelled)
-            {
-                return EventStatus.Cancelled;
-            }
-
             var startTime = VietnamTime.ToVietnamTime(eventEntity.StartTime);
             var endTime = VietnamTime.ToVietnamTime(eventEntity.EndTime);
 
-            if (endTime < now)
-            {
-                return EventStatus.Archived;
-            }
-
-            if (startTime <= now && now <= endTime)
-            {
-                return EventStatus.Ongoing;
-            }
-
+            if (endTime < now) return EventStatus.Archived;
+            if (startTime <= now && now <= endTime) return EventStatus.Ongoing;
             return EventStatus.Active;
         }
 
@@ -743,7 +700,6 @@ namespace TicketSystem.Application.Services
             EventStatus.Active => "Sắp diễn ra",
             EventStatus.Ongoing => "Đang diễn ra",
             EventStatus.Archived => "Đã lưu trữ",
-            EventStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
         };
     }

@@ -53,18 +53,9 @@ namespace TicketSystem.Domain.Entities
         public bool IsFull() => CurrentOccupancy >= MaxCapacity;
 
         [Required]
-        public EventStatus Status { get; set; } = EventStatus.Draft;
+        public EventStatus Status { get; set; } = EventStatus.PendingApproval; // sửa default, khớp đúng thực tế CreateEventAsync luôn set giá trị này
 
-        // Logic kiểm tra xem có được phép chuyển trạng thái không
-        public bool CanTransitionTo(EventStatus nextStatus)
-        {
-            return Status switch
-            {
-                EventStatus.Draft => nextStatus == EventStatus.Active || nextStatus == EventStatus.Cancelled,
-                EventStatus.Active => nextStatus == EventStatus.Ongoing || nextStatus == EventStatus.Cancelled,
-                EventStatus.Ongoing => nextStatus == EventStatus.Completed,
-                _ => false
-            };
-        }
+        // XÓA HẲN hàm CanTransitionTo() — không được gọi ở đâu trong toàn bộ codebase,
+        // và nếu giữ lại sẽ lỗi compile vì tham chiếu Draft/Completed đã xóa.
     }
 }

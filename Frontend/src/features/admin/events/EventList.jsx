@@ -11,31 +11,22 @@ import { formatVietnamDateTime } from '../../../utils/vietnamTime';
 const { RangePicker } = DatePicker;
 
 const EVENT_STATUS = {
-  Draft: 0,
   Active: 1,
   Ongoing: 2,
-  Completed: 3,
-  Cancelled: 4,
   PendingApproval: 5,
   Archived: 6,
 };
 
 const statusColorMap = {
-  [EVENT_STATUS.Draft]: 'default',
   [EVENT_STATUS.Active]: 'blue',
   [EVENT_STATUS.Ongoing]: 'green',
-  [EVENT_STATUS.Completed]: 'default',
-  [EVENT_STATUS.Cancelled]: 'red',
   [EVENT_STATUS.PendingApproval]: 'gold',
   [EVENT_STATUS.Archived]: 'purple',
 };
 
 const statusLabelMap = {
-  [EVENT_STATUS.Draft]: 'Nháp',
   [EVENT_STATUS.Active]: 'Sắp diễn ra',
   [EVENT_STATUS.Ongoing]: 'Đang diễn ra',
-  [EVENT_STATUS.Completed]: 'Đã kết thúc',
-  [EVENT_STATUS.Cancelled]: 'Đã hủy',
   [EVENT_STATUS.PendingApproval]: 'Chờ duyệt',
   [EVENT_STATUS.Archived]: 'Đã lưu trữ',
 };
@@ -297,12 +288,9 @@ const EventList = () => {
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
             options={[
-              { value: EVENT_STATUS.Draft, label: 'Nháp' },
-              { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
-              { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
-              { value: EVENT_STATUS.Completed, label: 'Đã kết thúc' },
-              { value: EVENT_STATUS.Cancelled, label: 'Đã hủy' },
-            ]}
+            { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
+            { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
+          ]}
           />
           <RangePicker
             placeholder={['Từ ngày', 'Đến ngày']}
