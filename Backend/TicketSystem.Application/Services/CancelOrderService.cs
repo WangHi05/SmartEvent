@@ -461,24 +461,6 @@ namespace TicketSystem.Application.Services
                     };
                 }
 
-                if (order.Event.Status == EventStatus.Completed)
-                {
-                    return new CancelValidationDto
-                    {
-                        CanCancel = false,
-                        ReasonCannotCancel = "Event has already completed"
-                    };
-                }
-
-                if (order.Event.Status == EventStatus.Cancelled)
-                {
-                    return new CancelValidationDto
-                    {
-                        CanCancel = false,
-                        ReasonCannotCancel = "Event has been cancelled"
-                    };
-                }
-
                 var hoursBeforeEvent = (VietnamTime.ToVietnamTime(order.Event.StartTime) - VietnamTime.Now).TotalHours;
 
                 if (hoursBeforeEvent < 0)

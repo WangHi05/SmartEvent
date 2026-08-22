@@ -66,7 +66,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
 
             var query = _context.Events
                 .AsNoTracking()
-                .Where(e => e.Status != EventStatus.Archived && e.Status != EventStatus.Cancelled);
+                .Where(e => e.Status != EventStatus.Archived);
 
             if (!string.IsNullOrWhiteSpace(location))
             {
@@ -167,7 +167,7 @@ namespace TicketSystem.Infrastructure.AI.Plugins
 
             var events = await _context.Events
                 .AsNoTracking()
-                .Where(e => e.Status != EventStatus.Archived && e.Status != EventStatus.Cancelled)
+                .Where(e => e.Status != EventStatus.Archived)
                 .Where(e => e.EndTime >= now)
                 .OrderBy(e => e.StartTime)
                 .Take(limit)

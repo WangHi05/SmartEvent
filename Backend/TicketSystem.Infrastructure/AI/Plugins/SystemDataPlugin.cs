@@ -161,10 +161,8 @@ namespace TicketSystem.Infrastructure.AI.Plugins
                 $"exclude={excludeKeyword}");
 
             var query = _context.Events
-                .AsNoTracking()
-                .Where(e =>
-                    e.Status != EventStatus.Archived &&
-                    e.Status != EventStatus.Cancelled);
+            .AsNoTracking()
+            .Where(e => e.Status != EventStatus.Archived);
 
             // Địa điểm
             if (!string.IsNullOrWhiteSpace(location))

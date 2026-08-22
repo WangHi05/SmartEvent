@@ -332,14 +332,8 @@ namespace TicketSystem.Application.Services
 
                 if (ticket == null)
                 {
-                    // giữ nguyên nhánh xử lý ticket == null như cũ
-                }
-
-                ResetSlotsIfNewDayForMultiDayTicket(ticket!);
-
-                if (ticket == null)
-                {
                     var response = CheckInResponse.Fail("Vé không tồn tại.");
+
                     await PersistCheckInOutcomeAsync(new CheckInOutcome
                     {
                         TicketId = ticketId,
@@ -354,9 +348,12 @@ namespace TicketSystem.Application.Services
                         ScanType = ScanType.Entry,
                         Note = "QR check-in"
                     });
+
                     _cache.Set(processedKey, response, DuplicateRequestWindow);
                     return response;
                 }
+
+                ResetSlotsIfNewDayForMultiDayTicket(ticket);
 
                 eventId = ticket.TicketType?.EventId ?? Guid.Empty;
                 eventName = ticket.TicketType?.Event?.Name ?? string.Empty;

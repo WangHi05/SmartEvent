@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 using Moq;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Interfaces;
@@ -21,13 +22,17 @@ namespace TicketSystem.Tests.Services
         private readonly Mock<INotificationService> _notificationServiceMock = new();
         private readonly IConfiguration _configuration = new ConfigurationBuilder().Build();
 
+        private readonly IMemoryCache _cache =
+            new MemoryCache(new MemoryCacheOptions());
+
         private OrderService CreateService(TestApplicationDbContext context)
         {
             return new OrderService(
                 context,
                 _cancelOrderServiceMock.Object,
                 _notificationServiceMock.Object,
-                _configuration);
+                _configuration,
+                _cache);
         }
 
         /// <summary>
