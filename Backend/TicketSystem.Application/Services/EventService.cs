@@ -122,7 +122,7 @@ namespace TicketSystem.Application.Services
         public async Task<PagedResult<EventResponseDto>> SearchEventsAsync(EventSearchRequest request)
         {
             var version = await GetListCacheVersionAsync();
-            string cacheKey = $"SearchEvents_v{version}_p{request.PageNumber}_s{request.PageSize}_k{request.Keyword}_c{request.Category}_st{request.Status}";
+            string cacheKey = $"SearchEvents_v{version}_p{request.PageNumber}_s{request.PageSize}_k{request.Keyword}_c{request.Category}_st{request.Status}_f{request.FromDate?.Ticks}_t{request.ToDate?.Ticks}";
 
             // 2. Cache-Aside: Kiểm tra Redis trước (an toàn, không throw nếu Redis lỗi)
             var cachedData = await SafeCacheGetAsync(cacheKey);

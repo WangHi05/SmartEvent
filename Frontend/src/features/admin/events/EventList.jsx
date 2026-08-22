@@ -288,6 +288,7 @@ const EventList = () => {
             value={statusFilter}
             onChange={(value) => setStatusFilter(value)}
             options={[
+            { value: EVENT_STATUS.PendingApproval, label: 'Chờ duyệt' },
             { value: EVENT_STATUS.Active, label: 'Sắp diễn ra' },
             { value: EVENT_STATUS.Ongoing, label: 'Đang diễn ra' },
           ]}
