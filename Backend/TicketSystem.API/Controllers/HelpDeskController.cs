@@ -4,6 +4,7 @@ using System;
 using System.Threading.Tasks;
 using TicketSystem.Application.DTOs;
 using TicketSystem.Application.Services;
+using TicketSystem.Application.Interfaces;
 
 namespace TicketSystem.API.Controllers
 {
@@ -79,7 +80,7 @@ namespace TicketSystem.API.Controllers
         /// Sự cố 1: Check-in thủ công khi mất mạng/hư máy quét
         /// </summary>
         [HttpPost("tickets/{ticketId}/manual-checkin")]
-        public async Task<IActionResult> ManualCheckIn(Guid ticketId, [FromBody] RevokeAndReissueRequestDto request) // Tái sử dụng DTO vì payload giống nhau (reason, actionBy)
+        public async Task<IActionResult> ManualCheckIn(Guid ticketId, [FromBody] ManualCheckInRequestDto request) // Tái sử dụng DTO vì payload giống nhau (reason, actionBy)
         {
             try
             {
@@ -88,8 +89,8 @@ namespace TicketSystem.API.Controllers
                     return BadRequest(ModelState);
                 }
 
-                var success = await _helpDeskService.ManualCheckInAsync(ticketId, request.Reason, request.ActionBy);
-                
+                var success = await _helpDeskService.ManualCheckInAsync(ticketId, request.PeopleCount, request.Reason, request.ActionBy);
+
                 if (success)
                 {
                     return Ok(new { message = "Check-in thủ công thành công." });

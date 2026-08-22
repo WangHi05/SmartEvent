@@ -11,13 +11,6 @@ using System.Threading.Tasks;
 
 namespace TicketSystem.Application.Services
 {
-    public interface IHelpDeskService
-    {
-        Task<List<HelpDeskTicketResponseDto>> SearchTicketsAsync(string keyword);
-        Task<HelpDeskTicketResponseDto> RevokeAndReissueAsync(Guid oldTicketId, RevokeAndReissueRequestDto request);
-        Task<bool> ManualCheckInAsync(Guid ticketId, string reason, string actionBy);
-    }
-
     public class HelpDeskService : IHelpDeskService
     {
         private readonly IApplicationDbContext _context;
@@ -59,7 +52,8 @@ namespace TicketSystem.Application.Services
                 BuyerCccd = t.Order?.BuyerCccd,
                 EventId = t.Order?.EventId ?? Guid.Empty,
                 EventName = t.Order?.Event?.Name ?? "Không rõ",
-                TicketTypeName = t.TicketType?.Name ?? "Không rõ"
+                TicketTypeName = t.TicketType?.Name ?? "Không rõ",
+                RemainingSlots = t.RemainingSlots
             }).ToList();
         }
 
@@ -131,7 +125,7 @@ namespace TicketSystem.Application.Services
                 };
         }
 
-        public async Task<bool> ManualCheckInAsync(Guid ticketId, string reason, string actionBy)
+        public async Task<bool> ManualCheckInAsync(Guid ticketId, int peopleCount,string reason, string actionBy)
         {
             var ticket = await _context.Tickets
                 .Include(t => t.TicketType)
@@ -163,7 +157,9 @@ namespace TicketSystem.Application.Services
             if (ticket.RemainingSlots <= 0)
                 throw new Exception("Vé đã được sử dụng hết, không thể check-in thêm.");
 
-            const int peopleCount = 1;
+            if (ticket.RemainingSlots < peopleCount)
+                throw new Exception($"Vé chỉ còn {ticket.RemainingSlots} chỗ, không thể check-in {peopleCount} người.");
+
             ticket.RemainingSlots -= peopleCount;
             ticket.LastCheckInDate = DateOnly.FromDateTime(nowVn);
 

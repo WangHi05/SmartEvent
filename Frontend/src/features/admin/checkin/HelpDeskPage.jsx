@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Card, Input, Button, Table, Tag, Space, message, Modal, Form, Tooltip } from 'antd';
+import { Card, Input, InputNumber,Button, Table, Tag, Space, message, Modal, Form, Tooltip } from 'antd';
 import { SearchOutlined, RetweetOutlined, CheckCircleOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import axiosClient from '../../../api/axiosClient';
 import useAuthStore from '../../../store/useAuthStore';
@@ -55,7 +55,8 @@ const HelpDeskPage = () => {
       const payload = {
         reason: values.reason,
         // Sử dụng Username hoặc ID của người đang đăng nhập thực tế để ghi Audit Log
-        actionBy: user?.username || user?.fullName || 'System_Admin'
+        actionBy: user?.username || user?.fullName || 'System_Admin',
+        peopleCount: values.peopleCount || 1
       };
 
       if (actionType === 'revoke') {
@@ -65,7 +66,7 @@ const HelpDeskPage = () => {
       } else {
         // Gọi API Check-in thủ công
         await axiosClient.post(`/helpdesk/tickets/${selectedTicket.ticketId}/manual-checkin`, payload);
-        message.success('Check-in thủ công thành công!');
+        message.success(`Check-in thủ công thành công ${payload.peopleCount} lượt!`);
       }
 
       setIsModalVisible(false);
@@ -224,8 +225,25 @@ const HelpDeskPage = () => {
             </p>
           )}
         </div>
-
+            
         <Form form={form} layout="vertical">
+          {/* Chỉ hiển thị chọn số lượng nếu là thao tác check-in */}
+          {actionType === 'manual-checkin' && (
+            <Form.Item
+              name="peopleCount"
+              label="Số lượng khách Check-in"
+              rules={[{ required: true, message: 'Vui lòng nhập số lượng!' }]}
+              initialValue={1}
+            >
+              <InputNumber 
+                min={1} 
+                max={selectedTicket?.remainingSlots || 1} // Giới hạn bằng số vé còn lại của đoàn
+                style={{ width: '100%' }} 
+                size="large"
+              />
+            </Form.Item>
+          )}
+
           <Form.Item
             name="reason"
             label="Lý do thực hiện (Bắt buộc để ghi Log)"
